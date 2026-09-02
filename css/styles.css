@@ -18,11 +18,15 @@
   --stock-blue-bg:#E7EFF6;
   --sold-teal:#1E7A6C;
   --sold-teal-bg:#E4F1EE;
-  /* All Products grid — month-block colour coding */
-  --stockin-tint:#FBEADF;
+  /* All Products grid — month-block colour coding; the 2026 row is shaded,
+     the 2025 row sits clean/white underneath it */
   --stockin-tint-head:#F3D6C3;
-  --soldby-tint:#E9F2E4;
   --soldby-tint-head:#D5E7CC;
+  --stockin-2026:#F5DFD0;
+  --stockin-2025:#FCF0E8;
+  --soldby-2026:#DEEAD4;
+  --soldby-2025:#EFF6EC;
+  --row-shade:#F2F0EA;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
@@ -318,16 +322,18 @@ table.grid thead tr.field-row th.left{text-align:left;}
 table.grid tbody td{text-align:right;color:var(--ink);}
 table.grid tbody td.left{text-align:left;}
 table.grid tbody td.mono{font-family:'IBM Plex Mono',monospace;}
-table.grid tbody tr.row-primary td{background:var(--panel);}
-table.grid tbody tr.row-secondary td{background:#FBFAF7;color:var(--ink-faint);font-size:11.5px;}
+table.grid tbody tr.row-primary td{background:var(--row-shade);}
+table.grid tbody tr.row-secondary td{background:var(--panel);color:var(--ink-faint);font-size:11.5px;}
 table.grid tbody tr.row-primary td.item-code{font-weight:600;color:var(--rail);}
 /* Stock In by Month (warm) vs Sold by Month (cool) — tint the Jan–Dec header
    labels and every data cell so the two blocks read as distinct without
-   relying on the group heading */
+   relying on the group heading; the 2026 row carries a slightly deeper tint */
 table.grid thead tr.field-row th.grp-stockin{background:var(--stockin-tint-head);}
 table.grid thead tr.field-row th.grp-soldby{background:var(--soldby-tint-head);}
-table.grid tbody tr.row-primary td.grp-stockin, table.grid tbody tr.row-secondary td.grp-stockin{background:var(--stockin-tint);}
-table.grid tbody tr.row-primary td.grp-soldby, table.grid tbody tr.row-secondary td.grp-soldby{background:var(--soldby-tint);}
+table.grid tbody tr.row-primary td.grp-stockin{background:var(--stockin-2026);}
+table.grid tbody tr.row-secondary td.grp-stockin{background:var(--stockin-2025);}
+table.grid tbody tr.row-primary td.grp-soldby{background:var(--soldby-2026);}
+table.grid tbody tr.row-secondary td.grp-soldby{background:var(--soldby-2025);}
 table.grid tbody tr.row-primary:hover td, table.grid tbody tr.row-secondary:hover td{background:var(--brass-soft);}
 table.grid tbody tr{cursor:pointer;}
 table.grid tbody tr.row-primary:hover td.item-code::after{content:' ↗';color:var(--brass);font-weight:700;}
@@ -346,8 +352,8 @@ table.grid thead tr.field-row th.group-start{border-left:2px solid var(--line-st
 table.grid tbody td.group-start{border-left:2px solid var(--line-strong);}
 table.grid thead th.fz-itemcode{ z-index:4; }
 table.grid tbody td.fz-itemcode{ z-index:1; border-right:2px solid var(--line-strong); }
-table.grid tbody tr.row-primary td.fz-itemcode{ background:var(--panel); }
-table.grid tbody tr.row-secondary td.fz-itemcode{ background:#FBFAF7; }
+table.grid tbody tr.row-primary td.fz-itemcode{ background:var(--row-shade); }
+table.grid tbody tr.row-secondary td.fz-itemcode{ background:var(--panel); }
 table.grid tbody tr.row-primary:hover td.fz-itemcode, table.grid tbody tr.row-secondary:hover td.fz-itemcode{ background:var(--brass-soft); }
 
 ::-webkit-scrollbar{width:9px;height:9px;}

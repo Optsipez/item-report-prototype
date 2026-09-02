@@ -364,7 +364,7 @@ function buildGridBody(items, cols){
         if(groupStartIdx.has(ci)) td.classList.add('group-start');
         if(col.type === 'collapsed'){
           td.textContent = '';
-          td.style.background = idx === 0 ? '#FBFAF7' : '#F5F3EE';
+          td.style.background = idx === 0 ? '#F2F0EA' : '#FFFFFF';
         } else if(col.type === 'core'){
           const v = idx === 0 ? cellValueForYearRow(item, col.field, yr) : (col.field === '__Year' ? yr : '');
           td.textContent = (v === undefined || v === null || v === '') ? (idx === 0 ? '—' : '') : v;
