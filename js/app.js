@@ -98,7 +98,7 @@ function buildMatrix(wrapEl, item, key){
     const vals = item.years[y][key];
     const total = vals.reduce((a,b) => a+b, 0);
     html += `<tr><td>${y}</td>`;
-    vals.forEach(v => { html += `<td class="${v === 0 ? 'zero' : ''}">${v}</td>`; });
+    vals.forEach(v => { html += `<td class="${v === 0 ? 'zero' : ''}">${v === 0 ? '—' : v}</td>`; });
     html += `<td><strong>${total}</strong></td></tr>`;
   });
   html += '</tbody></table>';
@@ -377,7 +377,7 @@ function buildGridBody(items, cols){
           const v = isMonthly ? cellValueForYearRow(item, col.field, yr) : (idx === 0 ? item[col.field] : '');
           if(isMonthly){
             const num = v === null || v === undefined ? 0 : v;
-            td.textContent = num;
+            td.textContent = num === 0 ? '—' : num;
             if(num === 0) td.classList.add('zero');
             if(num < 0) td.classList.add('neg');
           } else {
