@@ -23,6 +23,13 @@ function lifestyleLabel(code){
   return LIFESTYLE_LABELS[String(code).trim().toUpperCase()] || code;
 }
 
+/* Current Plan Codes that are internal / not meaningful to a reader — hidden
+   everywhere the plan is shown, and dropped from the filter list. */
+const HIDDEN_PLAN_CODES = new Set(['B']);
+function planLabel(code){
+  return HIDDEN_PLAN_CODES.has(String(code).trim().toUpperCase()) ? '' : code;
+}
+
 /* ============================================================
    VIEW SWITCHING
    ============================================================ */
@@ -167,7 +174,7 @@ function renderReport(item){
   document.getElementById('mCategory').textContent = item['Category'] + ' (' + item['Catg Code'] + ')';
   document.getElementById('mDept').textContent = item['Department Desc'];
   document.getElementById('mGroup').textContent = item['Group Desc'];
-  document.getElementById('mPlan').textContent = item['Current Plan Code'];
+  document.getElementById('mPlan').textContent = planLabel(item['Current Plan Code']) || '—';
 
   document.getElementById('oItemCode').textContent = item['Item Code'];
   document.getElementById('oDesc').textContent = item['Description'];
@@ -181,7 +188,7 @@ function renderReport(item){
   document.getElementById('oOrigin').textContent = item['Country Of Origin'];
   document.getElementById('oCurrency').textContent = item['Currency Code'];
   document.getElementById('oSubGroup').textContent = item['Sub Group Desc'] + ' (' + item['Sub Group Code'] + ')';
-  document.getElementById('oPlan').textContent = item['Current Plan Code'];
+  document.getElementById('oPlan').textContent = planLabel(item['Current Plan Code']) || '—';
 
   buildMatrix(document.getElementById('stockMatrixWrap'), item, 'stock');
   buildMatrix(document.getElementById('soldMatrixWrap'), item, 'sales');
@@ -357,6 +364,7 @@ function cellValueForYearRow(item, field, yearKey){
     const idx = MONTHS.indexOf(field.replace('__sold_',''));
     return item.years[yearKey] ? item.years[yearKey].sales[idx] : null;
   }
+  if(field === 'Current Plan Code') return planLabel(item[field]);
   return item[field];
 }
 
@@ -454,7 +462,7 @@ const FILTER_FIELD_MAP = {
 // out codes that aren't present yet, rather than only listing what's loaded.
 const FULL_VALUE_LISTS = {
   'Category Code': ['A','F','K','O','S','W'],
-  'Current Plan Code': ['A','B','C','D','H','K','M','N','O','R','S','U','W'],
+  'Current Plan Code': ['A','C','D','H','K','M','N','O','R','S','U','W'],
 };
 // Per-filter display names for coded values. The checkbox value stays the raw
 // code (that's what the item data holds); only the visible label changes.
