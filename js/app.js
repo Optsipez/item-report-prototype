@@ -23,11 +23,13 @@ function lifestyleLabel(code){
   return LIFESTYLE_LABELS[String(code).trim().toUpperCase()] || code;
 }
 
-/* Current Plan Codes that are internal / not meaningful to a reader — hidden
-   everywhere the plan is shown, and dropped from the filter list. */
+/* Products on these Current Plan Codes are internal — drop them entirely on
+   load so they never appear anywhere (grid, search, filters, counts). */
 const HIDDEN_PLAN_CODES = new Set(['B']);
-function planLabel(code){
-  return HIDDEN_PLAN_CODES.has(String(code).trim().toUpperCase()) ? '' : code;
+for(let i = ITEMS.length - 1; i >= 0; i--){
+  if(HIDDEN_PLAN_CODES.has(String(ITEMS[i]['Current Plan Code']).trim().toUpperCase())){
+    ITEMS.splice(i, 1);
+  }
 }
 
 /* ============================================================
@@ -174,7 +176,7 @@ function renderReport(item){
   document.getElementById('mCategory').textContent = item['Category'] + ' (' + item['Catg Code'] + ')';
   document.getElementById('mDept').textContent = item['Department Desc'];
   document.getElementById('mGroup').textContent = item['Group Desc'];
-  document.getElementById('mPlan').textContent = planLabel(item['Current Plan Code']) || '—';
+  document.getElementById('mPlan').textContent = item['Current Plan Code'];
 
   document.getElementById('oItemCode').textContent = item['Item Code'];
   document.getElementById('oDesc').textContent = item['Description'];
@@ -188,7 +190,7 @@ function renderReport(item){
   document.getElementById('oOrigin').textContent = item['Country Of Origin'];
   document.getElementById('oCurrency').textContent = item['Currency Code'];
   document.getElementById('oSubGroup').textContent = item['Sub Group Desc'] + ' (' + item['Sub Group Code'] + ')';
-  document.getElementById('oPlan').textContent = planLabel(item['Current Plan Code']) || '—';
+  document.getElementById('oPlan').textContent = item['Current Plan Code'];
 
   buildMatrix(document.getElementById('stockMatrixWrap'), item, 'stock');
   buildMatrix(document.getElementById('soldMatrixWrap'), item, 'sales');
@@ -364,7 +366,6 @@ function cellValueForYearRow(item, field, yearKey){
     const idx = MONTHS.indexOf(field.replace('__sold_',''));
     return item.years[yearKey] ? item.years[yearKey].sales[idx] : null;
   }
-  if(field === 'Current Plan Code') return planLabel(item[field]);
   return item[field];
 }
 
@@ -544,5 +545,5 @@ document.getElementById('clearFiltersBtn').addEventListener('click', () => {
 renderResults();
 selectedItem = ITEMS[0];
 renderResults();
-renderReport(selectedItem);
+if(selectedItem) renderReport(selectedItem);
 renderFilterBlocks();
