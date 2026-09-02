@@ -317,6 +317,7 @@ function buildGridHeader(){
       entry.cols.forEach((c, i) => {
         const fth = document.createElement('th');
         fth.textContent = c.label;
+        fth.classList.add('grp-' + entry.key);
         if(i === 0) fth.classList.add('group-start');
         fieldRow.appendChild(fth);
       });
@@ -371,6 +372,7 @@ function buildGridBody(items, cols){
           if(col.fz) td.classList.add(col.fz);
           if(col.left) td.classList.add('left');
         } else {
+          td.classList.add('grp-' + col.group);
           const isMonthly = col.field.startsWith('__stock_') || col.field.startsWith('__sold_');
           const v = isMonthly ? cellValueForYearRow(item, col.field, yr) : (idx === 0 ? item[col.field] : '');
           if(isMonthly){
