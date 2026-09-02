@@ -7,6 +7,22 @@
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+/* Lifestyle codes expand to their full names on display; anything not in this
+   map is shown as-is, so new codes still render without a code change. */
+const LIFESTYLE_LABELS = {
+  TRANS: 'Transitional',
+  MIMOD: 'Minimalist Modern',
+  CNMOD: 'Contemporary Modern',
+  CLASC: 'Classic',
+  MODRN: 'Modern (Gnrl)',
+  COMMN: 'Common',
+  OFICE: 'Office',
+};
+function lifestyleLabel(code){
+  if(code === undefined || code === null || code === '') return code;
+  return LIFESTYLE_LABELS[String(code).trim().toUpperCase()] || code;
+}
+
 /* ============================================================
    VIEW SWITCHING
    ============================================================ */
@@ -157,7 +173,7 @@ function renderReport(item){
   document.getElementById('oDesc').textContent = item['Description'];
   document.getElementById('oRange').textContent = item['Range Name'];
   document.getElementById('oColor').textContent = item['Item Color Name'];
-  document.getElementById('oLifestyle').textContent = item['Lifestyle'];
+  document.getElementById('oLifestyle').textContent = lifestyleLabel(item['Lifestyle']);
   document.getElementById('oPuda').textContent = item['PUDA Desc'] + ' (' + item['PUDA Code'] + ')';
 
   document.getElementById('oVendorCode').textContent = item['Vendor Code'];
@@ -227,7 +243,7 @@ const COLUMN_LAYOUT = [
   { type:'core', field:'Description', label:'Description', left:true },
   { type:'group', key:'attrs', title:'Attributes', short:'Attrs', cols:[
       { field:'Item Color Name', label:'Color' },
-      { field:'Lifestyle', label:'Lifestyle' },
+      { field:'Lifestyle', label:'Lifestyle', fmt:'lifestyle' },
       { field:'Vendor Name', label:'Vendor Name' },
       { field:'Country Of Origin', label:'Origin' },
       { field:'Currency Code', label:'Currency' } ] },
@@ -254,6 +270,7 @@ function fmtCell(v, fmt){
   if(fmt === 'money0') return fmtMoney(v, 0);
   if(fmt === 'pct') return fmtPct(v);
   if(fmt === 'x2') return Number(v).toFixed(2) + 'x';
+  if(fmt === 'lifestyle') return lifestyleLabel(v);
   return v;
 }
 
