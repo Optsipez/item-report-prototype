@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Item Report — Inventory Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="dot"></span>Inventory Intelligence</div>
+  <div class="viewswitch">
+    <button id="navLookup" class="active">Item Lookup</button>
+    <button id="navAll">All Products</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="env">Prototype — sample data from Navision_Report_Format.xlsx</div>
+</div>
+
+<div class="layout">
+
+  <!-- LEFT RAIL -->
+  <div class="rail">
+
+    <!-- Item Lookup filters -->
+    <div id="railLookup" class="rail-panel active">
+      <h2>Item Lookup</h2>
+      <div class="lookup-box">
+        <input id="searchInput" type="text" placeholder="Item code or description…" autocomplete="off">
+        <button id="generateBtn">Generate</button>
+      </div>
+      <div id="resultList" class="result-list"></div>
+      <div class="legend">
+        <h2>Glossary</h2>
+        <dl>
+          <dt>L-Cost</dt><dd>Landed cost per unit (AED)</dd>
+          <dt>WAS</dt><dd>Previous retail price (AED)</dd>
+          <dt>NOW</dt><dd>Current retail price (AED)</dd>
+          <dt>DISCT%</dt><dd>Discount vs. WAS price</dd>
+          <dt>MRG</dt><dd>Margin factor (NOW ÷ L-Cost)</dd>
+          <dt>SOH</dt><dd>Stock on hand</dd>
+          <dt>PO-QTY</dt><dd>Open purchase order qty</dd>
+          <dt>FOB</dt><dd>Free-on-board unit cost</dd>
+          <dt>LRCV</dt><dd>Last received date / qty</dd>
+          <dt>PUDA</dt><dd>Product usage / display area</dd>
+        </dl>
+      </div>
+    </div>
+
+    <!-- All Products filters -->
+    <div id="railAll" class="rail-panel">
+      <div class="filters-head">
+        <h2 style="margin:0;">Filters</h2>
+        <button class="clear-filters" id="clearFiltersBtn">Clear all</button>
+      </div>
+      <div id="filterBlocks"></div>
+    </div>
+
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- ===== VIEW: Item Lookup ===== -->
+    <div id="viewLookup" class="view active">
+
+      <div id="emptyState" class="empty-state">
+        <h3>No item selected</h3>
+        <p>Search by item code or description on the left, then choose Generate to pull the full report — pricing, classification, stock, and monthly sales history.</p>
+      </div>
+
+      <div id="report" class="report">
+
+        <div class="item-header">
+          <span class="code mono" id="hCode"></span>
+          <span class="desc" id="hDesc"></span>
+          <span class="tag" id="hVendor"></span>
+          <span class="tag" id="hOrigin"></span>
+          <span class="spacer"></span>
+          <span class="swatch"><span class="swatch-dot" id="hSwatchDot"></span><span id="hColor"></span></span>
+        </div>
+
+        <div class="metrics-band">
+          <div class="metric-group">
+            <h4>Pricing (AED)</h4>
+            <div class="metric-row"><span class="k">L-Cost</span><span class="v" id="mLCost"></span></div>
+            <div class="metric-row"><span class="k">Was</span><span class="v" id="mWas"></span></div>
+            <div class="metric-row"><span class="k">Now</span><span class="v" id="mNow"></span></div>
+            <div class="metric-row"><span class="k">Disct%</span><span class="v" id="mDisct"></span></div>
+            <div class="metric-row"><span class="k">Mrg Factor</span><span class="v highlight" id="mMrg"></span></div>
+          </div>
+          <div class="metric-group">
+            <h4>Stock &amp; Orders</h4>
+            <div class="metric-row"><span class="k">SOH</span><span class="v stock" id="mSoh"></span></div>
+            <div class="metric-row"><span class="k">PO Qty</span><span class="v" id="mPoQty"></span></div>
+            <div class="metric-row"><span class="k">Lrcv Qty</span><span class="v" id="mLrcvQty"></span></div>
+            <div class="metric-row"><span class="k">Lrcv Date</span><span class="v" id="mLrcvDate"></span></div>
+            <div class="metric-row"><span class="k">Last Sold</span><span class="v" id="mLastSold"></span></div>
+          </div>
+          <div class="metric-group">
+            <h4>FOB Cost (USD)</h4>
+            <div class="metric-row"><span class="k">First FOB</span><span class="v" id="mFirstFob"></span></div>
+            <div class="metric-row"><span class="k">Previous</span><span class="v" id="mPrevFob"></span></div>
+            <div class="metric-row"><span class="k">Latest</span><span class="v" id="mLatestFob"></span></div>
+            <div class="metric-row"><span class="k">Currency</span><span class="v" id="mCurrency"></span></div>
+          </div>
+          <div class="metric-group">
+            <h4>Classification</h4>
+            <div class="metric-row"><span class="k">Category</span><span class="v" id="mCategory"></span></div>
+            <div class="metric-row"><span class="k">Department</span><span class="v" id="mDept"></span></div>
+            <div class="metric-row"><span class="k">Group</span><span class="v" id="mGroup"></span></div>
+            <div class="metric-row"><span class="k">Plan Code</span><span class="v" id="mPlan"></span></div>
+          </div>
+        </div>
+
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="overview">Overview</button>
+          <button class="tab-btn" data-tab="stockin">Stock In by Month</button>
+          <button class="tab-btn" data-tab="sold">Sold by Month</button>
+          <button class="tab-btn" data-tab="branch">Branch Wise</button>
+        </div>
+
+        <div class="tab-panel active" id="panel-overview">
+          <div class="overview-grid">
+            <div class="info-card">
+              <h5>Product</h5>
+              <dl>
+                <dt>Item Code</dt><dd class="mono" id="oItemCode"></dd>
+                <dt>Description</dt><dd id="oDesc"></dd>
+                <dt>Range Name</dt><dd id="oRange"></dd>
+                <dt>Color</dt><dd id="oColor"></dd>
+                <dt>Lifestyle</dt><dd id="oLifestyle"></dd>
+                <dt>PUDA</dt><dd id="oPuda"></dd>
+              </dl>
+            </div>
+            <div class="info-card">
+              <h5>Vendor &amp; Sourcing</h5>
+              <dl>
+                <dt>Vendor Code</dt><dd class="mono" id="oVendorCode"></dd>
+                <dt>Vendor Name</dt><dd id="oVendorName"></dd>
+                <dt>Country of Origin</dt><dd id="oOrigin"></dd>
+                <dt>Currency</dt><dd id="oCurrency"></dd>
+                <dt>Sub Group</dt><dd id="oSubGroup"></dd>
+                <dt>Current Plan</dt><dd id="oPlan"></dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="panel-stockin">
+          <p class="matrix-title">Units received into stock, by month</p>
+          <div id="stockMatrixWrap" class="matrix-wrap"></div>
+        </div>
+
+        <div class="tab-panel" id="panel-sold">
+          <p class="matrix-title">Units sold, by month</p>
+          <div id="soldMatrixWrap" class="matrix-wrap"></div>
+        </div>
+
+        <div class="tab-panel" id="panel-branch">
+          <p class="matrix-title">Stock on hand by branch/warehouse</p>
+          <div id="branchMatrixWrap" class="matrix-wrap"></div>
+          <p class="foot-note">Your source file doesn't include branch-level <em>sales</em> — the only branch-level breakdown in the workbook is stock on hand, by warehouse code (from the "Stk Data" tab). I've used that here as a stand-in so the tab isn't empty. Branch codes are shown as-is from NAV (DCSHJ, MARIN, JUMRA, etc.) — tell me the actual branch/showroom names and I'll relabel them.</p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ===== VIEW: All Products ===== -->
+    <div id="viewAll" class="view">
+      <div class="grid-toolbar">
+        <div>
+          <h1>All Products</h1>
+          <div class="sub">Item Code stays pinned as you scroll right. Rows open in Item Lookup on click — try it →</div>
+        </div>
+        <div class="toolbar-right">
+          <div class="grid-actions">
+            <button id="collapseAllBtn">Collapse all sections</button>
+            <button id="expandAllBtn">Expand all sections</button>
+          </div>
+          <div class="rowcount" id="gridRowCount"></div>
+        </div>
+      </div>
+      <div class="grid-scroll">
+        <table class="grid" id="gridTable"></table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
