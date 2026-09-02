@@ -456,6 +456,22 @@ const FULL_VALUE_LISTS = {
   'Category Code': ['A','F','K','O','S','W'],
   'Current Plan Code': ['A','B','C','D','H','K','M','N','O','R','S','U','W'],
 };
+// Per-filter display names for coded values. The checkbox value stays the raw
+// code (that's what the item data holds); only the visible label changes.
+const FILTER_VALUE_LABELS = {
+  'Category Code': {
+    A: 'Accessory',
+    F: 'Furniture',
+    K: 'Kids',
+    O: 'Office Furniture',
+    S: 'Services',
+    W: 'Wall Paper',
+  },
+};
+function filterValueLabel(label, val){
+  const map = FILTER_VALUE_LABELS[label];
+  return (map && map[val]) || val;
+}
 const activeFilters = {};
 Object.keys(FILTER_FIELD_MAP).forEach(k => activeFilters[k] = new Set());
 
@@ -484,7 +500,7 @@ function renderFilterBlocks(){
       const isPresent = present.has(val);
       const row = document.createElement('label');
       row.className = 'filter-opt' + (isPresent ? '' : ' disabled');
-      row.innerHTML = `<input type="checkbox" data-filter="${label}" value="${val}"${isPresent ? '' : ' disabled'}><span class="lbl">${val}</span>`;
+      row.innerHTML = `<input type="checkbox" data-filter="${label}" value="${val}"${isPresent ? '' : ' disabled'}><span class="lbl">${filterValueLabel(label, val)}</span>`;
       if(!isPresent) row.title = 'No items with this code in the current data';
       const cb = row.querySelector('input');
       cb.addEventListener('change', () => {
