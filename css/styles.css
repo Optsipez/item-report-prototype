@@ -295,13 +295,12 @@ table.matrix td.neg{color:var(--down);}
 .foot-note{margin-top:16px;font-size:11.5px;color:var(--ink-faint);border-top:1px dashed var(--line-strong);padding-top:10px;}
 
 /* ===== All Products grid ===== */
-.grid-toolbar{
-  display:flex;align-items:flex-end;justify-content:space-between;
-  margin-bottom:12px;flex-wrap:wrap;gap:10px;
-}
+.grid-toolbar{margin-bottom:12px;}
 .grid-toolbar h1{font-size:17px;margin:0;font-weight:600;}
 .grid-toolbar .sub{font-size:12.5px;color:var(--ink-soft);margin-top:3px;}
-.grid-toolbar .toolbar-right{display:flex;align-items:center;gap:14px;}
+/* Controls sit directly under the caption, left-aligned, so they stay put no
+   matter how wide the grid scrolls. */
+.grid-toolbar .toolbar-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;margin-top:10px;}
 .grid-toolbar .rowcount{font-size:12.5px;color:var(--ink-faint);}
 .grid-actions{display:flex;gap:6px;}
 .grid-actions button{
