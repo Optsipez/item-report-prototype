@@ -601,10 +601,18 @@ function itemsMatchingFiltersExcept(exceptLabel){
 }
 function updateFilterAvailability(){
   Object.entries(FILTER_FIELD_MAP).forEach(([label, field]) => {
+    // Only *hide* options once some OTHER filter is narrowing things down.
+    // With nothing else selected we keep the old look: full list, with codes
+    // that simply aren't in the loaded data greyed out.
+    const drivenByOthers = Object.keys(activeFilters).some(k => k !== label && activeFilters[k].size > 0);
     const available = new Set(itemsMatchingFiltersExcept(label).map(i => String(i[field])));
     document.querySelectorAll('.filter-opt input[data-filter="' + label + '"]').forEach(cb => {
+      const row = cb.closest('.filter-opt');
       const ok = available.has(cb.value) || cb.checked;
-      cb.closest('.filter-opt').classList.toggle('unavail', !ok);
+      row.classList.toggle('unavail', !ok && drivenByOthers);
+      row.classList.toggle('disabled', !ok && !drivenByOthers);
+      cb.disabled = !ok && !drivenByOthers;
+      row.title = (!ok && !drivenByOthers) ? 'No items with this code in the current data' : '';
     });
   });
 }
