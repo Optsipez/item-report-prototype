@@ -13,8 +13,8 @@
 <div class="topbar">
   <div class="brand"><span class="dot"></span>Inventory Intelligence</div>
   <div class="viewswitch">
-    <button id="navLookup" class="active">Item Lookup</button>
-    <button id="navAll">All Products</button>
+    <button id="navAll" class="active">All Products</button>
+    <button id="navLookup">Item Lookup</button>
   </div>
   <div class="spacer"></div>
   <div class="env">Prototype — sample data from Navision_Report_Format.xlsx</div>
@@ -26,7 +26,7 @@
   <div class="rail">
 
     <!-- Item Lookup filters -->
-    <div id="railLookup" class="rail-panel active">
+    <div id="railLookup" class="rail-panel">
       <h2>Item Lookup</h2>
       <div class="lookup-box">
         <input id="searchInput" type="text" placeholder="Item code or description…" autocomplete="off">
@@ -51,7 +51,7 @@
     </div>
 
     <!-- All Products filters -->
-    <div id="railAll" class="rail-panel">
+    <div id="railAll" class="rail-panel active">
       <div class="filters-head">
         <h2 style="margin:0;">Filters</h2>
         <button class="clear-filters" id="clearFiltersBtn">Clear all</button>
@@ -65,7 +65,7 @@
   <div class="main">
 
     <!-- ===== VIEW: Item Lookup ===== -->
-    <div id="viewLookup" class="view active">
+    <div id="viewLookup" class="view">
 
       <div id="emptyState" class="empty-state">
         <h3>No item selected</h3>
@@ -170,7 +170,7 @@
     </div>
 
     <!-- ===== VIEW: All Products ===== -->
-    <div id="viewAll" class="view">
+    <div id="viewAll" class="view active">
       <div class="grid-toolbar">
         <div>
           <h1>All Products</h1>

@@ -547,3 +547,6 @@ selectedItem = ITEMS[0];
 renderResults();
 if(selectedItem) renderReport(selectedItem);
 renderFilterBlocks();
+
+/* Land on All Products */
+setView('all');
