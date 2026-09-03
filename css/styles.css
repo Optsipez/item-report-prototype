@@ -83,15 +83,13 @@ button{font-family:inherit;}
 /* ===== Layout ===== */
 .layout{
   display:grid;
-  /* minmax(0,1fr) so a wide grid can't blow the main column past the viewport
-     (keeps the toolbar on screen and the horizontal scroll inside the table). */
-  grid-template-columns:296px minmax(0,1fr);
+  grid-template-columns:296px 1fr;
   min-height:calc(100vh - 52px);
   transition:grid-template-columns .22s ease;
 }
 /* Collapsed filter rail — the grid track shrinks to 0 and the main area slides
    left to fill it. */
-.layout.filters-collapsed{grid-template-columns:0 minmax(0,1fr);}
+.layout.filters-collapsed{grid-template-columns:0 1fr;}
 .layout.filters-collapsed .rail{
   padding-left:0;padding-right:0;border-right:none;overflow:hidden;
 }
