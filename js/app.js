@@ -550,6 +550,7 @@ function renderFilterBlocks(){
         if(cb.checked) activeFilters[label].add(val); else activeFilters[label].delete(val);
         row.classList.toggle('checked', cb.checked);
         updateFilterCounts();
+        updateFilterAvailability();
         renderGrid();
       });
       optsWrap.appendChild(row);
@@ -575,6 +576,7 @@ function renderFilterBlocks(){
     wrap.appendChild(block);
   });
   updateFilterCounts();
+  updateFilterAvailability();
 }
 function updateFilterCounts(){
   document.querySelectorAll('[data-count-for]').forEach(el => {
@@ -583,10 +585,39 @@ function updateFilterCounts(){
     el.textContent = n > 0 ? n + ' selected' : '';
   });
 }
+
+// Faceted filtering: an option stays enabled only if choosing it would still
+// return rows given every OTHER filter's current selection. A filter ignores
+// its own selection so you can keep multi-selecting within it. Already-checked
+// options never get disabled.
+function itemsMatchingFiltersExcept(exceptLabel){
+  return ITEMS.filter(item => {
+    for(const key of Object.keys(activeFilters)){
+      if(key === exceptLabel) continue;
+      const sel = activeFilters[key];
+      if(sel.size === 0) continue;
+      if(!sel.has(String(item[FILTER_FIELD_MAP[key]]))) return false;
+    }
+    return true;
+  });
+}
+function updateFilterAvailability(){
+  Object.entries(FILTER_FIELD_MAP).forEach(([label, field]) => {
+    const available = new Set(itemsMatchingFiltersExcept(label).map(i => String(i[field])));
+    document.querySelectorAll('.filter-opt input[data-filter="' + label + '"]').forEach(cb => {
+      const ok = available.has(cb.value) || cb.checked;
+      cb.disabled = !ok;
+      const row = cb.closest('.filter-opt');
+      row.classList.toggle('disabled', !ok);
+      row.title = ok ? '' : 'No items match this with the current filters';
+    });
+  });
+}
 document.getElementById('clearFiltersBtn').addEventListener('click', () => {
   Object.keys(activeFilters).forEach(k => activeFilters[k].clear());
   document.querySelectorAll('.filter-opt input').forEach(cb => { cb.checked = false; cb.closest('.filter-opt').classList.remove('checked'); });
   updateFilterCounts();
+  updateFilterAvailability();
   renderGrid();
 });
 
