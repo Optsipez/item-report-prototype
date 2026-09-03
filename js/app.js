@@ -346,6 +346,14 @@ function buildGridHeader(){
     }
   });
 
+  // Where one group's divider (2px) meets the previous cell's own 1px border we
+  // get a fuzzy pale seam — drop the preceding cell's right border so the
+  // divider reads as one clean line.
+  const fieldThs = Array.from(fieldRow.children);
+  fieldThs.forEach((th, i) => {
+    if(i > 0 && th.classList.contains('group-start')) fieldThs[i - 1].classList.add('group-end');
+  });
+
   const thead = document.createElement('thead');
   thead.appendChild(groupRow);
   thead.appendChild(fieldRow);
@@ -373,6 +381,10 @@ function buildGridBody(items, cols){
   cols.forEach((col, i) => {
     if(col.type === 'field' && (i === 0 || cols[i-1].group !== col.group)) groupStartIdx.add(i);
   });
+  // The cell just before a divider drops its own right border so the 2px
+  // divider is a single crisp line, not a doubled-up pale seam.
+  const groupEndIdx = new Set();
+  groupStartIdx.forEach(i => { if(i > 0) groupEndIdx.add(i - 1); });
 
   items.forEach(item => {
     const years = Object.keys(item.years).sort((a,b) => b-a);
@@ -384,6 +396,7 @@ function buildGridBody(items, cols){
       cols.forEach((col, ci) => {
         const td = document.createElement('td');
         if(groupStartIdx.has(ci)) td.classList.add('group-start');
+        if(groupEndIdx.has(ci)) td.classList.add('group-end');
         if(col.type === 'collapsed'){
           td.textContent = '';
           td.style.background = idx === 0 ? '#F2F0EA' : '#FFFFFF';

@@ -360,8 +360,12 @@ table.grid tfoot td{
 .fz-itemcode{position:sticky;left:0;width:100px;max-width:100px;overflow:hidden;text-overflow:ellipsis;}
 /* Divider at the start of each expanded group, so adjacent groups with
    identical-looking columns (e.g. two Jan–Dec blocks) don't blur together */
-table.grid thead tr.field-row th.group-start{border-left:2px solid var(--line-strong);}
-table.grid tbody td.group-start{border-left:2px solid var(--line-strong);}
+/* Section divider between column groups: one crisp line, slightly darker than
+   the internal gridlines. group-end drops the preceding cell's own right border
+   so the two never stack into a fuzzy pale gap. */
+table.grid thead tr.field-row th.group-start{border-left:1px solid var(--line-strong);}
+table.grid tbody td.group-start{border-left:1px solid var(--line-strong);}
+table.grid thead tr.field-row th.group-end, table.grid tbody td.group-end{border-right:0;}
 table.grid thead th.fz-itemcode{ z-index:4; }
 table.grid tbody td.fz-itemcode{ z-index:1; border-right:2px solid var(--line-strong); }
 table.grid tbody tr.row-primary td.fz-itemcode{ background:var(--row-shade); }
