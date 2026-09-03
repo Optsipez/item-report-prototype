@@ -504,7 +504,7 @@ const FILTER_VALUE_LABELS = {
   },
 };
 // Filters that get a text box to search within their (often long) option list.
-const FILTER_SEARCHABLE = new Set(['Vendor Code', 'PUDA Desc']);
+const FILTER_SEARCHABLE = new Set(['Vendor Code', 'PUDA Desc', 'Range Name']);
 function filterValueLabel(label, val){
   // PUDA Desc comes in as "A.Tabletop / Charger Plate" — show only the part
   // after the slash (the product name).
