@@ -473,7 +473,15 @@ const FILTER_VALUE_LABELS = {
     W: 'Wall Paper',
   },
 };
+// Filters that get a text box to search within their (often long) option list.
+const FILTER_SEARCHABLE = new Set(['Vendor Code', 'PUDA Desc']);
 function filterValueLabel(label, val){
+  // PUDA Desc comes in as "A.Tabletop / Charger Plate" — show only the part
+  // after the slash (the product name).
+  if(label === 'PUDA Desc'){
+    const i = String(val).indexOf('/');
+    if(i !== -1) return String(val).slice(i + 1).trim();
+  }
   const map = FILTER_VALUE_LABELS[label];
   return (map && map[val]) || val;
 }
@@ -516,6 +524,23 @@ function renderFilterBlocks(){
       });
       optsWrap.appendChild(row);
     });
+
+    if(FILTER_SEARCHABLE.has(label)){
+      const search = document.createElement('input');
+      search.type = 'text';
+      search.className = 'filter-search';
+      search.placeholder = 'Search ' + label + '…';
+      search.addEventListener('input', () => {
+        const q = search.value.trim().toLowerCase();
+        optsWrap.querySelectorAll('.filter-opt').forEach(row => {
+          const cb = row.querySelector('input');
+          const hay = (row.textContent + ' ' + (cb ? cb.value : '')).toLowerCase();
+          row.classList.toggle('nomatch', q !== '' && !hay.includes(q));
+        });
+      });
+      block.appendChild(search);
+    }
+
     block.appendChild(optsWrap);
     wrap.appendChild(block);
   });
