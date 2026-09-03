@@ -152,6 +152,7 @@ function renderReport(item){
 
   document.getElementById('hCode').textContent = item['Item Code'];
   document.getElementById('hDesc').textContent = item['Description'];
+  document.getElementById('hPlan').textContent = 'Plan ' + item['Current Plan Code'];
   document.getElementById('hVendor').textContent = item['Vendor Name'];
   document.getElementById('hOrigin').textContent = 'Made in: ' + item['Country Of Origin'];
   document.getElementById('hColor').textContent = item['Item Color Name'];
