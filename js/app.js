@@ -262,8 +262,8 @@ const COLUMN_LAYOUT = [
       { field:'Last Sold Date', label:'Last Sold Date' },
       { field:'Last Sold Qty', label:'Last Sold Qty' } ] },
   { type:'core', field:'__Year', label:'Year' },
-  { type:'group', key:'stockin', title:'Stock In by Month', short:'Stock In', cols: MONTHS.map(m => ({ field:'__stock_'+m, label:m })) },
   { type:'group', key:'soldby', title:'Sold by Month', short:'Sold', cols: MONTHS.map(m => ({ field:'__sold_'+m, label:m })) },
+  { type:'group', key:'stockin', title:'Stock In by Month', short:'Stock In', cols: MONTHS.map(m => ({ field:'__stock_'+m, label:m })) },
 ];
 
 const ALL_GROUP_KEYS = COLUMN_LAYOUT.filter(e => e.type === 'group').map(e => e.key);
