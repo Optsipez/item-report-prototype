@@ -179,9 +179,6 @@ function renderReport(item){
   document.getElementById('mGroup').textContent = item['Group Desc'];
   document.getElementById('mPlan').textContent = item['Current Plan Code'];
 
-  document.getElementById('oItemCode').textContent = item['Item Code'];
-  document.getElementById('oDesc').textContent = item['Description'];
-  document.getElementById('oRange').textContent = item['Range Name'];
   document.getElementById('oColor').textContent = item['Item Color Name'];
   document.getElementById('oLifestyle').textContent = lifestyleLabel(item['Lifestyle']);
   document.getElementById('oPuda').textContent = item['PUDA Desc'] + ' (' + item['PUDA Code'] + ')';
@@ -189,9 +186,6 @@ function renderReport(item){
   document.getElementById('oVendorCode').textContent = item['Vendor Code'];
   document.getElementById('oVendorName').textContent = item['Vendor Name'];
   document.getElementById('oOrigin').textContent = item['Country Of Origin'];
-  document.getElementById('oCurrency').textContent = item['Currency Code'];
-  document.getElementById('oSubGroup').textContent = item['Sub Group Desc'] + ' (' + item['Sub Group Code'] + ')';
-  document.getElementById('oPlan').textContent = item['Current Plan Code'];
 
   buildMatrix(document.getElementById('stockMatrixWrap'), item, 'stock');
   buildMatrix(document.getElementById('soldMatrixWrap'), item, 'sales');
