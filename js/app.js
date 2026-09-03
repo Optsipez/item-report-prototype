@@ -401,6 +401,7 @@ function buildGridBody(items, cols){
         if(groupEndIdx.has(ci)) td.classList.add('group-end');
         if(col.type === 'collapsed'){
           td.textContent = '';
+          td.classList.add('collapsed-cell');
           td.style.background = idx === 0 ? '#F2F0EA' : '#FFFFFF';
         } else if(col.type === 'core'){
           const v = idx === 0 ? cellValueForYearRow(item, col.field, yr) : (col.field === '__Year' ? yr : '');
