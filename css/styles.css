@@ -329,7 +329,7 @@ table.grid thead tr.group-row th.collapsed{
   writing-mode:vertical-rl;text-orientation:mixed;text-align:left;padding:6px 5px;
 }
 table.grid thead tr.group-row th .chev{font-family:monospace;margin-right:4px;}
-table.grid thead tr.field-row th{top:29px;text-align:right;font-size:11px;}
+table.grid thead tr.field-row th{top:29px;text-align:right;font-size:11px;color:var(--ink);font-weight:700;}
 table.grid thead tr.field-row th.left{text-align:left;}
 table.grid tbody td{text-align:right;color:var(--ink);}
 table.grid tbody td.left{text-align:left;}
