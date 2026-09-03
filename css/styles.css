@@ -325,11 +325,17 @@ table.grid thead tr.group-row th{
 table.grid thead tr.group-row th:hover{background:var(--rail-soft);}
 table.grid thead tr.group-row th.core{background:#3A4358;cursor:default;}
 table.grid thead tr.group-row th.core:hover{background:#3A4358;}
+/* Stack multi-word headers word-per-line so short-data columns (Vendor Code,
+   PO Qty, Last Sold Qty, …) shrink to their longest word instead of the whole
+   phrase. Break only at spaces, never inside a word or at a hyphen. */
+table.grid thead tr.group-row th.core{
+  white-space:normal;width:1%;text-align:center;line-height:1.18;word-break:keep-all;
+}
 table.grid thead tr.group-row th.collapsed{
   writing-mode:vertical-rl;text-orientation:mixed;text-align:left;padding:6px 5px;
 }
 table.grid thead tr.group-row th .chev{font-family:monospace;margin-right:4px;}
-table.grid thead tr.field-row th{top:29px;text-align:right;font-size:11px;color:var(--ink);font-weight:700;}
+table.grid thead tr.field-row th{top:29px;text-align:right;font-size:11px;color:var(--ink);font-weight:700;white-space:normal;width:1%;line-height:1.18;word-break:keep-all;}
 table.grid thead tr.field-row th.left{text-align:left;}
 table.grid tbody td{text-align:right;color:var(--ink);}
 table.grid tbody td.left{text-align:left;}
