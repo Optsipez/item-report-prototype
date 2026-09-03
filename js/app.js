@@ -94,7 +94,7 @@ function renderResults(){
     const row = document.createElement('div');
     row.className = 'result-row' + (selectedItem === item ? ' selected' : '');
     row.innerHTML = `<span class="code">${item['Item Code']}</span><span class="desc">${item['Description']}</span>`;
-    row.addEventListener('click', () => { selectedItem = item; renderResults(); });
+    row.addEventListener('click', () => { openItem(item); });
     resultList.appendChild(row);
   });
 }
@@ -108,10 +108,11 @@ searchInput.addEventListener('input', () => {
   renderResults();
 });
 generateBtn.addEventListener('click', () => {
-  if(!selectedItem){
-    if(filtered.length > 0){ selectedItem = filtered[0]; renderResults(); } else { return; }
-  }
-  openItem(selectedItem);
+  /* Prefer an explicitly picked row, but only if it still matches the current
+     search; otherwise just take the top result. */
+  const pick = (selectedItem && filtered.includes(selectedItem)) ? selectedItem : filtered[0];
+  if(!pick) return;
+  openItem(pick);
 });
 
 function buildMatrix(wrapEl, item, key){
