@@ -259,8 +259,10 @@ const COLUMN_LAYOUT = [
   { type:'group', key:'logi', title:'Receipts &amp; Sales', short:'Rcv/Sold', cols:[
       { field:'Lrcv Date', label:'Lrcv Date' },
       { field:'Lrcv Qty', label:'Lrcv Qty' },
-      { field:'Last Sold Date', label:'Last Sold Date' },
-      { field:'Last Sold Qty', label:'Last Sold Qty' } ] },
+      { field:'Last Sold Date', label:'Last Sold Date' } ] },
+  // Kept out of the collapsible group so it stays visible when Receipts & Sales
+  // is collapsed.
+  { type:'core', field:'Last Sold Qty', label:'Last Sold Qty' },
   { type:'core', field:'__Year', label:'Year' },
   { type:'group', key:'soldby', title:'Sold by Month', short:'Sold', cols: MONTHS.map(m => ({ field:'__sold_'+m, label:m })) },
   { type:'group', key:'stockin', title:'Stock In by Month', short:'Stock In', cols: MONTHS.map(m => ({ field:'__stock_'+m, label:m })) },
