@@ -258,7 +258,7 @@ button{font-family:inherit;}
 
 .overview-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
 .info-card h5{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);margin:0 0 10px;font-weight:600;}
-.info-card dl{margin:0;display:grid;grid-template-columns:150px 1fr;row-gap:7px;}
+.info-card dl{margin:0;display:grid;grid-template-columns:150px 1fr;row-gap:4px;}
 .info-card dt{font-size:12.5px;color:var(--ink-soft);}
 .info-card dd{margin:0;font-size:12.5px;font-weight:500;}
 .info-card dd.mono{font-family:'IBM Plex Mono',monospace;}
