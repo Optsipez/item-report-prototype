@@ -447,16 +447,30 @@ function renderGrid(){
   table.appendChild(thead);
   table.appendChild(buildGridBody(items, cols));
   document.getElementById('gridRowCount').textContent = items.length + ' of ' + ITEMS.length + ' items';
-  // The second header row's sticky offset must equal the first row's actual
-  // rendered height (which varies with how tall the rotated collapsed labels
-  // are) — measure it after layout instead of guessing a fixed number.
-  const groupRow = thead.querySelector('tr.group-row');
-  const fieldRow = thead.querySelector('tr.field-row');
-  if(groupRow && fieldRow){
-    const h = groupRow.getBoundingClientRect().height;
-    fieldRow.querySelectorAll('th').forEach(th => { th.style.top = h + 'px'; });
+  syncStickyHeader();
+  // On the very first render web fonts may still be loading; the rotated
+  // collapsed-group labels change height once they swap in, which throws the
+  // measurement below off until the next re-render. Re-measure after paint and
+  // once fonts settle so the two header rows always sit flush.
+  requestAnimationFrame(syncStickyHeader);
+  if(document.fonts && document.fonts.ready){
+    document.fonts.ready.then(() => requestAnimationFrame(syncStickyHeader));
   }
 }
+
+// The second header row's sticky offset must equal the first row's actual
+// rendered height (it varies with how tall the rotated collapsed labels are) —
+// measure it after layout instead of guessing a fixed number.
+function syncStickyHeader(){
+  const thead = document.querySelector('#gridTable thead');
+  if(!thead) return;
+  const groupRow = thead.querySelector('tr.group-row');
+  const fieldRow = thead.querySelector('tr.field-row');
+  if(!groupRow || !fieldRow) return;
+  const h = groupRow.getBoundingClientRect().height;
+  fieldRow.querySelectorAll('th').forEach(th => { th.style.top = h + 'px'; });
+}
+window.addEventListener('resize', syncStickyHeader);
 
 /* ---- Filters ---- */
 const FILTER_FIELD_MAP = {
