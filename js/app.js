@@ -42,6 +42,22 @@ const railAll = document.getElementById('railAll');
 const viewLookup = document.getElementById('viewLookup');
 const viewAll = document.getElementById('viewAll');
 
+const layoutEl = document.querySelector('.layout');
+const toggleFiltersBtn = document.getElementById('toggleFiltersBtn');
+let filtersCollapsed = false;
+
+function applyFilterRailState(isLookup){
+  // The search rail must always be reachable in Item Lookup; the collapse only
+  // applies to the All Products filter rail.
+  const collapsed = !isLookup && filtersCollapsed;
+  layoutEl.classList.toggle('filters-collapsed', collapsed);
+  toggleFiltersBtn.textContent = filtersCollapsed ? 'Show filters' : 'Hide filters';
+}
+toggleFiltersBtn.addEventListener('click', () => {
+  filtersCollapsed = !filtersCollapsed;
+  applyFilterRailState(false);
+});
+
 function setView(view){
   const isLookup = view === 'lookup';
   navLookup.classList.toggle('active', isLookup);
@@ -50,6 +66,7 @@ function setView(view){
   railAll.classList.toggle('active', !isLookup);
   viewLookup.classList.toggle('active', isLookup);
   viewAll.classList.toggle('active', !isLookup);
+  applyFilterRailState(isLookup);
   if(!isLookup) renderGrid();
 }
 navLookup.addEventListener('click', () => setView('lookup'));
