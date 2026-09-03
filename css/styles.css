@@ -220,6 +220,7 @@ button{font-family:inherit;}
   color:var(--brass);border-color:var(--brass);font-weight:600;
   font-family:'IBM Plex Mono',monospace;letter-spacing:.03em;
 }
+.item-header #hVendor{margin-left:28px;}
 .item-header .spacer{flex:1;}
 .item-header .swatch{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-soft);}
 .swatch-dot{width:12px;height:12px;border-radius:50%;border:1px solid var(--line-strong);}
