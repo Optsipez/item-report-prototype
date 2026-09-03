@@ -540,11 +540,9 @@ function renderFilterBlocks(){
     const values = master ? master : Array.from(present).sort();
 
     values.forEach(val => {
-      const isPresent = present.has(val);
       const row = document.createElement('label');
-      row.className = 'filter-opt' + (isPresent ? '' : ' disabled');
-      row.innerHTML = `<input type="checkbox" data-filter="${label}" value="${val}"${isPresent ? '' : ' disabled'}><span class="lbl">${filterValueLabel(label, val)}</span>`;
-      if(!isPresent) row.title = 'No items with this code in the current data';
+      row.className = 'filter-opt';
+      row.innerHTML = `<input type="checkbox" data-filter="${label}" value="${val}"><span class="lbl">${filterValueLabel(label, val)}</span>`;
       const cb = row.querySelector('input');
       cb.addEventListener('change', () => {
         if(cb.checked) activeFilters[label].add(val); else activeFilters[label].delete(val);
@@ -606,10 +604,7 @@ function updateFilterAvailability(){
     const available = new Set(itemsMatchingFiltersExcept(label).map(i => String(i[field])));
     document.querySelectorAll('.filter-opt input[data-filter="' + label + '"]').forEach(cb => {
       const ok = available.has(cb.value) || cb.checked;
-      cb.disabled = !ok;
-      const row = cb.closest('.filter-opt');
-      row.classList.toggle('disabled', !ok);
-      row.title = ok ? '' : 'No items match this with the current filters';
+      cb.closest('.filter-opt').classList.toggle('unavail', !ok);
     });
   });
 }

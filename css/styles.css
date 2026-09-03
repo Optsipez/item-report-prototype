@@ -179,7 +179,7 @@ button{font-family:inherit;}
   border-bottom:1px solid var(--line);
 }
 .filter-opt:last-child{border-bottom:none;}
-.filter-opt.nomatch{display:none;}
+.filter-opt.nomatch,.filter-opt.unavail{display:none;}
 .filter-search{
   width:100%;box-sizing:border-box;margin-bottom:6px;
   padding:5px 8px;font-size:11.5px;font-family:inherit;color:var(--ink);
