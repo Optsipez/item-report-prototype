@@ -436,6 +436,7 @@ function buildGridHeader(){
       gth.title = 'Click to expand: ' + entry.title;
       gth.dataset.col = 'grp:' + entry.key;
       gth.addEventListener('click', () => toggleGroup(entry.key));
+      addColResizer(gth);
       groupRow.appendChild(gth);
     } else {
       const gth = document.createElement('th');

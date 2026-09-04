@@ -397,6 +397,9 @@ table.grid:not(.resizable) .fz-itemcode{max-width:100px;}
    first drag the grid sizes itself; then it switches to a fixed layout and
    every column width is honoured. */
 .col-resizer{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;z-index:7;}
+/* Narrower grip on the slim collapsed-group strips so there's still room to
+   click the body of the tab to expand it. */
+table.grid thead tr.group-row th.collapsed .col-resizer{width:5px;}
 .col-resizer:hover, .col-resizer.dragging{box-shadow:inset -2px 0 0 var(--brass);}
 body.col-resizing{cursor:col-resize;user-select:none;}
 table.grid.resizable{table-layout:fixed;}
