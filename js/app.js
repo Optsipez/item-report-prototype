@@ -339,6 +339,77 @@ document.getElementById('expandAllBtn').addEventListener('click', () => {
   renderGrid();
 });
 
+/* ---- Manual column resizing ---- */
+const colWidths = {};          // data-col key -> pixel width (set once resizing starts)
+let colResizeActive = false;   // becomes true on the first drag; grid then uses fixed layout
+
+function colKey(entry){
+  return entry.type === 'collapsed' ? 'grp:' + entry.key : entry.field;
+}
+function addColResizer(th){
+  const grip = document.createElement('span');
+  grip.className = 'col-resizer';
+  grip.addEventListener('mousedown', e => beginColResize(e, th, grip));
+  grip.addEventListener('click', e => e.stopPropagation());
+  th.appendChild(grip);
+}
+// <colgroup> drives the widths — in a fixed table layout only first-row cells (or
+// <col>s) size columns, and our leaf headers live in the second header row.
+function buildColGroup(cols){
+  const cg = document.createElement('colgroup');
+  cols.forEach(c => {
+    const col = document.createElement('col');
+    col.dataset.col = colKey(c);
+    cg.appendChild(col);
+  });
+  return cg;
+}
+function applyColWidths(table){
+  let total = 0;
+  table.querySelectorAll('colgroup col').forEach(col => {
+    const w = colWidths[col.dataset.col];
+    if(w){ col.style.width = w + 'px'; total += w; }
+  });
+  if(total) table.style.width = total + 'px';
+}
+// Current on-screen width of a header cell, plus a couple of px of slack so
+// switching to a fixed layout doesn't instantly ellipsis-clip everything.
+function naturalColWidth(th){
+  return Math.ceil(th.getBoundingClientRect().width) + 3;
+}
+function beginColResize(e, th, grip){
+  e.preventDefault();
+  e.stopPropagation();
+  const table = document.getElementById('gridTable');
+  if(!colResizeActive){
+    // lock in every column's current width, then move to a fixed layout
+    table.querySelectorAll('thead th[data-col]').forEach(h => {
+      colWidths[h.dataset.col] = naturalColWidth(h);
+    });
+    colResizeActive = true;
+    table.classList.add('resizable');
+    applyColWidths(table);
+  }
+  const key = th.dataset.col;
+  const startX = e.clientX;
+  const startW = colWidths[key] || Math.round(th.getBoundingClientRect().width);
+  grip.classList.add('dragging');
+  document.body.classList.add('col-resizing');
+  function move(ev){
+    colWidths[key] = Math.max(40, startW + (ev.clientX - startX));
+    applyColWidths(table);
+  }
+  function done(){
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('mouseup', done);
+    grip.classList.remove('dragging');
+    document.body.classList.remove('col-resizing');
+    syncStickyHeader();
+  }
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup', done);
+}
+
 function buildGridHeader(){
   const groupRow = document.createElement('tr');
   groupRow.className = 'group-row';
@@ -351,6 +422,8 @@ function buildGridHeader(){
       gth.className = 'core' + (entry.fz ? ' ' + entry.fz : '');
       gth.rowSpan = 2;
       gth.textContent = entry.label;
+      gth.dataset.col = entry.field;
+      addColResizer(gth);
       groupRow.appendChild(gth);
       return;
     }
@@ -361,6 +434,7 @@ function buildGridHeader(){
       gth.rowSpan = 2;
       gth.innerHTML = `<span class="chev">+</span>${entry.title}`;
       gth.title = 'Click to expand: ' + entry.title;
+      gth.dataset.col = 'grp:' + entry.key;
       gth.addEventListener('click', () => toggleGroup(entry.key));
       groupRow.appendChild(gth);
     } else {
@@ -375,6 +449,8 @@ function buildGridHeader(){
         fth.textContent = c.label;
         fth.classList.add('grp-' + entry.key);
         if(i === 0) fth.classList.add('group-start');
+        fth.dataset.col = c.field;
+        addColResizer(fth);
         fieldRow.appendChild(fth);
       });
     }
@@ -478,10 +554,22 @@ function renderGrid(){
   const cols = visibleColumns();
   const table = document.getElementById('gridTable');
   table.innerHTML = '';
+  table.style.width = '';
+  table.classList.remove('resizable');
   const thead = buildGridHeader();
+  table.appendChild(buildColGroup(cols));
   table.appendChild(thead);
   table.appendChild(buildGridBody(items, cols));
   document.getElementById('gridRowCount').textContent = items.length + ' of ' + ITEMS.length + ' items';
+  if(colResizeActive){
+    // capture the natural width of any column shown for the first time (grid is
+    // still auto-laid-out here), then lock it to fixed widths.
+    table.querySelectorAll('thead th[data-col]').forEach(th => {
+      if(colWidths[th.dataset.col] == null) colWidths[th.dataset.col] = naturalColWidth(th);
+    });
+    table.classList.add('resizable');
+    applyColWidths(table);
+  }
   syncStickyHeader();
   // On the very first render web fonts may still be loading; the rotated
   // collapsed-group labels change height once they swap in, which throws the

@@ -390,7 +390,18 @@ table.grid tfoot td{
 }
 
 /* Frozen left column — Item Code only */
-.fz-itemcode{position:sticky;left:0;width:100px;max-width:100px;overflow:hidden;text-overflow:ellipsis;}
+.fz-itemcode{position:sticky;left:0;width:100px;overflow:hidden;text-overflow:ellipsis;}
+table.grid:not(.resizable) .fz-itemcode{max-width:100px;}
+
+/* Manual column resizing — drag the right edge of any header cell. Until the
+   first drag the grid sizes itself; then it switches to a fixed layout and
+   every column width is honoured. */
+.col-resizer{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;z-index:7;}
+.col-resizer:hover, .col-resizer.dragging{box-shadow:inset -2px 0 0 var(--brass);}
+body.col-resizing{cursor:col-resize;user-select:none;}
+table.grid.resizable{table-layout:fixed;}
+table.grid.resizable th, table.grid.resizable td{overflow:hidden;}
+table.grid.resizable td, table.grid.resizable thead tr.field-row th{text-overflow:ellipsis;}
 /* Divider at the start of each expanded group, so adjacent groups with
    identical-looking columns (e.g. two Jan–Dec blocks) don't blur together */
 /* Section divider between column groups: one crisp line, slightly darker than
