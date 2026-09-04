@@ -82,6 +82,7 @@ button{font-family:inherit;}
 
 /* ===== Layout ===== */
 .layout{
+  position:relative;
   display:grid;
   grid-template-columns:296px 1fr;
   min-height:calc(100vh - 52px);
@@ -91,8 +92,25 @@ button{font-family:inherit;}
    left to fill it. */
 .layout.filters-collapsed{grid-template-columns:0 1fr;}
 .layout.filters-collapsed .rail{
+  min-width:0;width:0;
   padding-left:0;padding-right:0;border-right:none;overflow:hidden;
 }
+
+/* Collapse handle — a small tab on the rail's outer edge. Chevron points left
+   (‹) to hide, right (›) to bring the filters back. Only shown in All Products. */
+.rail-toggle{
+  position:absolute;top:104px;left:296px;
+  width:20px;height:44px;margin-left:-1px;
+  display:none;align-items:center;justify-content:center;
+  padding:0;background:var(--panel);
+  border:1px solid var(--line-strong);border-left:none;
+  border-radius:0 7px 7px 0;
+  color:var(--ink-soft);font-size:13px;line-height:1;cursor:pointer;
+  transition:left .22s ease,background .12s ease,border-color .12s ease,color .12s ease;
+}
+.rail-toggle:hover{background:var(--brass-soft);border-color:var(--brass);color:var(--rail);}
+.layout.view-all .rail-toggle{display:flex;}
+.layout.filters-collapsed .rail-toggle{left:0;}
 
 /* ===== Left rail ===== */
 .rail{

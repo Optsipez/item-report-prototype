@@ -63,7 +63,10 @@ function applyFilterRailState(isLookup){
   // applies to the All Products filter rail.
   const collapsed = !isLookup && filtersCollapsed;
   layoutEl.classList.toggle('filters-collapsed', collapsed);
-  toggleFiltersBtn.textContent = filtersCollapsed ? 'Show filters' : 'Hide filters';
+  layoutEl.classList.toggle('view-all', !isLookup);
+  toggleFiltersBtn.textContent = filtersCollapsed ? '›' : '‹'; // › / ‹
+  toggleFiltersBtn.setAttribute('aria-label', filtersCollapsed ? 'Show filters' : 'Hide filters');
+  toggleFiltersBtn.title = filtersCollapsed ? 'Show filters' : 'Hide filters';
 }
 toggleFiltersBtn.addEventListener('click', () => {
   filtersCollapsed = !filtersCollapsed;
