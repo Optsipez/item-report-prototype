@@ -26,7 +26,7 @@ function lifestyleLabel(code){
 /* Products matching any of these are internal / out of scope — drop them
    entirely on load so they never appear anywhere (grid, search, filters,
    counts). Matched on the raw Navision export values. */
-const HIDDEN_PLAN_CODES = new Set(['B']);
+const HIDDEN_PLAN_CODES = new Set(['B', 'O', 'W', 'S']);
 const HIDDEN_CATG_CODES = new Set(['O', 'S', 'W']);          // Office Furniture, Services, Wall Paper & Window Décor
 const HIDDEN_CATEGORIES = new Set([
   'office furniture',
@@ -520,7 +520,7 @@ const FULL_VALUE_LISTS = {
   // O / S / W items are dropped on load (see HIDDEN_CATG_CODES), so they're not
   // offered here either.
   'Category Code': ['A','F','K'],
-  'Current Plan Code': ['A','C','D','H','K','M','N','O','R','S','U','W'],
+  'Current Plan Code': ['A','C','D','H','K','M','N','R','U'],
 };
 // Per-filter display names for coded values. The checkbox value stays the raw
 // code (that's what the item data holds); only the visible label changes.
