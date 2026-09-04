@@ -377,19 +377,53 @@ function applyColWidths(table){
 function naturalColWidth(th){
   return Math.ceil(th.getBoundingClientRect().width) + 3;
 }
+// Freeze current widths and switch the grid to a fixed layout (first drag only).
+function ensureColResizeMode(table){
+  if(colResizeActive) return;
+  table.querySelectorAll('thead th[data-col]').forEach(h => {
+    colWidths[h.dataset.col] = naturalColWidth(h);
+  });
+  colResizeActive = true;
+  table.classList.add('resizable');
+  applyColWidths(table);
+}
+
+function endColDrag(grip, move, done){
+  document.removeEventListener('mousemove', move);
+  document.removeEventListener('mouseup', done);
+  grip.classList.remove('dragging');
+  document.body.classList.remove('col-resizing');
+  syncStickyHeader();
+}
+
+// Drag the edge of an expanded group's header to resize the whole block — every
+// column in the group scales together.
+function beginGroupResize(e, grip, leafKeys){
+  e.preventDefault();
+  e.stopPropagation();
+  const table = document.getElementById('gridTable');
+  ensureColResizeMode(table);
+  const starts = leafKeys.map(k => colWidths[k] || 60);
+  const startTotal = starts.reduce((a, b) => a + b, 0);
+  const startX = e.clientX;
+  grip.classList.add('dragging');
+  document.body.classList.add('col-resizing');
+  function move(ev){
+    const target = Math.max(leafKeys.length * 40, startTotal + (ev.clientX - startX));
+    const scale = target / startTotal;
+    leafKeys.forEach((k, i) => { colWidths[k] = Math.max(40, Math.round(starts[i] * scale)); });
+    applyColWidths(table);
+  }
+  function done(){ endColDrag(grip, move, done); }
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup', done);
+}
+
 function beginColResize(e, th, grip){
   e.preventDefault();
   e.stopPropagation();
   const table = document.getElementById('gridTable');
-  if(!colResizeActive){
-    // lock in every column's current width, then move to a fixed layout
-    table.querySelectorAll('thead th[data-col]').forEach(h => {
-      colWidths[h.dataset.col] = naturalColWidth(h);
-    });
-    colResizeActive = true;
-    table.classList.add('resizable');
-    applyColWidths(table);
-  }
+  ensureColResizeMode(table);
   const key = th.dataset.col;
   const startX = e.clientX;
   const startW = colWidths[key] || Math.round(th.getBoundingClientRect().width);
@@ -399,15 +433,17 @@ function beginColResize(e, th, grip){
     colWidths[key] = Math.max(40, startW + (ev.clientX - startX));
     applyColWidths(table);
   }
-  function done(){
-    document.removeEventListener('mousemove', move);
-    document.removeEventListener('mouseup', done);
-    grip.classList.remove('dragging');
-    document.body.classList.remove('col-resizing');
-    syncStickyHeader();
-  }
+  function done(){ endColDrag(grip, move, done); }
   document.addEventListener('mousemove', move);
   document.addEventListener('mouseup', done);
+}
+
+function addGroupResizer(gth, leafKeys){
+  const grip = document.createElement('span');
+  grip.className = 'col-resizer';
+  grip.addEventListener('mousedown', e => beginGroupResize(e, grip, leafKeys));
+  grip.addEventListener('click', e => e.stopPropagation());
+  gth.appendChild(grip);
 }
 
 function buildGridHeader(){
@@ -436,7 +472,6 @@ function buildGridHeader(){
       gth.title = 'Click to expand: ' + entry.title;
       gth.dataset.col = 'grp:' + entry.key;
       gth.addEventListener('click', () => toggleGroup(entry.key));
-      addColResizer(gth);
       groupRow.appendChild(gth);
     } else {
       const gth = document.createElement('th');
@@ -444,6 +479,7 @@ function buildGridHeader(){
       gth.innerHTML = `<span class="chev">−</span>${entry.title}`;
       gth.title = 'Click to collapse this section';
       gth.addEventListener('click', () => toggleGroup(entry.key));
+      addGroupResizer(gth, entry.cols.map(c => c.field));
       groupRow.appendChild(gth);
       entry.cols.forEach((c, i) => {
         const fth = document.createElement('th');
