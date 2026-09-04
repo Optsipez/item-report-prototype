@@ -23,13 +23,25 @@ function lifestyleLabel(code){
   return LIFESTYLE_LABELS[String(code).trim().toUpperCase()] || code;
 }
 
-/* Products on these Current Plan Codes are internal — drop them entirely on
-   load so they never appear anywhere (grid, search, filters, counts). */
+/* Products matching any of these are internal / out of scope — drop them
+   entirely on load so they never appear anywhere (grid, search, filters,
+   counts). Matched on the raw Navision export values. */
 const HIDDEN_PLAN_CODES = new Set(['B']);
+const HIDDEN_CATG_CODES = new Set(['O', 'S', 'W']);          // Office Furniture, Services, Wall Paper & Window Décor
+const HIDDEN_CATEGORIES = new Set([
+  'office furniture',
+  'services',
+  'wall paper & window décor',
+  'wall paper & window decor',
+]);
+function isHiddenItem(it){
+  const norm = v => String(v == null ? '' : v).trim().toLowerCase();
+  return HIDDEN_PLAN_CODES.has(String(it['Current Plan Code']).trim().toUpperCase())
+    || HIDDEN_CATG_CODES.has(String(it['Catg Code']).trim().toUpperCase())
+    || HIDDEN_CATEGORIES.has(norm(it['Category']));
+}
 for(let i = ITEMS.length - 1; i >= 0; i--){
-  if(HIDDEN_PLAN_CODES.has(String(ITEMS[i]['Current Plan Code']).trim().toUpperCase())){
-    ITEMS.splice(i, 1);
-  }
+  if(isHiddenItem(ITEMS[i])) ITEMS.splice(i, 1);
 }
 
 /* ============================================================
@@ -505,7 +517,9 @@ const FILTER_FIELD_MAP = {
 // happens to be in the current sample data — show the full list and grey
 // out codes that aren't present yet, rather than only listing what's loaded.
 const FULL_VALUE_LISTS = {
-  'Category Code': ['A','F','K','O','S','W'],
+  // O / S / W items are dropped on load (see HIDDEN_CATG_CODES), so they're not
+  // offered here either.
+  'Category Code': ['A','F','K'],
   'Current Plan Code': ['A','C','D','H','K','M','N','O','R','S','U','W'],
 };
 // Per-filter display names for coded values. The checkbox value stays the raw
@@ -515,9 +529,6 @@ const FILTER_VALUE_LABELS = {
     A: 'Accessory',
     F: 'Furniture',
     K: 'Kids',
-    O: 'Office Furniture',
-    S: 'Services',
-    W: 'Wall Paper',
   },
 };
 // Filters that get a text box to search within their (often long) option list.
