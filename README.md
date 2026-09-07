@@ -90,6 +90,7 @@ These live near the top of `js/app.js` and are easy to extend:
 | **Category Code filter shows names** — A = Accessory, F = Furniture, K = Kids; the stored value stays the letter | `FILTER_VALUE_LABELS` |
 | **A monthly value of `0` renders as `—`** in the Stock In / Sold cells; non-zero values (including negatives) are unchanged | `buildGridBody` / `buildMatrix` |
 | **AVG (`U-FNL AVG`)** — a rolling 13-month sales window (newest first) ending at the latest month with any sale; AVG is the largest of eight trailing non-zero averages (see the comment in the code). Ported verbatim from the workbook formula | `avgFnl`, `detectAvgAnchor` |
+| **AVG for plan code `N`** (new items, no sales history) is instead `round(PO-Qty × rate)` where rate tapers by order size: `<100 → 0.30`, `<300 → 0.27`, `<700 → 0.25`, else `0.22` | `itemAvg`, `poQtyAvgRate` |
 
 ---
 

@@ -108,7 +108,26 @@ function detectAvgAnchor(){
   return { year: years[0] || new Date().getFullYear(), month: 11 };
 }
 const AVG_ANCHOR = detectAvgAnchor();
-ITEMS.forEach(it => { it['AVG'] = avgFnl(it, AVG_ANCHOR); });
+
+/* Plan-code-"N" items have no useful sales history (they're new), so their AVG
+   is estimated from the incoming PO Qty instead — a percentage that tapers as
+   the order gets bigger. Workbook rule:
+     IF(plan = "N", ROUND(PO-Qty * rate(PO-Qty)))
+   rate: <100 -> 0.30, <300 -> 0.27, <700 -> 0.25, otherwise 0.22 */
+function poQtyAvgRate(qty){
+  if(qty < 100) return 0.30;
+  if(qty < 300) return 0.27;
+  if(qty < 700) return 0.25;
+  return 0.22;
+}
+function itemAvg(item){
+  if(String(item['Current Plan Code']).trim().toUpperCase() === 'N'){
+    const qty = Number(item['PO-Qty']) || 0;
+    return excelRound(qty * poQtyAvgRate(qty));
+  }
+  return avgFnl(item, AVG_ANCHOR);
+}
+ITEMS.forEach(it => { it['AVG'] = itemAvg(it); });
 
 /* ============================================================
    VIEW SWITCHING
