@@ -382,9 +382,11 @@ table.grid tbody tr.row-secondary td.grp-soldby{background:var(--soldby-2025);}
 table.grid tbody tr.row-primary:hover td, table.grid tbody tr.row-secondary:hover td{background:var(--brass-soft);}
 table.grid tbody tr{cursor:pointer;}
 /* "open in Item Lookup" hint on row hover — absolutely positioned so it never
-   nudges the row's layout (that was causing a 1px vertical shake) */
+   nudges the row's layout (that was causing a 1px vertical shake). The cell
+   carries extra right padding so the code text always clears the arrow. */
+table.grid tbody td.item-code{padding-right:26px;}
 table.grid tbody tr.row-primary td.item-code::after{
-  content:'↗';position:absolute;top:50%;right:6px;transform:translateY(-50%);
+  content:'↗';position:absolute;top:50%;right:8px;transform:translateY(-50%);
   color:var(--brass);font-weight:700;opacity:0;transition:opacity .12s ease;pointer-events:none;
 }
 table.grid tbody tr.row-primary:hover td.item-code::after{opacity:1;}
