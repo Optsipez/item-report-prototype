@@ -30,6 +30,9 @@ Every product in one grid, two rows per item — the **current year on top
 - **Item Code stays frozen** on the left as you scroll right. **Last Sold Qty**
   is pulled out as its own always-visible column so it survives collapsing
   Receipts & Sales.
+- **AVG** — a monthly demand figure (`U-FNL AVG` from the Navision sales
+  workbook), computed on load from each item's rolling 13-month sales history.
+  Also shown in the Item Lookup → Stock & Orders panel.
 - **Resize any column** — drag the right edge of a header, spreadsheet-style.
   Drag an expanded group's header bar to scale every column in that group at
   once. Content that no longer fits is trimmed with an ellipsis.
@@ -86,6 +89,7 @@ These live near the top of `js/app.js` and are easy to extend:
 | **Lifestyle codes expand to full names** — TRANS → Transitional, MIMOD → Minimalist Modern, CNMOD → Contemporary Modern, CLASC → Classic, MODRN → Modern (Gnrl), COMMN → Common, OFICE → Office; unknown codes shown as-is | `LIFESTYLE_LABELS` |
 | **Category Code filter shows names** — A = Accessory, F = Furniture, K = Kids; the stored value stays the letter | `FILTER_VALUE_LABELS` |
 | **A monthly value of `0` renders as `—`** in the Stock In / Sold cells; non-zero values (including negatives) are unchanged | `buildGridBody` / `buildMatrix` |
+| **AVG (`U-FNL AVG`)** — a rolling 13-month sales window (newest first) ending at the latest month with any sale; AVG is the largest of eight trailing non-zero averages (see the comment in the code). Ported verbatim from the workbook formula | `avgFnl`, `detectAvgAnchor` |
 
 ---
 

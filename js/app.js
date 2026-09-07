@@ -45,6 +45,72 @@ for(let i = ITEMS.length - 1; i >= 0; i--){
 }
 
 /* ============================================================
+   AVG — "U-FNL AVG" demand figure
+   ------------------------------------------------------------
+   Ported verbatim from the Navision sales workbook. Works off a
+   rolling 13-month sales window (newest first) ending at the most
+   recent month that has any sale anywhere in the data.
+
+   Each sub-average is the mean of only the *non-zero* months in
+   its window, rounded (Excel ROUND, half away from zero); an
+   empty window is 0. AVG is then the largest of:
+     - months 2-4 average
+     - months 1-3 avg  (raised to month 1 if that month is higher)
+     - months 4-6 avg
+     - months 7-9 avg
+     - months 10-13 avg
+     - months 2-7 avg   ("recent 6")
+     - months 8-13 avg  ("old 6")
+     - months 4-9 avg   ("middle 6")
+   ============================================================ */
+function excelRound(x){
+  return (x < 0 ? -1 : 1) * Math.floor(Math.abs(x) + 0.5);
+}
+function nonZeroAvg(win){
+  const count = win.reduce((n, v) => n + (v !== 0 ? 1 : 0), 0);
+  if(count === 0) return 0;
+  return excelRound(win.reduce((a, b) => a + b, 0) / count);
+}
+function trailing13Sales(item, anchorYear, anchorMonth){
+  const s = [];
+  let y = anchorYear, m = anchorMonth;
+  for(let i = 0; i < 13; i++){
+    const yr = item.years[String(y)];
+    s.push(yr ? (yr.sales[m] || 0) : 0);
+    if(--m < 0){ m = 11; y--; }
+  }
+  return s;
+}
+function avgFnl(item, anchor){
+  const s = trailing13Sales(item, anchor.year, anchor.month);
+  const base123 = nonZeroAvg([s[0], s[1], s[2]]);
+  const windows = [
+    s[0] > base123 ? s[0] : base123, // Avg 123M
+    nonZeroAvg(s.slice(3, 6)),        // Avg 456M
+    nonZeroAvg(s.slice(6, 9)),        // Avg 789M
+    nonZeroAvg(s.slice(9, 13)),       // Avg 10-13M
+    nonZeroAvg(s.slice(1, 7)),        // Avg 6M
+    nonZeroAvg(s.slice(7, 13)),       // Avg Old 6M
+    nonZeroAvg(s.slice(4, 10)),       // Mid Avg
+  ];
+  const recent3 = nonZeroAvg([s[1], s[2], s[3]]);
+  return excelRound(Math.max(recent3, ...windows));
+}
+function detectAvgAnchor(){
+  const years = [...new Set(ITEMS.flatMap(it => Object.keys(it.years).map(Number)))].sort((a, b) => b - a);
+  for(const y of years){
+    for(let m = 11; m >= 0; m--){
+      if(ITEMS.some(it => it.years[String(y)] && (it.years[String(y)].sales[m] || 0) !== 0)){
+        return { year: y, month: m };
+      }
+    }
+  }
+  return { year: years[0] || new Date().getFullYear(), month: 11 };
+}
+const AVG_ANCHOR = detectAvgAnchor();
+ITEMS.forEach(it => { it['AVG'] = avgFnl(it, AVG_ANCHOR); });
+
+/* ============================================================
    VIEW SWITCHING
    ============================================================ */
 const navLookup = document.getElementById('navLookup');
@@ -197,6 +263,7 @@ function renderReport(item){
   document.getElementById('mMrg').textContent = item['MRG Factor'].toFixed(2) + 'x';
 
   document.getElementById('mSoh').textContent = fmtInt(item['SOH']);
+  document.getElementById('mAvg').textContent = fmtInt(item['AVG']);
   document.getElementById('mPoQty').textContent = fmtInt(item['PO-Qty']);
   document.getElementById('mLrcvQty').textContent = fmtInt(item['Lrcv Qty']);
   document.getElementById('mLrcvDate').textContent = item['Lrcv Date'];
@@ -276,6 +343,7 @@ const COLUMN_LAYOUT = [
       { field:'Disct%', label:'Disct%', fmt:'pct' },
       { field:'MRG Factor', label:'Mrg', fmt:'x2' } ] },
   { type:'core', field:'SOH', label:'SOH' },
+  { type:'core', field:'AVG', label:'AVG' },
   { type:'core', field:'PO-Qty', label:'PO Qty' },
   { type:'core', field:'Description', label:'Description', left:true },
   { type:'group', key:'attrs', title:'Attributes', short:'Attrs', cols:[
