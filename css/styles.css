@@ -6,6 +6,7 @@
   --panel:#FFFFFF;
   --line:#E4E1D8;
   --line-strong:#CFCABB;
+  --fieldhead:#D8D2C0;   /* tint behind the second header row (sub-column labels) */
   --rail:#1B2230;
   --rail-soft:#2A3242;
   --brass:#A9812F;
@@ -185,7 +186,7 @@ button{font-family:inherit;}
 .filters-head .count{font-size:11.5px;color:var(--ink-faint);}
 .clear-filters{
   background:none;border:1px solid var(--line-strong);border-radius:3px;
-  font-size:11.5px;color:var(--ink-soft);padding:4px 9px;cursor:pointer;
+  font-size:11.5px;font-weight:600;color:var(--ink);padding:4px 9px;cursor:pointer;
 }
 .clear-filters:hover{border-color:var(--brass);color:var(--rail);}
 .filter-block{margin-bottom:18px;}
@@ -315,7 +316,6 @@ table.matrix td.neg{color:var(--down);}
 /* ===== All Products grid ===== */
 .grid-toolbar{margin-bottom:12px;}
 .grid-toolbar h1{font-size:17px;margin:0;font-weight:600;}
-.grid-toolbar .sub{font-size:12.5px;color:var(--ink-soft);margin-top:3px;}
 /* Controls sit directly under the caption, left-aligned, so they stay put no
    matter how wide the grid scrolls. */
 .grid-toolbar .toolbar-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;margin-top:10px;}
@@ -323,7 +323,7 @@ table.matrix td.neg{color:var(--down);}
 .grid-actions{display:flex;gap:6px;}
 .grid-actions button{
   background:var(--panel);border:1px solid var(--line-strong);border-radius:3px;
-  font-size:11.5px;color:var(--ink-soft);padding:5px 10px;cursor:pointer;
+  font-size:11.5px;font-weight:600;color:var(--ink);padding:5px 10px;cursor:pointer;
 }
 .grid-actions button:hover{border-color:var(--brass);color:var(--rail);background:var(--brass-soft);}
 
@@ -362,7 +362,7 @@ table.grid thead tr.group-row th.collapsed{
 table.grid thead tr.group-row th.collapsed .chev{margin-right:2px;}
 table.grid tbody td.collapsed-cell{padding-left:1px;padding-right:1px;}
 table.grid thead tr.group-row th .chev{font-family:monospace;margin-right:4px;}
-table.grid thead tr.field-row th{top:29px;text-align:left;font-size:11px;color:var(--ink);font-weight:700;white-space:normal;width:1%;line-height:1.18;word-break:keep-all;}
+table.grid thead tr.field-row th{top:29px;text-align:left;font-size:11px;color:var(--ink);font-weight:700;white-space:normal;width:1%;line-height:1.18;word-break:keep-all;background:var(--fieldhead);}
 table.grid thead tr.field-row th.left{text-align:left;}
 table.grid tbody td{text-align:right;color:var(--ink);}
 table.grid tbody td.left{text-align:left;}
