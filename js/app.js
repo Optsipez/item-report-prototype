@@ -127,7 +127,20 @@ function itemAvg(item){
   }
   return avgFnl(item, AVG_ANCHOR);
 }
-ITEMS.forEach(it => { it['AVG'] = itemAvg(it); });
+/* Months of cover, to one decimal:
+     SM = SOH    / AVG
+     PM = PO Qty / AVG
+   If AVG is 0 (can't divide) or the result works out to 0, show "X". */
+function monthsOfCover(qty, avg){
+  if(!avg) return 'X';
+  const r = Math.round((qty / avg) * 10) / 10;
+  return r === 0 ? 'X' : r.toFixed(1);
+}
+ITEMS.forEach(it => {
+  it['AVG'] = itemAvg(it);
+  it['SM'] = monthsOfCover(Number(it['SOH']) || 0, it['AVG']);
+  it['PM'] = monthsOfCover(Number(it['PO-Qty']) || 0, it['AVG']);
+});
 
 /* ============================================================
    VIEW SWITCHING
@@ -283,6 +296,8 @@ function renderReport(item){
 
   document.getElementById('mSoh').textContent = fmtInt(item['SOH']);
   document.getElementById('mAvg').textContent = fmtInt(item['AVG']);
+  document.getElementById('mSm').textContent = item['SM'];
+  document.getElementById('mPm').textContent = item['PM'];
   document.getElementById('mPoQty').textContent = fmtInt(item['PO-Qty']);
   document.getElementById('mLrcvQty').textContent = fmtInt(item['Lrcv Qty']);
   document.getElementById('mLrcvDate').textContent = item['Lrcv Date'];
@@ -364,6 +379,8 @@ const COLUMN_LAYOUT = [
   { type:'core', field:'SOH', label:'SOH' },
   { type:'core', field:'PO-Qty', label:'PO Qty' },
   { type:'core', field:'AVG', label:'AVG' },
+  { type:'core', field:'SM', label:'SM' },
+  { type:'core', field:'PM', label:'PM' },
   { type:'core', field:'Description', label:'Description', left:true },
   { type:'group', key:'attrs', title:'Attributes', short:'Attrs', cols:[
       { field:'Item Color Name', label:'Color' },
