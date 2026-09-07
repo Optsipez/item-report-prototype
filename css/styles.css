@@ -379,10 +379,9 @@ table.grid tbody tr.row-primary td.grp-stockin{background:var(--stockin-2026);}
 table.grid tbody tr.row-secondary td.grp-stockin{background:var(--stockin-2025);}
 table.grid tbody tr.row-primary td.grp-soldby{background:var(--soldby-2026);}
 table.grid tbody tr.row-secondary td.grp-soldby{background:var(--soldby-2025);}
-/* Hovering the item-code row highlights the whole pair (its prior-year row sits
-   directly beneath it); the prior-year row on its own is inert. */
-table.grid tbody tr.row-primary:hover td,
-table.grid tbody tr.row-primary:hover + tr.row-secondary td{background:var(--brass-soft);}
+/* Hover + click land on the item-code row only; the blank prior-year row
+   beneath it is inert and stays unhighlighted. */
+table.grid tbody tr.row-primary:hover td{background:var(--brass-soft);}
 table.grid tbody tr.row-primary{cursor:pointer;}
 /* "open in Item Lookup" hint on row hover — absolutely positioned so it never
    nudges the row's layout (that was causing a 1px vertical shake). The cell
@@ -425,7 +424,7 @@ table.grid thead th.fz-itemcode{ z-index:4; }
 table.grid tbody td.fz-itemcode{ z-index:1; border-right:2px solid var(--line-strong); }
 table.grid tbody tr.row-primary td.fz-itemcode{ background:var(--row-shade); }
 table.grid tbody tr.row-secondary td.fz-itemcode{ background:var(--panel); }
-table.grid tbody tr.row-primary:hover td.fz-itemcode, table.grid tbody tr.row-primary:hover + tr.row-secondary td.fz-itemcode{ background:var(--brass-soft); }
+table.grid tbody tr.row-primary:hover td.fz-itemcode{ background:var(--brass-soft); }
 
 ::-webkit-scrollbar{width:9px;height:9px;}
 ::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:5px;}
