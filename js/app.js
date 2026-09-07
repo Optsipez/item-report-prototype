@@ -376,8 +376,8 @@ const COLUMN_LAYOUT = [
       { field:'Now (Aed)', label:'Now', fmt:'money0' },
       { field:'Disct%', label:'Disct%', fmt:'pct' },
       { field:'MRG Factor', label:'Mrg', fmt:'x2' } ] },
-  { type:'core', field:'SOH', label:'SOH' },
-  { type:'core', field:'PO-Qty', label:'PO Qty' },
+  { type:'core', field:'SOH', label:'SOH', sortable:true },
+  { type:'core', field:'PO-Qty', label:'PO Qty', sortable:true },
   { type:'core', field:'AVG', label:'AVG' },
   { type:'core', field:'SM', label:'SM' },
   { type:'core', field:'PM', label:'PM' },
@@ -398,14 +398,30 @@ const COLUMN_LAYOUT = [
       { field:'Last Sold Date', label:'Last Sold Date' } ] },
   // Kept out of the collapsible group so it stays visible when Receipts & Sales
   // is collapsed.
-  { type:'core', field:'Last Sold Qty', label:'Last Sold Qty' },
-  { type:'core', field:'__Year', label:'Year' },
+  { type:'core', field:'Last Sold Qty', label:'Last Sold Qty', sortable:true },
+  { type:'core', field:'__Year', label:'Year', sortable:true },
   { type:'group', key:'soldby', title:'Sold by Month', short:'Sold', cols: MONTHS.map(m => ({ field:'__sold_'+m, label:m })) },
   { type:'group', key:'stockin', title:'Stock In by Month', short:'Stock In', cols: MONTHS.map(m => ({ field:'__stock_'+m, label:m })) },
 ];
 
 const ALL_GROUP_KEYS = COLUMN_LAYOUT.filter(e => e.type === 'group').map(e => e.key);
 let collapsedGroups = new Set(['class','attrs','fob','logi']); // sensible default: keep the essentials visible first
+
+/* Grid sort — click a sortable header to cycle: none -> high→low -> low→high -> none.
+   `__Year` reorders the two rows within each item; anything else reorders items
+   (pairs stay together). */
+let gridSort = null; // { field, dir: 'desc' | 'asc' }
+function cycleSort(field){
+  if(!gridSort || gridSort.field !== field) gridSort = { field: field, dir: 'desc' };
+  else if(gridSort.dir === 'desc') gridSort = { field: field, dir: 'asc' };
+  else gridSort = null;
+  renderGrid();
+}
+function sortGridItems(items){
+  if(!gridSort || gridSort.field === '__Year') return items;
+  const mul = gridSort.dir === 'asc' ? 1 : -1;
+  return items.slice().sort((a, b) => ((Number(a[gridSort.field]) || 0) - (Number(b[gridSort.field]) || 0)) * mul);
+}
 
 function fmtCell(v, fmt){
   if(v === undefined || v === null || v === '') return '—';
@@ -440,6 +456,10 @@ document.getElementById('collapseAllBtn').addEventListener('click', () => {
 });
 document.getElementById('expandAllBtn').addEventListener('click', () => {
   collapsedGroups = new Set();
+  renderGrid();
+});
+document.getElementById('clearSortBtn').addEventListener('click', () => {
+  gridSort = null;
   renderGrid();
 });
 
@@ -563,6 +583,17 @@ function buildGridHeader(){
       gth.rowSpan = 2;
       gth.textContent = entry.label;
       gth.dataset.col = entry.field;
+      if(entry.sortable){
+        gth.classList.add('sortable');
+        if(gridSort && gridSort.field === entry.field){
+          gth.classList.add('sorted');
+          const ind = document.createElement('span');
+          ind.className = 'sort-ind';
+          ind.textContent = gridSort.dir === 'asc' ? '▲' : '▼';
+          gth.appendChild(ind);
+        }
+        gth.addEventListener('click', () => cycleSort(entry.field));
+      }
       addColResizer(gth);
       groupRow.appendChild(gth);
       return;
@@ -637,8 +668,9 @@ function buildGridBody(items, cols){
   const groupEndIdx = new Set();
   groupStartIdx.forEach(i => { if(i > 0) groupEndIdx.add(i - 1); });
 
+  const yearAsc = gridSort && gridSort.field === '__Year' && gridSort.dir === 'asc';
   items.forEach(item => {
-    const years = Object.keys(item.years).sort((a,b) => b-a);
+    const years = Object.keys(item.years).sort((a,b) => yearAsc ? a - b : b - a);
     years.forEach((yr, idx) => {
       const tr = document.createElement('tr');
       tr.className = idx === 0 ? 'row-primary' : 'row-secondary';
@@ -695,7 +727,7 @@ function getFilteredItems(){
 }
 
 function renderGrid(){
-  const items = getFilteredItems();
+  const items = sortGridItems(getFilteredItems());
   const cols = visibleColumns();
   const table = document.getElementById('gridTable');
   table.innerHTML = '';
@@ -706,6 +738,7 @@ function renderGrid(){
   table.appendChild(thead);
   table.appendChild(buildGridBody(items, cols));
   document.getElementById('gridRowCount').textContent = items.length + ' of ' + ITEMS.length + ' items';
+  document.getElementById('clearSortBtn').hidden = !gridSort;
   if(colResizeActive){
     // capture the natural width of any column shown for the first time (grid is
     // still auto-laid-out here), then lock it to fixed widths.

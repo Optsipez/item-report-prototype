@@ -351,6 +351,11 @@ table.grid thead tr.group-row th{
 table.grid thead tr.group-row th:hover{background:var(--rail-soft);}
 table.grid thead tr.group-row th.core{background:#3A4358;cursor:default;}
 table.grid thead tr.group-row th.core:hover{background:#3A4358;}
+/* sortable core headers — click to sort */
+table.grid thead tr.group-row th.core.sortable{cursor:pointer;}
+table.grid thead tr.group-row th.core.sortable:hover{background:#454f6b;}
+table.grid thead tr.group-row th.core.sorted{background:#4c5876;}
+.sort-ind{position:absolute;top:4px;right:4px;color:var(--brass);font-size:8px;font-weight:700;line-height:1;pointer-events:none;}
 /* Stack multi-word headers word-per-line so short-data columns (Vendor Code,
    PO Qty, Last Sold Qty, …) shrink to their longest word instead of the whole
    phrase. Break only at spaces, never inside a word or at a hyphen. */

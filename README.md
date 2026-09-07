@@ -38,6 +38,10 @@ Every product in one grid, two rows per item — the **current year on top
 - **Resize any column** — drag the right edge of a header, spreadsheet-style.
   Drag an expanded group's header bar to scale every column in that group at
   once. Content that no longer fits is trimmed with an ellipsis.
+- **Sort** — click a **SOH**, **PO Qty**, **Last Sold Qty**, or **Year** header to
+  cycle high→low, low→high, then back to data order. Sorting keeps each item's two
+  rows together; sorting by **Year** just flips which year sits on top. A
+  **Clear sort** button appears in the toolbar while a sort is active.
 - **Click any row** to open that item in Item Lookup.
 - **Collapsible filter rail** — the chevron tab on the rail's edge hides the
   filters and lets the grid take the full width; click it again to bring them
