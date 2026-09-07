@@ -625,8 +625,12 @@ function buildGridBody(items, cols){
     years.forEach((yr, idx) => {
       const tr = document.createElement('tr');
       tr.className = idx === 0 ? 'row-primary' : 'row-secondary';
-      tr.title = 'Open ' + item['Item Code'] + ' in Item Lookup';
-      tr.addEventListener('click', () => openItem(item));
+      // Only the item-code (current-year) row is the click target; the blank
+      // prior-year row underneath it isn't interactive on its own.
+      if(idx === 0){
+        tr.title = 'Open ' + item['Item Code'] + ' in Item Lookup';
+        tr.addEventListener('click', () => openItem(item));
+      }
       cols.forEach((col, ci) => {
         const td = document.createElement('td');
         if(groupStartIdx.has(ci)) td.classList.add('group-start');
