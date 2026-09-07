@@ -74,8 +74,9 @@ AND'd across each other.
   Plan Code show their full master list with unused codes greyed out.
 - **Searchable** — Vendor Code, PUDA Desc, and Range Name each have a search box
   for long lists.
-- **PUDA Desc** options show just the product name (the part after the `/`); the
-  value still matches on the full string.
+- **PUDA Desc** options show the full `<area> / <product>` string but filter by
+  the **product name** (everything after the `/`), so the same product under a
+  different area is caught too.
 
 ---
 

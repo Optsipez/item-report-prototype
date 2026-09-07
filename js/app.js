@@ -671,7 +671,7 @@ function getFilteredItems(){
     for(const key of Object.keys(activeFilters)){
       const selected = activeFilters[key];
       if(selected.size === 0) continue;
-      if(!selected.has(String(item[FILTER_FIELD_MAP[key]]))) return false;
+      if(!selected.has(filterKey(key, item[FILTER_FIELD_MAP[key]]))) return false;
     }
     return true;
   });
@@ -753,14 +753,22 @@ const FILTER_VALUE_LABELS = {
 // Filters that get a text box to search within their (often long) option list.
 const FILTER_SEARCHABLE = new Set(['Vendor Code', 'PUDA Desc', 'Range Name']);
 function filterValueLabel(label, val){
-  // PUDA Desc comes in as "A.Tabletop / Charger Plate" — show only the part
-  // after the slash (the product name).
-  if(label === 'PUDA Desc'){
-    const i = String(val).indexOf('/');
-    if(i !== -1) return String(val).slice(i + 1).trim();
-  }
   const map = FILTER_VALUE_LABELS[label];
   return (map && map[val]) || val;
+}
+
+// Some filters group by a normalised key rather than the raw field value.
+// PUDA Desc reads "<area> / <product>" — the option shows the full string but
+// filtering is by the product name (everything after the "/").
+function pudaProductName(v){
+  const s = String(v);
+  const i = s.indexOf('/');
+  return i === -1 ? s.trim() : s.slice(i + 1).trim();
+}
+const FILTER_MATCH_KEY = { 'PUDA Desc': pudaProductName };
+function filterKey(label, val){
+  const fn = FILTER_MATCH_KEY[label];
+  return fn ? fn(val) : String(val);
 }
 const activeFilters = {};
 Object.keys(FILTER_FIELD_MAP).forEach(k => activeFilters[k] = new Set());
@@ -792,7 +800,8 @@ function renderFilterBlocks(){
       row.innerHTML = `<input type="checkbox" data-filter="${label}" value="${val}"><span class="lbl">${filterValueLabel(label, val)}</span>`;
       const cb = row.querySelector('input');
       cb.addEventListener('change', () => {
-        if(cb.checked) activeFilters[label].add(val); else activeFilters[label].delete(val);
+        const k = filterKey(label, val);
+        if(cb.checked) activeFilters[label].add(k); else activeFilters[label].delete(k);
         row.classList.toggle('checked', cb.checked);
         updateFilterCounts();
         updateFilterAvailability();
@@ -841,7 +850,7 @@ function itemsMatchingFiltersExcept(exceptLabel){
       if(key === exceptLabel) continue;
       const sel = activeFilters[key];
       if(sel.size === 0) continue;
-      if(!sel.has(String(item[FILTER_FIELD_MAP[key]]))) return false;
+      if(!sel.has(filterKey(key, item[FILTER_FIELD_MAP[key]]))) return false;
     }
     return true;
   });
@@ -852,10 +861,10 @@ function updateFilterAvailability(){
     // With nothing else selected we keep the old look: full list, with codes
     // that simply aren't in the loaded data greyed out.
     const drivenByOthers = Object.keys(activeFilters).some(k => k !== label && activeFilters[k].size > 0);
-    const available = new Set(itemsMatchingFiltersExcept(label).map(i => String(i[field])));
+    const available = new Set(itemsMatchingFiltersExcept(label).map(i => filterKey(label, i[field])));
     document.querySelectorAll('.filter-opt input[data-filter="' + label + '"]').forEach(cb => {
       const row = cb.closest('.filter-opt');
-      const ok = available.has(cb.value) || cb.checked;
+      const ok = available.has(filterKey(label, cb.value)) || cb.checked;
       row.classList.toggle('unavail', !ok && drivenByOthers);
       row.classList.toggle('disabled', !ok && !drivenByOthers);
       cb.disabled = !ok && !drivenByOthers;
