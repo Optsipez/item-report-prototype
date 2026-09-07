@@ -343,8 +343,8 @@ const COLUMN_LAYOUT = [
       { field:'Disct%', label:'Disct%', fmt:'pct' },
       { field:'MRG Factor', label:'Mrg', fmt:'x2' } ] },
   { type:'core', field:'SOH', label:'SOH' },
-  { type:'core', field:'AVG', label:'AVG' },
   { type:'core', field:'PO-Qty', label:'PO Qty' },
+  { type:'core', field:'AVG', label:'AVG' },
   { type:'core', field:'Description', label:'Description', left:true },
   { type:'group', key:'attrs', title:'Attributes', short:'Attrs', cols:[
       { field:'Item Color Name', label:'Color' },
