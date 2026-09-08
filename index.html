@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Item Report — Inventory Intelligence</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -71,6 +72,15 @@
     <div id="viewLookup" class="view">
 
       <div id="emptyState" class="empty-state">
+        <svg class="empty-art" viewBox="0 0 120 96" fill="none" aria-hidden="true">
+          <rect x="14" y="18" width="72" height="60" rx="6" class="ea-card"/>
+          <line x1="26" y1="34" x2="60" y2="34" class="ea-line"/>
+          <line x1="26" y1="44" x2="72" y2="44" class="ea-line ea-line-faint"/>
+          <line x1="26" y1="54" x2="50" y2="54" class="ea-line ea-line-faint"/>
+          <path d="M26 68 L34 60 L42 65 L50 52 L60 58" class="ea-spark"/>
+          <circle cx="80" cy="66" r="16" class="ea-lens"/>
+          <line x1="91" y1="77" x2="102" y2="88" class="ea-handle"/>
+        </svg>
         <h3>No item selected</h3>
         <p>Search by item code or description on the left, then choose Generate to pull the full report — pricing, classification, stock, and monthly sales history.</p>
       </div>
@@ -185,6 +195,7 @@
           </div>
           <div class="rowcount" id="gridRowCount"></div>
         </div>
+        <div id="filterChips" class="filter-chips" hidden></div>
       </div>
       <div class="grid-scroll">
         <table class="grid" id="gridTable"></table>

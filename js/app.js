@@ -81,6 +81,44 @@ function trailing13Sales(item, anchorYear, anchorMonth){
   }
   return s;
 }
+
+/* Tiny inline sales-trend sparkline (last 13 months, oldest -> newest).
+   Stroke colour follows the trend; the line draws itself in on render. */
+function sparkSVG(item){
+  const s = trailing13Sales(item, AVG_ANCHOR.year, AVG_ANCHOR.month).slice().reverse();
+  if(s.every(v => v === 0)) return '<span class="spark-empty">—</span>';
+  const recent = nonZeroAvg(s.slice(-4)), older = nonZeroAvg(s.slice(0, 4));
+  const dir = recent > older * 1.15 ? 'up' : recent < older * 0.78 ? 'down' : 'flat';
+  const W = 82, H = 22, p = 2.5;
+  const max = Math.max.apply(null, s), min = Math.min.apply(null, s, 0);
+  const span = (max - min) || 1;
+  const pts = s.map((v, i) => {
+    const x = p + i * (W - 2 * p) / (s.length - 1);
+    const y = H - p - (v - min) / span * (H - 2 * p);
+    return x.toFixed(1) + ' ' + y.toFixed(1);
+  });
+  const line = pts.join(' L');
+  const lastX = (W - p).toFixed(1);
+  const lastY = pts[pts.length - 1].split(' ')[1];
+  return '<svg class="spark spark-' + dir + '" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H +
+    '" preserveAspectRatio="none" aria-hidden="true">' +
+    '<path class="spark-area" d="M' + line + ' L' + lastX + ' ' + (H - p) + ' L' + pts[0].split(' ')[0] + ' ' + (H - p) + ' Z"/>' +
+    '<path class="spark-line" pathLength="1" d="M' + line + '"/>' +
+    '<circle class="spark-dot" cx="' + lastX + '" cy="' + lastY + '" r="1.7"/>' +
+    '</svg>';
+}
+
+/* Months-of-cover cell: value + a health bar (red <1, amber <2.5, green above). */
+function coverCell(v){
+  const isX = v === 'X';
+  const n = parseFloat(v);
+  const cls = isX ? 'cover-crit' : !isFinite(n) ? 'cover-flat' : n < 1 ? 'cover-crit' : n < 2.5 ? 'cover-warn' : 'cover-ok';
+  const w = isX ? 8 : Math.max(6, Math.min(100, (n / 6) * 100));
+  return '<span class="cover ' + cls + '">'
+    + '<span class="cover-v">' + v + '</span>'
+    + '<span class="cover-track"><span class="cover-fill" style="width:' + w.toFixed(0) + '%"></span></span>'
+    + '</span>';
+}
 function avgFnl(item, anchor){
   const s = trailing13Sales(item, anchor.year, anchor.month);
   const base123 = nonZeroAvg([s[0], s[1], s[2]]);
@@ -211,7 +249,7 @@ function fmtPct(n){
 }
 function colorToHex(name){
   const map = {'gold':'#C6A24A','white':'#F2F1EC','silver':'#C7CBCF','antique gold':'#9C7A3B','white/gold':'#E8DFC0'};
-  return map[(name||'').toLowerCase()] || '#D9D4C6';
+  return map[(name||'').toLowerCase()] || '#cbd5e1';
 }
 
 function renderResults(){
@@ -324,6 +362,35 @@ function renderReport(item){
   buildMatrix(document.getElementById('stockMatrixWrap'), item, 'stock');
   buildMatrix(document.getElementById('soldMatrixWrap'), item, 'sales');
   buildBranchTable(document.getElementById('branchMatrixWrap'), item);
+
+  countUpMetrics();
+}
+
+/* Roll the purely-numeric metric values up from zero when a report opens.
+   A generation counter cancels any still-running roll from a previous item. */
+function countUpMetrics(){
+  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const gen = countUpMetrics._gen = (countUpMetrics._gen || 0) + 1;
+  document.querySelectorAll('#report .metric-row .v').forEach(el => {
+    const finalText = el.textContent.trim();
+    const m = finalText.match(/^([\d,]+(?:\.\d+)?)(%|x)?$/);
+    if(!m) return;
+    const target = parseFloat(m[1].replace(/,/g, ''));
+    const suffix = m[2] || '';
+    const dec = (m[1].split('.')[1] || '').length;
+    if(!isFinite(target) || target === 0) return;
+    const t0 = performance.now(), dur = 560;
+    el.classList.add('counting');
+    const step = now => {
+      if(countUpMetrics._gen !== gen) return;
+      const p = Math.max(0, Math.min(1, (now - t0) / dur));
+      const val = target * (1 - Math.pow(1 - p, 3));
+      el.textContent = (dec ? val.toFixed(dec) : Math.round(val).toLocaleString('en-US')) + suffix;
+      if(p < 1) requestAnimationFrame(step);
+      else { el.textContent = finalText; el.classList.remove('counting'); }
+    };
+    requestAnimationFrame(step);
+  });
 }
 
 /** Open an item in the Item Lookup view (used by search Generate + grid row click) */
@@ -381,6 +448,7 @@ const COLUMN_LAYOUT = [
   { type:'core', field:'AVG', label:'AVG' },
   { type:'core', field:'SM', label:'SM' },
   { type:'core', field:'PM', label:'PM' },
+  { type:'core', field:'__spark', label:'13-mo Trend' },
   { type:'core', field:'Description', label:'Description', left:true },
   { type:'group', key:'attrs', title:'Attributes', short:'Attrs', cols:[
       { field:'Item Color Name', label:'Color' },
@@ -687,13 +755,21 @@ function buildGridBody(items, cols){
         if(col.type === 'collapsed'){
           td.textContent = '';
           td.classList.add('collapsed-cell');
-          td.style.background = idx === 0 ? '#F2F0EA' : '#FFFFFF';
+          // background comes from CSS (.collapsed-cell rules), not an inline colour
         } else if(col.type === 'core'){
-          const v = idx === 0 ? cellValueForYearRow(item, col.field, yr) : (col.field === '__Year' ? yr : '');
-          td.textContent = (v === undefined || v === null || v === '') ? (idx === 0 ? '—' : '') : v;
-          if(col.cls) td.className = col.cls;
-          if(col.fz) td.classList.add(col.fz);
-          if(col.left) td.classList.add('left');
+          if(col.field === '__spark'){
+            td.classList.add('spark-cell', 'left');
+            td.innerHTML = idx === 0 ? sparkSVG(item) : '';
+          } else if(col.field === 'SM' || col.field === 'PM'){
+            td.classList.add('cover-cell', 'left');
+            td.innerHTML = idx === 0 ? coverCell(item[col.field]) : '';
+          } else {
+            const v = idx === 0 ? cellValueForYearRow(item, col.field, yr) : (col.field === '__Year' ? yr : '');
+            td.textContent = (v === undefined || v === null || v === '') ? (idx === 0 ? '—' : '') : v;
+            if(col.cls) td.className = col.cls;
+            if(col.fz) td.classList.add(col.fz);
+            if(col.left) td.classList.add('left');
+          }
         } else {
           td.classList.add('grp-' + col.group);
           const isMonthly = col.field.startsWith('__stock_') || col.field.startsWith('__sold_');
@@ -855,6 +931,7 @@ function renderFilterBlocks(){
         row.classList.toggle('checked', cb.checked);
         updateFilterCounts();
         updateFilterAvailability();
+        renderFilterChips();
         renderGrid();
       });
       optsWrap.appendChild(row);
@@ -888,6 +965,35 @@ function updateFilterCounts(){
     const n = activeFilters[label].size;
     el.textContent = n > 0 ? n + ' selected' : '';
   });
+}
+
+/* Active-filter chips above the grid — one per ticked option, click to remove. */
+function renderFilterChips(){
+  const wrap = document.getElementById('filterChips');
+  if(!wrap) return;
+  const checked = [...document.querySelectorAll('.filter-opt input:checked')];
+  wrap.innerHTML = '';
+  checked.forEach(cb => {
+    const opt = cb.closest('.filter-opt');
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip';
+    chip.innerHTML = '<span class="chip-k">' + cb.dataset.filter + '</span>'
+      + '<span class="chip-v"></span><span class="chip-x" aria-hidden="true">&times;</span>';
+    chip.querySelector('.chip-v').textContent = opt.querySelector('.lbl').textContent;
+    chip.title = 'Remove filter';
+    chip.addEventListener('click', () => { cb.checked = false; cb.dispatchEvent(new Event('change')); });
+    wrap.appendChild(chip);
+  });
+  if(checked.length > 1){
+    const clr = document.createElement('button');
+    clr.type = 'button';
+    clr.className = 'chip chip-clear';
+    clr.textContent = 'Clear all';
+    clr.addEventListener('click', () => document.getElementById('clearFiltersBtn').click());
+    wrap.appendChild(clr);
+  }
+  wrap.hidden = checked.length === 0;
 }
 
 // Faceted filtering: an option stays enabled only if choosing it would still
@@ -927,6 +1033,7 @@ document.getElementById('clearFiltersBtn').addEventListener('click', () => {
   document.querySelectorAll('.filter-opt input').forEach(cb => { cb.checked = false; cb.closest('.filter-opt').classList.remove('checked'); });
   updateFilterCounts();
   updateFilterAvailability();
+  renderFilterChips();
   renderGrid();
 });
 
@@ -938,6 +1045,18 @@ selectedItem = ITEMS[0];
 renderResults();
 if(selectedItem) renderReport(selectedItem);
 renderFilterBlocks();
+renderFilterChips();
+
+/* Grid scroll → shadow the sticky header / frozen column only when scrolled */
+(function(){
+  const gs = document.querySelector('.grid-scroll');
+  if(!gs) return;
+  const onScroll = () => {
+    gs.classList.toggle('scrolled-y', gs.scrollTop > 1);
+    gs.classList.toggle('scrolled-x', gs.scrollLeft > 1);
+  };
+  gs.addEventListener('scroll', onScroll, { passive: true });
+})();
 
 /* Land on All Products */
 setView('all');
