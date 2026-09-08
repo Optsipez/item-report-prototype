@@ -285,19 +285,182 @@ generateBtn.addEventListener('click', () => {
 
 function buildMatrix(wrapEl, item, key){
   const years = Object.keys(item.years).sort((a,b) => b - a);
+  /* On the Sold matrix, the current-year row drills into a weekly popup. */
+  const clickYear = key === 'sales' ? String(WEEK_ANCHOR.getFullYear()) : null;
   let html = '<table class="matrix"><thead><tr><th>Year</th>';
   MONTHS.forEach(m => html += `<th>${m}</th>`);
   html += '<th>Total</th></tr></thead><tbody>';
   years.forEach(y => {
     const vals = item.years[y][key];
     const total = vals.reduce((a,b) => a+b, 0);
-    html += `<tr><td>${y}</td>`;
-    vals.forEach(v => { html += `<td class="${v === 0 ? 'zero' : ''}">${v === 0 ? '—' : v}</td>`; });
+    const clk = String(y) === clickYear;
+    html += `<tr${clk ? ' class="wk-row"' : ''}><td>${y}</td>`;
+    vals.forEach(v => {
+      const cls = [v === 0 ? 'zero' : '', clk ? 'wk-cell' : ''].filter(Boolean).join(' ');
+      html += `<td class="${cls}">${v === 0 ? '—' : v}</td>`;
+    });
     html += `<td><strong>${total}</strong></td></tr>`;
   });
   html += '</tbody></table>';
   wrapEl.innerHTML = html;
+  if(clickYear){
+    wrapEl.querySelectorAll('td.wk-cell').forEach(td =>
+      td.addEventListener('click', () => openWeekModal(item)));
+    const hint = document.getElementById('soldWeekHint');
+    if(hint) hint.textContent = '  ·  click a month in the ' + clickYear + ' row for the weekly breakdown';
+  }
 }
+
+/* ============================================================
+   WEEKLY SOLD — month-click popup breakdown  (prototype)
+   ------------------------------------------------------------
+   The source data is monthly totals only, so weekly figures are
+   ESTIMATED: each month's total is spread across its days, weighted
+   so Fri–Sun carry more (retail weekend peak) with a small stable
+   per-day wobble. Weeks are Mon–Sun and cross month boundaries
+   freely. The most recent week is partial (Mon → the day before the
+   anchor day; skipped entirely if the anchor day is a Monday). Shows
+   every week touching the last 3 calendar months; current year only.
+   Swap in a real weekly/daily export later and this all goes real.
+   ============================================================ */
+const DAY_MS = 86400000;
+
+/* Where "now" sits for the weekly view.
+   - Live: the real date. The current week runs Mon → yesterday (today is
+     still in progress, so it's left out); if today is Monday there's no
+     partial week and the newest column is last week.
+   - Prototype/stale: if the calendar has run past the last month we hold
+     data for, clamp to that month's last day and count it as complete, so
+     the popup still lands on populated weeks. Real data reaching the
+     current month flips this back to the live path automatically. */
+const WEEK_VIEW = (function(){
+  const now = new Date();
+  const y = now.getFullYear();
+  let lastM = -1;
+  ITEMS.forEach(it => {
+    const a = it.years[String(y)];
+    if(a) a.sales.forEach((v, i) => { if(v) lastM = Math.max(lastM, i); });
+  });
+  const dataEnd = lastM === -1 ? null : new Date(y, lastM + 1, 0);
+  if(!dataEnd || now <= dataEnd){
+    return { anchor: now, elapsed: (now.getDay() + 6) % 7 };          // Mon..yesterday
+  }
+  return { anchor: dataEnd, elapsed: ((dataEnd.getDay() + 6) % 7) + 1 }; // Mon..dataEnd
+})();
+const WEEK_ANCHOR = WEEK_VIEW.anchor;
+
+function mondayOf(d){
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); // Mon=0 … Sun=6
+  return x;
+}
+function fmtDay(d){ return d.getDate() + ' ' + MONTHS[d.getMonth()]; }
+
+/* Stable ±12% wobble from a string key (FNV-1a). */
+function seededWobble(key){
+  let h = 2166136261;
+  for(let i = 0; i < key.length; i++){ h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return 0.88 + ((h >>> 0) % 1000) / 1000 * 0.24;
+}
+/* Month total spread across its days: Fri ×1.35, Sat/Sun ×1.9, else ×1. */
+function dailySales(item, year, monthIdx){
+  const arr = item.years[String(year)];
+  const total = arr ? (arr.sales[monthIdx] || 0) : 0;
+  const days = new Date(year, monthIdx + 1, 0).getDate();
+  if(total === 0) return new Array(days).fill(0);
+  const w = [];
+  for(let d = 1; d <= days; d++){
+    const dow = new Date(year, monthIdx, d).getDay();
+    const peak = dow === 5 ? 1.35 : (dow === 0 || dow === 6) ? 1.9 : 1.0;
+    w.push(peak * seededWobble(item['Item Code'] + '|' + year + '|' + monthIdx + '|' + d));
+  }
+  const sum = w.reduce((a, b) => a + b, 0);
+  return w.map(x => total * x / sum);
+}
+function weekUnits(item, weekStart, dayCount, cache){
+  let sum = 0;
+  for(let i = 0; i < dayCount; i++){
+    const d = new Date(weekStart.getTime() + i * DAY_MS);
+    if(d.getFullYear() !== WEEK_ANCHOR.getFullYear()) continue;
+    const ck = d.getMonth();
+    if(!cache[ck]) cache[ck] = dailySales(item, d.getFullYear(), d.getMonth());
+    sum += cache[ck][d.getDate() - 1] || 0;
+  }
+  return Math.round(sum);
+}
+/* Mon–Sun weeks touching the 3 calendar months ending at the anchor month,
+   newest first. The current week is partial (Mon → yesterday). */
+function weeklyBreakdown(item){
+  const curMon = mondayOf(WEEK_ANCHOR);
+  const elapsed = WEEK_VIEW.elapsed;                          // days counted in the current week
+  const firstMon = mondayOf(new Date(WEEK_ANCHOR.getFullYear(), WEEK_ANCHOR.getMonth() - 2, 1));
+  const cache = {};
+  const weeks = [];
+  for(let ws = new Date(curMon); ws >= firstMon; ws = new Date(ws.getTime() - 7 * DAY_MS)){
+    const isCurrent = ws.getTime() === curMon.getTime();
+    if(isCurrent && elapsed === 0) continue;                   // anchor is a Monday — skip
+    const dayCount = isCurrent ? elapsed : 7;
+    weeks.push({
+      start: new Date(ws),
+      end: new Date(ws.getTime() + (dayCount - 1) * DAY_MS),
+      partial: isCurrent,
+      dayCount,
+      units: weekUnits(item, ws, dayCount, cache),
+    });
+  }
+  return weeks;
+}
+
+let weekModalReturn = null;
+function openWeekModal(item){
+  if(!item) return;
+  const weeks = weeklyBreakdown(item);
+  if(!weeks.length) return;
+  const total = weeks.reduce((a, w) => a + w.units, 0);
+  const max = Math.max(1, ...weeks.map(w => w.units));
+
+  document.getElementById('wkTitle').textContent = 'Weekly sales — ' + item['Description'];
+  document.getElementById('wkSub').textContent =
+    item['Item Code'] + '  ·  ' + fmtDay(weeks[weeks.length - 1].start) + ' – ' +
+    fmtDay(weeks[0].end) + '  ·  ' + weeks.length + ' weeks';
+
+  const cols = weeks.map(w => {
+    const heat = w.units / max;
+    return '<div class="wk-col' + (w.partial ? ' wk-col-partial' : '') +
+        '" title="' + fmtDay(w.start) + ' – ' + fmtDay(w.end) +
+        (w.partial ? ' (' + w.dayCount + ' of 7 days)' : '') + '">' +
+        '<div class="wk-col-v">' + (w.units === 0 ? '—' : w.units) + '</div>' +
+        '<div class="wk-col-bar"><span style="height:' + (6 + heat * 94).toFixed(0) + '%"></span></div>' +
+        '<div class="wk-col-k">' + fmtDay(w.start) + '</div>' +
+        (w.partial ? '<div class="wk-col-tag">' + w.dayCount + '/7 d</div>' : '') +
+      '</div>';
+  }).join('');
+
+  document.getElementById('wkBody').innerHTML =
+    '<div class="wk-strip">' + cols + '</div>' +
+    '<div class="wk-total">Last 3 months <strong>' + total.toLocaleString('en-US') + '</strong> units</div>';
+
+  const modal = document.getElementById('weekModal');
+  modal.hidden = false;
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+  weekModalReturn = document.activeElement;
+  document.getElementById('wkClose').focus();
+}
+function closeWeekModal(){
+  const modal = document.getElementById('weekModal');
+  if(modal.hidden) return;
+  modal.hidden = true;
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+  if(weekModalReturn && weekModalReturn.focus) weekModalReturn.focus();
+}
+(function(){
+  const modal = document.getElementById('weekModal');
+  if(!modal) return;
+  modal.querySelectorAll('[data-wk-close]').forEach(el => el.addEventListener('click', closeWeekModal));
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') closeWeekModal(); });
+})();
 function buildBranchTable(wrapEl, item){
   const branch = BRANCH_BY_ITEM[item['Item Code']];
   if(!branch){ wrapEl.innerHTML = '<p class="foot-note">No branch-level data found for this item.</p>'; return; }

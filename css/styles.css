@@ -394,8 +394,46 @@ table.matrix tr:last-child td{border-bottom:none;}
 table.matrix td.zero{color:var(--ink-faint);}
 table.matrix td.neg{color:var(--neg);}
 .matrix-title{font-size:var(--fs-sm);color:var(--ink-soft);margin:0 0 var(--sp-3);}
+.matrix-hint{font-size:var(--fs-2xs);color:var(--ink-faint);}
 .matrix-wrap{margin-bottom:var(--sp-6);}
 .matrix-wrap:last-child{margin-bottom:0;}
+
+/* Sold matrix: current-year row drills into the weekly popup */
+table.matrix tr.wk-row td:first-child::after{content:' ›';color:var(--primary);font-weight:700;}
+table.matrix td.wk-cell{cursor:pointer;}
+table.matrix tr.wk-row:hover td.wk-cell{background:var(--primary-weak);}
+table.matrix tr.wk-row td.wk-cell:hover{background:var(--primary-line);color:var(--primary-hover);}
+
+/* ============================================================
+   WEEKLY SOLD — month-click popup
+   ============================================================ */
+.wk-modal{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:var(--sp-6);}
+.wk-modal:not([hidden]){display:flex;}
+.wk-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.45);animation:fadeIn .16s ease;}
+.wk-dialog{position:relative;width:min(940px,100%);max-height:86vh;overflow:auto;
+  background:var(--panel);border:1px solid var(--line-strong);border-radius:var(--r-lg);
+  box-shadow:var(--sh-lg);padding:var(--sp-6);animation:popIn .18s ease;}
+.wk-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-4);margin-bottom:var(--sp-5);}
+.wk-head h3{margin:0 0 3px;font-size:var(--fs-lg);font-weight:600;color:var(--ink);letter-spacing:-.01em;}
+.wk-sub{margin:0;font-size:var(--fs-xs);color:var(--ink-soft);font-variant-numeric:tabular-nums;}
+.wk-x{flex:none;border:0;background:var(--s-100);color:var(--ink-soft);width:30px;height:30px;
+  border-radius:var(--r-sm);font-size:20px;line-height:1;cursor:pointer;transition:background .12s,color .12s;}
+.wk-x:hover{background:var(--neg-bg);color:var(--neg);}
+.wk-strip{display:flex;gap:6px;align-items:flex-end;overflow-x:auto;padding-bottom:var(--sp-2);}
+.wk-col{flex:1 0 54px;display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:var(--sp-2) 4px;border-radius:var(--r-sm);}
+.wk-col-partial{background:var(--primary-weak);outline:1px dashed var(--primary-line);}
+.wk-col-v{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:var(--fs-sm);color:var(--ink);}
+.wk-col-bar{width:100%;height:100px;display:flex;align-items:flex-end;justify-content:center;}
+.wk-col-bar span{width:58%;min-height:2px;display:block;border-radius:3px 3px 0 0;
+  background:linear-gradient(180deg,var(--i-400),var(--i-600));transition:height .3s ease;}
+.wk-col-partial .wk-col-bar span{background:linear-gradient(180deg,var(--i-300),var(--i-500));}
+.wk-col-k{font-size:var(--fs-2xs);color:var(--ink-soft);white-space:nowrap;}
+.wk-col-tag{font-size:9px;text-transform:uppercase;letter-spacing:.04em;font-weight:700;color:var(--primary);}
+.wk-total{margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--line);
+  font-size:var(--fs-sm);color:var(--ink-soft);}
+.wk-total strong{color:var(--ink);font-family:'IBM Plex Mono',monospace;}
+.wk-note{margin:var(--sp-4) 0 0;font-size:var(--fs-2xs);color:var(--ink-faint);line-height:1.6;}
 .foot-note{margin-top:var(--sp-4);font-size:var(--fs-xs);color:var(--ink-faint);border-top:1px dashed var(--line-strong);padding-top:var(--sp-3);line-height:1.6;}
 
 /* ===== All Products grid ===== */

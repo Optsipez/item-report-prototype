@@ -167,7 +167,7 @@
         </div>
 
         <div class="tab-panel" id="panel-sold">
-          <p class="matrix-title">Units sold, by month</p>
+          <p class="matrix-title">Units sold, by month<span id="soldWeekHint" class="matrix-hint"></span></p>
           <div id="soldMatrixWrap" class="matrix-wrap"></div>
         </div>
 
@@ -202,6 +202,22 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- Weekly-sales popup (opened from a month cell in the Sold by Month tab) -->
+<div id="weekModal" class="wk-modal" role="dialog" aria-modal="true" aria-labelledby="wkTitle" aria-hidden="true" hidden>
+  <div class="wk-backdrop" data-wk-close></div>
+  <div class="wk-dialog" role="document">
+    <div class="wk-head">
+      <div>
+        <h3 id="wkTitle">Weekly sales</h3>
+        <p id="wkSub" class="wk-sub"></p>
+      </div>
+      <button id="wkClose" class="wk-x" type="button" data-wk-close aria-label="Close">&times;</button>
+    </div>
+    <div id="wkBody" class="wk-body"></div>
+    <p class="wk-note">Weekly figures are estimated — the source data is monthly totals, spread across days with a weekend weighting. Weeks run Monday–Sunday; the most recent week is partial.</p>
   </div>
 </div>
 
