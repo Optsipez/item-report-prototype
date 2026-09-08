@@ -49,8 +49,12 @@
   --sunken:#f8f8f6;
   --line:#e9e8e3;
   --line-strong:#d8d6cf;
-  --fieldhead:#efe1ba;
-  --fieldhead-top:#f9f0d4;
+  --fieldhead:#f2f3f5;
+  --fieldhead-top:#fafbfc;
+  --subhead:#e6ecf3;
+  --subhead-top:#f1f5f9;
+  --subhead-line:#5a6b80;
+  --subhead-ink:#3a4a5e;
 
   --primary:#a3781d;
   --primary-hover:#835f18;
@@ -434,12 +438,12 @@ table.grid thead tr.group-row th:hover{background:var(--s-700);color:#fff;}
    titles + collapsed strips stay dark */
 table.grid thead tr.group-row th.core{
   background:linear-gradient(180deg,var(--fieldhead-top),var(--fieldhead));
-  color:var(--brass-strong);cursor:default;
+  color:var(--ink);cursor:default;
   font-weight:700;text-transform:uppercase;letter-spacing:.03em;
-  border-color:var(--primary-line);border-bottom:2px solid var(--primary);
+  border-color:var(--line);
   white-space:normal;width:1%;text-align:left;line-height:1.25;word-break:keep-all;
 }
-table.grid thead tr.group-row th.core:hover{background:linear-gradient(180deg,var(--fieldhead-top),var(--fieldhead));color:var(--brass-strong);}
+table.grid thead tr.group-row th.core:hover{background:linear-gradient(180deg,var(--fieldhead-top),var(--fieldhead));color:var(--ink);}
 table.grid thead tr.group-row th.core.sortable{cursor:pointer;}
 table.grid thead tr.group-row th.core.sortable:hover{background:var(--s-150);}
 table.grid thead tr.group-row th.core.sorted{background:var(--primary);color:var(--on-primary);}
@@ -454,17 +458,16 @@ table.grid tbody td.collapsed-cell{padding-left:1px;padding-right:1px;}
 table.grid tbody tr.row-primary td.collapsed-cell{background:var(--row-shade);}
 table.grid tbody tr.row-secondary td.collapsed-cell{background:var(--panel);}
 table.grid thead tr.group-row th .chev{font-family:'IBM Plex Mono',monospace;margin-right:5px;opacity:.65;}
+/* sub-column headers (only these — the ones sitting under a collapsible group
+   bar) carry a slate accent that ties them to the navy group titles above */
 table.grid thead tr.field-row th{
-  text-align:left;font-size:var(--fs-2xs);color:var(--brass-strong);font-weight:700;
+  text-align:left;font-size:var(--fs-2xs);color:var(--subhead-ink);font-weight:700;
   white-space:normal;width:1%;line-height:1.25;word-break:keep-all;
-  background:linear-gradient(180deg,var(--fieldhead-top),var(--fieldhead));
-  border-bottom:2px solid var(--primary);border-right-color:var(--primary-line);
+  background:linear-gradient(180deg,var(--subhead-top),var(--subhead));
+  border-bottom:2px solid var(--subhead-line);
   text-transform:uppercase;letter-spacing:.03em;
 }
 table.grid thead tr.field-row th.left{text-align:left;}
-/* gold accent line continues under the collapsed-group strips + the group titles */
-table.grid thead tr.group-row th.collapsed{border-bottom:2px solid var(--primary);}
-table.grid thead tr.group-row th:not(.core):not(.collapsed){border-bottom:1px solid rgba(210,167,60,.5);}
 table.grid tbody td{text-align:right;color:var(--ink);transition:background var(--t-fast);}
 table.grid tbody td.left{text-align:left;}
 table.grid tbody td.mono{font-family:'IBM Plex Mono',monospace;}
