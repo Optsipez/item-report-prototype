@@ -404,6 +404,13 @@ table.matrix td.wk-cell{cursor:pointer;}
 table.matrix tr.wk-row:hover td.wk-cell{background:var(--primary-weak);}
 table.matrix tr.wk-row td.wk-cell:hover{background:var(--primary-line);color:var(--primary-hover);}
 
+/* All Products grid: Sold-by-Month cells on the current-year row drill in too */
+table.grid td.wk-cell{cursor:pointer;}
+table.grid tbody tr.row-primary td.wk-cell:hover{
+  background:var(--primary-weak);color:var(--primary-hover);
+  box-shadow:inset 0 -2px 0 var(--primary);
+}
+
 /* ============================================================
    WEEKLY SOLD — month-click popup
    ============================================================ */

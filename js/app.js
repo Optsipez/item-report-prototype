@@ -411,6 +411,14 @@ function weeklyBreakdown(item){
   return weeks;
 }
 
+/* Turn a Sold-by-Month cell (Item Lookup matrix or All Products grid) into a
+   drill-in to the weekly popup, without triggering the grid row's own click. */
+function makeWeeklyCell(td, item){
+  td.classList.add('wk-cell');
+  td.title = 'Weekly breakdown';
+  td.addEventListener('click', e => { e.stopPropagation(); openWeekModal(item); });
+}
+
 let weekModalReturn = null;
 function openWeekModal(item){
   if(!item) return;
@@ -919,6 +927,7 @@ function buildGridBody(items, cols){
           td.textContent = '';
           td.classList.add('collapsed-cell');
           // background comes from CSS (.collapsed-cell rules), not an inline colour
+          if(idx === 0 && col.key === 'soldby') makeWeeklyCell(td, item);
         } else if(col.type === 'core'){
           if(col.field === '__spark'){
             td.classList.add('spark-cell', 'left');
@@ -942,6 +951,7 @@ function buildGridBody(items, cols){
             td.textContent = num === 0 ? '—' : num;
             if(num === 0) td.classList.add('zero');
             if(num < 0) td.classList.add('neg');
+            if(idx === 0 && col.group === 'soldby') makeWeeklyCell(td, item);
           } else {
             td.textContent = fmtCell(v, col.fmt);
           }
