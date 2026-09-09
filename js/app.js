@@ -967,6 +967,7 @@ function buildGridHeader(){
       gth.rowSpan = 2;
       gth.textContent = entry.label;
       gth.dataset.col = entry.field;
+      if(entry.field === 'AVG') gth.classList.add('avg-head');
       if(entry.sortable){
         gth.classList.add('sortable');
         if(gridSort && gridSort.field === entry.field){
@@ -1091,6 +1092,7 @@ function buildGridBody(items, cols){
           if(col.cls) td.className = col.cls;
           if(col.fz) td.classList.add(col.fz);
           if(col.left) td.classList.add('left');
+          if(col.field === 'AVG') td.classList.add('avg-cell');
         }
       } else {
         td.classList.add('grp-' + col.group);

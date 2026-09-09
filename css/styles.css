@@ -546,6 +546,13 @@ table.grid tbody tr.row-item:hover td.item-code::after{opacity:1;transform:trans
 table.grid td.zero{color:var(--ink-faint);}
 table.grid td.neg{color:var(--neg);}
 
+/* AVG column — its own cool accent so the demand figure reads apart from the
+   plain counts (SOH / PO Qty). zero/neg still win where they apply. */
+table.grid tbody td.avg-cell{background:var(--stock-bg);color:var(--stock);font-weight:600;}
+table.grid tbody td.avg-cell.zero{color:var(--ink-faint);}
+table.grid thead tr.group-row th.core.avg-head:not(.sorted){background:var(--stock-bg);color:var(--stock);}
+.metric-row .v.avg-v{color:var(--stock);font-weight:600;}
+
 /* inline sales-trend sparkline — stroke colour follows the trend, line draws in */
 table.grid td.spark-cell{padding-top:3px;padding-bottom:3px;vertical-align:middle;}
 .spark{display:block;overflow:visible;--sp:var(--primary);}
