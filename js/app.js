@@ -150,18 +150,23 @@ const AVG_ANCHOR = detectAvgAnchor();
 /* ============================================================
    MONTH WINDOW — the 13-month reporting strip
    ------------------------------------------------------------
-   From Book1.xlsx "Setup Mon" ("Final Item Month Link"): keep the
-   months whose running index sits between (anchor month, prior year)
-   and (anchor month, this year) — a rolling 13-month window ending at
-   the anchor month, the same span the AVG figure works off. The
-   "Sold by Month" / "Stock In by Month" strips (grid + Item Lookup)
-   show exactly these 13 months, oldest → newest, as one continuous
-   run across the year boundary. (Anchor comes from the export date in
-   production; here it's the latest month with sales.)
+   From Book1.xlsx "Setup Mon" ("Final Item Month Link"): the anchor is
+   MONTH(report date) — the CURRENT month, always, regardless of how much
+   data that month has yet. Keep the months from (anchor month, prior
+   year) through (anchor month, this year): a rolling 13-month window,
+   e.g. run in May 2026 → May 2025 … May 2026; run in September → Sep
+   2025 … Sep 2026. The "Sold by Month" / "Stock In by Month" strips
+   (grid + Item Lookup) show exactly these 13 months, oldest → newest,
+   as one continuous run across the year boundary.
+   (Production reads the run date from the export; here it's today.)
    ============================================================ */
+const REPORT_MONTH = (function(){
+  const d = new Date();
+  return { year: d.getFullYear(), month: d.getMonth() };
+})();
 const MONTH_WINDOW = (function(){
   const out = [];
-  let y = AVG_ANCHOR.year, m = AVG_ANCHOR.month;
+  let y = REPORT_MONTH.year, m = REPORT_MONTH.month;
   for(let i = 0; i < 13; i++){
     out.push({ year: y, m: m });
     if(--m < 0){ m = 11; y--; }
