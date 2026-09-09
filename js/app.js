@@ -648,8 +648,9 @@ let collapsedGroups = new Set(['class','attrs','fob','logi']); // sensible defau
 
 /* Grid ordering has two independent layers that stack:
    - GROUP (categorical): click Plan / PUDA Code to cluster rows that share a
-     value, groups running A→Z by value. Click again to clear. A thin rule
-     divides one group from the next.
+     value, groups running A→Z. Click again to clear. A thin rule divides one
+     group from the next. PUDA Code groups by its leading letter only (all
+     A… together, then all F…); Plan groups by the whole code.
    - SORT (directional): click SOH / PO Qty / Last Sold Qty to cycle
      none → high→low → low→high → none. `__Year` just flips the two rows
      within each item.
@@ -657,6 +658,15 @@ let collapsedGroups = new Set(['class','attrs','fob','logi']); // sensible defau
    inside each group; turning one on never clears the other. */
 let gridSort = null;  // { field, dir: 'desc' | 'asc' }
 let gridGroup = null; // { field }
+/* Per-field grouping key — how much of the value defines a group. Default is
+   the whole value; PUDA Code clusters on its first letter. */
+const GROUP_KEY = {
+  'PUDA Code': v => String(v == null ? '' : v).trim().charAt(0).toUpperCase(),
+};
+function groupKeyFor(field, val){
+  const fn = GROUP_KEY[field];
+  return fn ? fn(val) : String(val == null ? '' : val).trim().toUpperCase();
+}
 function cycleSort(field){
   if(!gridSort || gridSort.field !== field) gridSort = { field: field, dir: 'desc' };
   else if(gridSort.dir === 'desc') gridSort = { field: field, dir: 'asc' };
@@ -673,7 +683,7 @@ function sortGridItems(items){
   if(!g && !s) return items;
   const arr = items.slice();
   const origIdx = new Map(arr.map((it, i) => [it, i]));
-  const groupVal = it => String(it[g.field] == null ? '' : it[g.field]).toUpperCase();
+  const groupVal = it => groupKeyFor(g.field, it[g.field]);
   const sortVal = it => Number(it[s.field]) || 0;
   const mul = s && s.dir === 'asc' ? 1 : -1;
   arr.sort((a, b) => {
@@ -962,7 +972,7 @@ function buildGridBody(items, cols){
   const gField = gridGroup ? gridGroup.field : null;
   let prevGroupVal = null;
   items.forEach((item, itemIdx) => {
-    const groupVal = gField ? String(item[gField] == null ? '' : item[gField]) : null;
+    const groupVal = gField ? groupKeyFor(gField, item[gField]) : null;
     const newGroup = gField && itemIdx > 0 && groupVal !== prevGroupVal;
     prevGroupVal = groupVal;
     const years = Object.keys(item.years).sort((a,b) => yearAsc ? a - b : b - a);
