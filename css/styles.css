@@ -137,6 +137,15 @@ button{font-family:inherit;}
   height:56px;padding:0 var(--sp-6);gap:var(--sp-6);
   border-bottom:1px solid rgba(255,255,255,.06);
   position:sticky;top:0;z-index:40;
+  /* width is stretched to the page's scroll width by syncTopbarWidth() when a
+     wide grid overflows, so the dark strip covers the full scroll extent */
+}
+/* brand + view switch stay pinned to the viewport's left edge while a wide
+   grid (and the rest of the bar) scrolls past underneath */
+.topbar-nav{
+  position:sticky;left:0;z-index:1;
+  display:flex;align-items:center;gap:var(--sp-6);
+  height:100%;background:var(--s-900);padding-right:var(--sp-6);
 }
 .topbar .brand{
   font-weight:600;letter-spacing:-.01em;font-size:15px;color:#fff;
@@ -159,6 +168,8 @@ button{font-family:inherit;}
 .viewswitch button.active{color:#fff;background:rgba(255,255,255,.10);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);}
 .topbar .spacer{flex:1;}
 .topbar .env{
+  /* stays pinned to the viewport's right edge as a wide bar scrolls past */
+  position:sticky;right:0;z-index:1;
   font-size:var(--fs-xs);font-weight:500;letter-spacing:.01em;
   background:rgba(255,255,255,.05);padding:5px 11px;border-radius:var(--r-pill);
   color:#8b98ac;border:1px solid rgba(255,255,255,.08);
@@ -167,6 +178,9 @@ button{font-family:inherit;}
 /* ===== Layout ===== */
 .layout{
   position:relative;display:grid;
+  /* plain 1fr (not minmax(0,…)): a wide grid overflows and the whole PAGE
+     scrolls sideways — intentional. syncTopbarWidth() stretches .topbar to
+     match so no blank page shows above the grid when scrolled right. */
   grid-template-columns:300px 1fr;
   min-height:calc(100vh - 56px);
   transition:grid-template-columns var(--t-med);
@@ -535,10 +549,11 @@ table.grid tbody tr.row-item td.grp-stockin{background:var(--stockin-2026);}
 table.grid tbody tr.row-item td.grp-soldby{background:var(--soldby-2026);}
 table.grid tbody tr.row-item:hover td{background:var(--primary-weak);}
 table.grid tbody tr.row-item{cursor:pointer;}
-table.grid tbody td.item-code{padding-right:26px;}
+/* tighter padding so the narrower frozen column still fits a 6-digit code */
+table.grid td.item-code{padding-left:10px;padding-right:12px;}
 table.grid tbody tr.row-item td.item-code::after{
-  content:'\2197';position:absolute;top:50%;right:10px;
-  color:var(--primary);font-weight:700;opacity:0;pointer-events:none;
+  content:'\2197';position:absolute;top:50%;right:3px;
+  color:var(--primary);font-weight:700;font-size:10px;opacity:0;pointer-events:none;
   transform:translateY(-50%) translateX(-3px);
   transition:opacity var(--t-fast),transform var(--t-fast);
 }
@@ -605,8 +620,8 @@ table.grid tfoot td{
 }
 
 /* Frozen left column */
-.fz-itemcode{position:sticky;left:0;width:100px;overflow:hidden;text-overflow:ellipsis;}
-table.grid:not(.resizable) .fz-itemcode{max-width:100px;}
+.fz-itemcode{position:sticky;left:0;width:78px;overflow:hidden;text-overflow:ellipsis;}
+table.grid:not(.resizable) .fz-itemcode{max-width:78px;}
 table.grid thead th.fz-itemcode{z-index:4;}
 table.grid tbody td.fz-itemcode{z-index:1;border-right:1px solid var(--line-strong);}
 table.grid tbody tr.row-item td.fz-itemcode{background:var(--panel);}

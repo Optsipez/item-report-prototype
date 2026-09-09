@@ -275,6 +275,10 @@ function applyFilterRailState(isLookup){
 toggleFiltersBtn.addEventListener('click', () => {
   filtersCollapsed = !filtersCollapsed;
   applyFilterRailState(false);
+  if(typeof syncTopbarWidth === 'function'){
+    syncTopbarWidth();
+    layoutEl.addEventListener('transitionend', syncTopbarWidth, { once: true });
+  }
 });
 
 function setView(view){
@@ -287,6 +291,7 @@ function setView(view){
   viewAll.classList.toggle('active', !isLookup);
   applyFilterRailState(isLookup);
   if(!isLookup) renderGrid();
+  if(typeof syncTopbarWidth === 'function') syncTopbarWidth();
 }
 
 /* ============================================================
@@ -718,7 +723,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 // while scrolling), then classification/pricing/sourcing detail — most of
 // which is collapsible — then the monthly time series at the far right.
 const COLUMN_LAYOUT = [
-  { type:'core', field:'Item Code', label:'Item Code', cls:'item-code mono', fz:'fz-itemcode' },
+  { type:'core', field:'Item Code', label:'Item Code', cls:'item-code mono', fz:'fz-itemcode', stack:true },
   { type:'core', field:'Vendor Code', label:'Vendor Code' },
   { type:'group', key:'range', title:'Range', short:'Range', cols:[
       { field:'Range Name', label:'Range Name' } ] },
@@ -1005,7 +1010,15 @@ function buildGridHeader(){
       const gth = document.createElement('th');
       gth.className = 'core' + (entry.fz ? ' ' + entry.fz : '');
       gth.rowSpan = 2;
-      gth.textContent = entry.label;
+      if(entry.stack){
+        // force one word per line (e.g. ITEM / CODE) so the column can be narrow
+        entry.label.split(' ').forEach((word, i) => {
+          if(i) gth.appendChild(document.createElement('br'));
+          gth.appendChild(document.createTextNode(word));
+        });
+      } else {
+        gth.textContent = entry.label;
+      }
       gth.dataset.col = entry.field;
       if(entry.field === 'AVG') gth.classList.add('avg-head');
       if(entry.tip) gth.title = entry.tip;
@@ -1190,15 +1203,30 @@ function renderGrid(){
     applyColWidths(table);
   }
   syncStickyHeader();
+  syncTopbarWidth();
   // On the very first render web fonts may still be loading; the rotated
   // collapsed-group labels change height once they swap in, which throws the
   // measurement below off until the next re-render. Re-measure after paint and
   // once fonts settle so the two header rows always sit flush.
-  requestAnimationFrame(syncStickyHeader);
+  requestAnimationFrame(() => { syncStickyHeader(); syncTopbarWidth(); });
   if(document.fonts && document.fonts.ready){
-    document.fonts.ready.then(() => requestAnimationFrame(syncStickyHeader));
+    document.fonts.ready.then(() => requestAnimationFrame(() => { syncStickyHeader(); syncTopbarWidth(); }));
   }
 }
+
+/* When a wide grid pushes the page into horizontal scroll, stretch the dark
+   top bar to the full scroll width so scrolling right never exposes blank
+   page above the grid. Release the bar's own width first, then measure the
+   page, so a stale wide bar can't hold the measurement open. */
+function syncTopbarWidth(){
+  const topbar = document.querySelector('.topbar');
+  if(!topbar) return;
+  topbar.style.width = '';
+  const de = document.documentElement;
+  const need = de.scrollWidth;                    // forced reflow — pure content width
+  topbar.style.width = need > de.clientWidth ? need + 'px' : '';
+}
+window.addEventListener('resize', syncTopbarWidth);
 
 // The second header row's sticky offset must equal the first row's actual
 // rendered height (it varies with how tall the rotated collapsed labels are) —
