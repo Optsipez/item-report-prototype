@@ -482,21 +482,21 @@ table.grid thead tr.group-row th:hover{background:var(--s-700);color:#fff;}
 /* core (always-visible) columns get a light header — only collapsible group
    titles + collapsed strips stay dark */
 table.grid thead tr.group-row th.core{
-  background:linear-gradient(180deg,var(--fieldhead-top),var(--fieldhead));
-  color:var(--ink);cursor:default;
+  background:linear-gradient(180deg,var(--subhead-top),var(--subhead));
+  color:var(--subhead-ink);cursor:default;
   font-weight:700;text-transform:uppercase;letter-spacing:.03em;
-  border-color:var(--line);
+  border-color:var(--line);border-bottom:2px solid var(--subhead-line);
   white-space:normal;width:1%;text-align:left;line-height:1.25;word-break:keep-all;
 }
-table.grid thead tr.group-row th.core:hover{background:linear-gradient(180deg,var(--fieldhead-top),var(--fieldhead));color:var(--ink);}
+table.grid thead tr.group-row th.core:hover{background:linear-gradient(180deg,var(--subhead-top),var(--subhead));color:var(--subhead-ink);}
 table.grid thead tr.group-row th.core.sortable{cursor:pointer;}
-table.grid thead tr.group-row th.core.sortable:hover{background:var(--s-150);}
+table.grid thead tr.group-row th.core.sortable:hover{background:var(--s-200);}
 table.grid thead tr.group-row th.core.sorted{background:var(--primary);color:var(--on-primary);}
 .sort-ind{position:absolute;top:4px;right:5px;color:var(--on-primary);font-size:8px;font-weight:700;line-height:1;pointer-events:none;}
 
 /* group-by headers (Plan, PUDA Code) — cluster rows by value */
 table.grid thead tr.group-row th.core.groupable{cursor:pointer;}
-table.grid thead tr.group-row th.core.groupable:hover{background:var(--s-150);}
+table.grid thead tr.group-row th.core.groupable:hover{background:var(--s-200);}
 table.grid thead tr.group-row th.core.grouped{background:var(--primary);color:var(--on-primary);}
 table.grid thead tr.field-row th.groupable{cursor:pointer;}
 table.grid thead tr.field-row th.groupable:hover{filter:brightness(.97);}
