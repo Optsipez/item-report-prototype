@@ -627,6 +627,14 @@ table.grid thead tr.field-row th.group-start{border-left:1px solid var(--line-st
 table.grid tbody td.group-start{border-left:1px solid var(--line-strong);}
 table.grid thead tr.field-row th.group-end, table.grid tbody td.group-end{border-right:0;}
 
+/* "Resume here" — the row you drilled into, marked when you press Back */
+table.grid tbody tr.row-primary.row-resume td,
+table.grid tbody tr.row-secondary.row-resume td{background:var(--primary-weak);}
+table.grid tbody tr.row-resume td.fz-itemcode{background:var(--primary-weak);box-shadow:inset 3px 0 0 var(--primary);}
+table.grid tbody tr.row-primary.row-resume td.item-code{color:var(--primary-hover);}
+table.grid tbody tr.row-resume td{animation:resumeFlash 1.5s ease 1;}
+@keyframes resumeFlash{0%{background:var(--i-300);}18%{background:var(--i-200);}100%{background:var(--primary-weak);}}
+
 /* Scroll-aware elevation — header + frozen column only cast a shadow once scrolled */
 table.grid thead tr.field-row th,
 table.grid thead tr.group-row th.core,

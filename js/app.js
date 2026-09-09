@@ -220,8 +220,71 @@ function setView(view){
   applyFilterRailState(isLookup);
   if(!isLookup) renderGrid();
 }
-navLookup.addEventListener('click', () => setView('lookup'));
-navAll.addEventListener('click', () => setView('all'));
+
+/* ============================================================
+   HISTORY-AWARE NAVIGATION
+   ------------------------------------------------------------
+   The current view lives in the URL hash (#products / #lookup /
+   #item=<code>) so the browser Back button steps between views
+   instead of leaving the page. Clicking a product in All Products
+   records it as the "resume" row; Back then lands on the grid with
+   that row highlighted and scrolled into view.
+   Hash-only — no pushState — so it also works from a file:// open.
+   ============================================================ */
+let resumeCode = null;
+
+function routeFromHash(){
+  const h = decodeURIComponent(location.hash.replace(/^#/, ''));
+  if(h.indexOf('item=') === 0) return { view: 'lookup', code: h.slice(5) };
+  if(h === 'lookup') return { view: 'lookup', code: null };
+  return { view: 'all' };
+}
+
+function applyRoute(route){
+  if(route.view === 'lookup'){
+    if(route.code){
+      const item = ITEMS.find(i => i['Item Code'] === route.code);
+      if(item){
+        selectedItem = item;
+        searchInput.value = '';
+        filtered = ITEMS.slice();
+        renderResults();
+        renderReport(item);
+      }
+    }
+    setView('lookup');
+  } else {
+    setView('all');                       // rebuilds the grid
+    if(resumeCode) flashResumeRow(resumeCode);
+  }
+}
+
+function navigate(hash){
+  if(location.hash === '#' + hash){ applyRoute(routeFromHash()); return; }
+  location.hash = hash;                   // fires 'hashchange' -> applyRoute
+}
+
+/* Highlight the grid row the user drilled in from and scroll it clear of the
+   sticky 2-row header. */
+function flashResumeRow(code){
+  const gs = document.querySelector('.grid-scroll');
+  if(!gs) return;
+  const rows = gs.querySelectorAll('tr[data-code="' + CSS.escape(code) + '"]');
+  if(!rows.length) return;
+  gs.querySelectorAll('tr.row-resume').forEach(r => r.classList.remove('row-resume'));
+  rows.forEach(r => r.classList.add('row-resume'));
+  requestAnimationFrame(() => {
+    const head = gs.querySelector('thead');
+    const headH = head ? head.getBoundingClientRect().height : 0;
+    const delta = rows[0].getBoundingClientRect().top - gs.getBoundingClientRect().top - headH - 16;
+    gs.scrollTop = Math.max(0, gs.scrollTop + delta);
+  });
+}
+
+window.addEventListener('hashchange', () => applyRoute(routeFromHash()));
+navLookup.addEventListener('click', () =>
+  navigate(selectedItem ? 'item=' + encodeURIComponent(selectedItem['Item Code']) : 'lookup'));
+navAll.addEventListener('click', () => navigate('products'));
 
 /* ============================================================
    ITEM LOOKUP (search + report) — unchanged behaviour
@@ -564,14 +627,10 @@ function countUpMetrics(){
   });
 }
 
-/** Open an item in the Item Lookup view (used by search Generate + grid row click) */
+/** Open an item in the Item Lookup view (search Generate, search result, grid row).
+    Routes through the hash so the browser Back button returns to where you were. */
 function openItem(item){
-  selectedItem = item;
-  searchInput.value = '';
-  filtered = ITEMS.slice();
-  renderResults();
-  renderReport(item);
-  setView('lookup');
+  navigate('item=' + encodeURIComponent(item['Item Code']));
 }
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -979,12 +1038,13 @@ function buildGridBody(items, cols){
     years.forEach((yr, idx) => {
       const tr = document.createElement('tr');
       tr.className = idx === 0 ? 'row-primary' : 'row-secondary';
+      tr.dataset.code = item['Item Code'];
       if(idx === 0 && newGroup) tr.classList.add('group-break');
       // Only the item-code (current-year) row is the click target; the blank
       // prior-year row underneath it isn't interactive on its own.
       if(idx === 0){
         tr.title = 'Open ' + item['Item Code'] + ' in Item Lookup';
-        tr.addEventListener('click', () => openItem(item));
+        tr.addEventListener('click', () => { resumeCode = item['Item Code']; openItem(item); });
       }
       cols.forEach((col, ci) => {
         const td = document.createElement('td');
@@ -1298,5 +1358,5 @@ renderFilterChips();
   gs.addEventListener('scroll', onScroll, { passive: true });
 })();
 
-/* Land on All Products */
-setView('all');
+/* Restore whatever the URL points at (All Products by default) */
+applyRoute(routeFromHash());
