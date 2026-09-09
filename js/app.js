@@ -616,7 +616,7 @@ const COLUMN_LAYOUT = [
       { field:'MRG Factor', label:'Mrg', fmt:'x2' } ] },
   { type:'core', field:'SOH', label:'SOH', sortable:true },
   { type:'core', field:'PO-Qty', label:'PO Qty', sortable:true },
-  { type:'core', field:'AVG', label:'AVG' },
+  { type:'core', field:'AVG', label:'AVG', sortable:true },
   { type:'core', field:'SM', label:'SM' },
   { type:'core', field:'PM', label:'PM' },
   { type:'core', field:'__spark', label:'13-mo Trend' },
