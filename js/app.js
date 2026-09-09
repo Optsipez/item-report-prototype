@@ -82,18 +82,34 @@ function trailing13Sales(item, anchorYear, anchorMonth){
   return s;
 }
 
-/* Tiny inline sales-trend sparkline (last 13 months, oldest -> newest).
-   Stroke colour follows the trend; the line draws itself in on render. */
+/* Direction of a monthly sales series (oldest -> newest): compares the most
+   recent 3 months against the 3 before them, so it reflects where the item is
+   heading now rather than how it compares to a year ago. */
+function trendDir(s){
+  if(s.length < 4) return 'flat';
+  const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+  const recent = mean(s.slice(-3));
+  const prior = mean(s.slice(-6, -3));
+  if(prior <= 0) return recent > 0 ? 'up' : 'flat';
+  const r = recent / prior;
+  return r > 1.15 ? 'up' : r < 0.85 ? 'down' : 'flat';
+}
+
+/* Tiny inline sales-trend sparkline — the elapsed part of MONTH_WINDOW (same
+   window as the Sold by Month strip), oldest -> newest, baseline pinned at 0.
+   Stroke colour follows trendDir; the line draws itself in on render. */
 function sparkSVG(item){
-  const s = trailing13Sales(item, AVG_ANCHOR.year, AVG_ANCHOR.month).slice().reverse();
+  const s = MONTH_WINDOW.slice(0, MONTH_WINDOW_LAST_DATA + 1).map(w => {
+    const yr = item.years[String(w.year)];
+    return yr ? (yr.sales[w.m] || 0) : 0;
+  });
   if(s.every(v => v === 0)) return '<span class="spark-empty">—</span>';
-  const recent = nonZeroAvg(s.slice(-4)), older = nonZeroAvg(s.slice(0, 4));
-  const dir = recent > older * 1.15 ? 'up' : recent < older * 0.78 ? 'down' : 'flat';
+  const dir = trendDir(s);
   const W = 82, H = 22, p = 2.5;
-  const max = Math.max.apply(null, s), min = Math.min.apply(null, s, 0);
+  const max = Math.max.apply(null, s), min = Math.min(0, ...s);
   const span = (max - min) || 1;
   const pts = s.map((v, i) => {
-    const x = p + i * (W - 2 * p) / (s.length - 1);
+    const x = p + i * (W - 2 * p) / Math.max(1, s.length - 1);
     const y = H - p - (v - min) / span * (H - 2 * p);
     return x.toFixed(1) + ' ' + y.toFixed(1);
   });
@@ -174,6 +190,20 @@ const MONTH_WINDOW = (function(){
   return out.reverse();          // oldest first
 })();
 function monthColLabel(w){ return MONTHS[w.m] + "'" + String(w.year).slice(-2); }
+
+/* Index of the last month in MONTH_WINDOW that any item actually sold in — i.e.
+   where the elapsed part of the window ends. The trend sparkline stops here so
+   it never draws a phantom drop for a month that hasn't happened yet. */
+const MONTH_WINDOW_LAST_DATA = (function(){
+  let last = 0;
+  MONTH_WINDOW.forEach((w, i) => {
+    if(ITEMS.some(it => {
+      const yr = it.years[String(w.year)];
+      return yr && (yr.sales[w.m] || 0) !== 0;
+    })) last = i;
+  });
+  return last;
+})();
 
 /* Plan-code-"N" items have no useful sales history (they're new), so their AVG
    is estimated from the incoming PO Qty instead — a percentage that tapers as
