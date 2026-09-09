@@ -493,6 +493,20 @@ table.grid thead tr.group-row th.core.sortable{cursor:pointer;}
 table.grid thead tr.group-row th.core.sortable:hover{background:var(--s-150);}
 table.grid thead tr.group-row th.core.sorted{background:var(--primary);color:var(--on-primary);}
 .sort-ind{position:absolute;top:4px;right:5px;color:var(--on-primary);font-size:8px;font-weight:700;line-height:1;pointer-events:none;}
+
+/* group-by headers (Plan, PUDA Code) — cluster rows by value */
+table.grid thead tr.group-row th.core.groupable{cursor:pointer;}
+table.grid thead tr.group-row th.core.groupable:hover{background:var(--s-150);}
+table.grid thead tr.group-row th.core.grouped{background:var(--primary);color:var(--on-primary);}
+table.grid thead tr.field-row th.groupable{cursor:pointer;}
+table.grid thead tr.field-row th.groupable:hover{filter:brightness(.97);}
+table.grid thead tr.field-row th.grouped{
+  background:var(--primary);color:var(--on-primary);border-bottom-color:var(--primary-hover);
+}
+.group-ind{position:absolute;top:3px;right:4px;line-height:0;pointer-events:none;color:currentColor;opacity:.9;}
+.group-ind svg{display:block;fill:currentColor;}
+/* thin rule where one group ends and the next begins */
+table.grid tbody tr.group-break td{border-top:2px solid var(--s-400);}
 table.grid thead tr.group-row th.collapsed{
   writing-mode:vertical-rl;text-orientation:mixed;text-align:left;padding:6px 1px;
   font-size:9.5px;letter-spacing:.04em;background:var(--s-700);color:#cbd5e1;

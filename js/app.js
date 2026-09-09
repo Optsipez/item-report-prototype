@@ -605,9 +605,9 @@ const COLUMN_LAYOUT = [
       { field:'Sub Group Code', label:'SubGrp Code' },
       { field:'Sub Group Desc', label:'SubGrp Desc' } ] },
   { type:'group', key:'puda', title:'PUDA', short:'PUDA', cols:[
-      { field:'PUDA Code', label:'PUDA Code' },
+      { field:'PUDA Code', label:'PUDA Code', groupable:true },
       { field:'PUDA Desc', label:'PUDA Desc' } ] },
-  { type:'core', field:'Current Plan Code', label:'Plan' },
+  { type:'core', field:'Current Plan Code', label:'Plan', groupable:true },
   { type:'group', key:'price', title:'Pricing', short:'Pricing', cols:[
       { field:'L-Cost (Aed)', label:'L-Cost', fmt:'money2' },
       { field:'Was (Aed)', label:'Was', fmt:'money0' },
@@ -646,20 +646,48 @@ const COLUMN_LAYOUT = [
 const ALL_GROUP_KEYS = COLUMN_LAYOUT.filter(e => e.type === 'group').map(e => e.key);
 let collapsedGroups = new Set(['class','attrs','fob','logi']); // sensible default: keep the essentials visible first
 
-/* Grid sort — click a sortable header to cycle: none -> high→low -> low→high -> none.
-   `__Year` reorders the two rows within each item; anything else reorders items
-   (pairs stay together). */
-let gridSort = null; // { field, dir: 'desc' | 'asc' }
+/* Grid ordering has two independent layers that stack:
+   - GROUP (categorical): click Plan / PUDA Code to cluster rows that share a
+     value, groups running A→Z by value. Click again to clear. A thin rule
+     divides one group from the next.
+   - SORT (directional): click SOH / PO Qty / Last Sold Qty to cycle
+     none → high→low → low→high → none. `__Year` just flips the two rows
+     within each item.
+   With both on, the group is primary and the directional sort orders rows
+   inside each group; turning one on never clears the other. */
+let gridSort = null;  // { field, dir: 'desc' | 'asc' }
+let gridGroup = null; // { field }
 function cycleSort(field){
   if(!gridSort || gridSort.field !== field) gridSort = { field: field, dir: 'desc' };
   else if(gridSort.dir === 'desc') gridSort = { field: field, dir: 'asc' };
   else gridSort = null;
   renderGrid();
 }
+function cycleGroup(field){
+  gridGroup = gridGroup && gridGroup.field === field ? null : { field: field };
+  renderGrid();
+}
 function sortGridItems(items){
-  if(!gridSort || gridSort.field === '__Year') return items;
-  const mul = gridSort.dir === 'asc' ? 1 : -1;
-  return items.slice().sort((a, b) => ((Number(a[gridSort.field]) || 0) - (Number(b[gridSort.field]) || 0)) * mul);
+  const g = gridGroup;
+  const s = gridSort && gridSort.field !== '__Year' ? gridSort : null;
+  if(!g && !s) return items;
+  const arr = items.slice();
+  const origIdx = new Map(arr.map((it, i) => [it, i]));
+  const groupVal = it => String(it[g.field] == null ? '' : it[g.field]).toUpperCase();
+  const sortVal = it => Number(it[s.field]) || 0;
+  const mul = s && s.dir === 'asc' ? 1 : -1;
+  arr.sort((a, b) => {
+    if(g){
+      const ga = groupVal(a), gb = groupVal(b);
+      if(ga !== gb) return ga < gb ? -1 : 1;          // groups A→Z
+    }
+    if(s){
+      const d = (sortVal(a) - sortVal(b)) * mul;      // then directional, within group
+      if(d) return d;
+    }
+    return origIdx.get(a) - origIdx.get(b);           // stable otherwise
+  });
+  return arr;
 }
 
 function fmtCell(v, fmt){
@@ -679,7 +707,7 @@ function visibleColumns(){
     if(collapsedGroups.has(entry.key)){
       out.push({ type:'collapsed', key:entry.key, title:entry.title });
     } else {
-      entry.cols.forEach(c => out.push({ type:'field', field:c.field, label:c.label, fmt:c.fmt, group:entry.key }));
+      entry.cols.forEach(c => out.push({ type:'field', field:c.field, label:c.label, fmt:c.fmt, group:entry.key, groupable:c.groupable }));
     }
   });
   return out;
@@ -699,6 +727,7 @@ document.getElementById('expandAllBtn').addEventListener('click', () => {
 });
 document.getElementById('clearSortBtn').addEventListener('click', () => {
   gridSort = null;
+  gridGroup = null;
   renderGrid();
 });
 
@@ -809,6 +838,25 @@ function addGroupResizer(gth, leafKeys){
   gth.appendChild(grip);
 }
 
+const GROUP_ICON =
+  '<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">' +
+  '<rect x="1" y="1.4" width="10" height="2.2" rx="1"/>' +
+  '<rect x="3.5" y="4.9" width="7.5" height="2.2" rx="1"/>' +
+  '<rect x="3.5" y="8.4" width="7.5" height="2.2" rx="1"/></svg>';
+/* Wire a header cell (core or group-field) as a group-by toggle. */
+function applyGroupHeader(th, field){
+  th.classList.add('groupable');
+  th.title = 'Group rows by ' + th.textContent.trim();
+  if(gridGroup && gridGroup.field === field){
+    th.classList.add('grouped');
+    const ind = document.createElement('span');
+    ind.className = 'group-ind';
+    ind.innerHTML = GROUP_ICON;
+    th.appendChild(ind);
+  }
+  th.addEventListener('click', () => cycleGroup(field));
+}
+
 function buildGridHeader(){
   const groupRow = document.createElement('tr');
   groupRow.className = 'group-row';
@@ -832,6 +880,8 @@ function buildGridHeader(){
           gth.appendChild(ind);
         }
         gth.addEventListener('click', () => cycleSort(entry.field));
+      } else if(entry.groupable){
+        applyGroupHeader(gth, entry.field);
       }
       addColResizer(gth);
       groupRow.appendChild(gth);
@@ -861,6 +911,7 @@ function buildGridHeader(){
         fth.classList.add('grp-' + entry.key);
         if(i === 0) fth.classList.add('group-start');
         fth.dataset.col = c.field;
+        if(c.groupable) applyGroupHeader(fth, c.field);
         addColResizer(fth);
         fieldRow.appendChild(fth);
       });
@@ -908,11 +959,17 @@ function buildGridBody(items, cols){
   groupStartIdx.forEach(i => { if(i > 0) groupEndIdx.add(i - 1); });
 
   const yearAsc = gridSort && gridSort.field === '__Year' && gridSort.dir === 'asc';
-  items.forEach(item => {
+  const gField = gridGroup ? gridGroup.field : null;
+  let prevGroupVal = null;
+  items.forEach((item, itemIdx) => {
+    const groupVal = gField ? String(item[gField] == null ? '' : item[gField]) : null;
+    const newGroup = gField && itemIdx > 0 && groupVal !== prevGroupVal;
+    prevGroupVal = groupVal;
     const years = Object.keys(item.years).sort((a,b) => yearAsc ? a - b : b - a);
     years.forEach((yr, idx) => {
       const tr = document.createElement('tr');
       tr.className = idx === 0 ? 'row-primary' : 'row-secondary';
+      if(idx === 0 && newGroup) tr.classList.add('group-break');
       // Only the item-code (current-year) row is the click target; the blank
       // prior-year row underneath it isn't interactive on its own.
       if(idx === 0){
@@ -987,7 +1044,7 @@ function renderGrid(){
   table.appendChild(thead);
   table.appendChild(buildGridBody(items, cols));
   document.getElementById('gridRowCount').textContent = items.length + ' of ' + ITEMS.length + ' items';
-  document.getElementById('clearSortBtn').hidden = !gridSort;
+  document.getElementById('clearSortBtn').hidden = !gridSort && !gridGroup;
   if(colResizeActive){
     // capture the natural width of any column shown for the first time (grid is
     // still auto-laid-out here), then lock it to fixed widths.
