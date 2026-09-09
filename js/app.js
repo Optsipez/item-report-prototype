@@ -205,6 +205,16 @@ const MONTH_WINDOW_LAST_DATA = (function(){
   return last;
 })();
 
+/* Hover explainer for the 13-mo Trend column header. */
+const SPARK_TIP =
+  '13-month sales trend — units sold per month, ' +
+  monthColLabel(MONTH_WINDOW[0]) + ' to ' + monthColLabel(MONTH_WINDOW[MONTH_WINDOW_LAST_DATA]) +
+  ' (oldest to newest), baseline at 0.\n' +
+  'Colour = momentum: the average of the last 3 months vs the 3 months before —\n' +
+  '  up   more than 15% higher   (green)\n' +
+  '  down more than 15% lower    (red)\n' +
+  '  flat within that band       (gold)';
+
 /* Plan-code-"N" items have no useful sales history (they're new), so their AVG
    is estimated from the incoming PO Qty instead — a percentage that tapers as
    the order gets bigger. Workbook rule:
@@ -736,7 +746,7 @@ const COLUMN_LAYOUT = [
   { type:'core', field:'AVG', label:'AVG', sortable:true },
   { type:'core', field:'SM', label:'SM' },
   { type:'core', field:'PM', label:'PM' },
-  { type:'core', field:'__spark', label:'13-mo Trend' },
+  { type:'core', field:'__spark', label:'13-mo Trend', tip: SPARK_TIP },
   { type:'core', field:'Description', label:'Description', left:true },
   { type:'group', key:'attrs', title:'Attributes', short:'Attrs', cols:[
       { field:'Item Color Name', label:'Color' },
@@ -998,6 +1008,7 @@ function buildGridHeader(){
       gth.textContent = entry.label;
       gth.dataset.col = entry.field;
       if(entry.field === 'AVG') gth.classList.add('avg-head');
+      if(entry.tip) gth.title = entry.tip;
       if(entry.sortable){
         gth.classList.add('sortable');
         if(gridSort && gridSort.field === entry.field){
