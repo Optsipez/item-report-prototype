@@ -215,6 +215,11 @@ const SPARK_TIP =
   '  down more than 15% lower    (red)\n' +
   '  flat within that band       (gold)';
 
+/* Hover explainer for the YTD Sold column header. */
+const YTD_TIP =
+  'Units sold Jan – ' + MONTHS[REPORT_MONTH.month] + ' ' + REPORT_MONTH.year +
+  ' (year to date). Extends on its own as the calendar advances.';
+
 /* Plan-code-"N" items have no useful sales history (they're new), so their AVG
    is estimated from the incoming PO Qty instead — a percentage that tapers as
    the order gets bigger. Workbook rule:
@@ -242,11 +247,44 @@ function monthsOfCover(qty, avg){
   const r = Math.round((qty / avg) * 10) / 10;
   return r === 0 ? 'X' : r.toFixed(1);
 }
+/* M-SOH per item — read from Navision "Stk Data" (column "M-SOH"). Sits
+   alongside SAJWH / DCSHJ, which are already in the branch data. Moves into
+   data.js once full ingestion lands. */
+const M_SOH_BY_ITEM = {
+  '101313': 21, '101453': 0, '101459': 0, '101460': 0,
+  '103641': 12, '103613': 12, '103622': 12, '103630': 0,
+  '103636': 3,  '103629': 6, '103620': 15,
+};
+/* Units sold this calendar year so far — Jan through the current month of
+   REPORT_MONTH.year. Recomputed each load, so it grows on its own as months
+   pass (and picks up the current month's sales as they land). */
+function ytdSold(it){
+  const yr = it.years[String(REPORT_MONTH.year)];
+  if(!yr) return 0;
+  let t = 0;
+  for(let m = 0; m <= REPORT_MONTH.month; m++) t += yr.sales[m] || 0;
+  return t;
+}
 ITEMS.forEach(it => {
   it['AVG'] = itemAvg(it);
   it['SM'] = monthsOfCover(Number(it['SOH']) || 0, it['AVG']);
   it['PM'] = monthsOfCover(Number(it['PO-Qty']) || 0, it['AVG']);
+  it['M-SOH'] = M_SOH_BY_ITEM[it['Item Code']] || 0;
+  it['YTD Sold'] = ytdSold(it);
 });
+
+/* Stock held at a given warehouse/branch code (from the Stk Data / branch sheet). */
+function branchQty(item, code){
+  const b = BRANCH_BY_ITEM[item['Item Code']];
+  return b && b[code] ? b[code] : 0;
+}
+/* WH SOH — warehouse stock across M-SOH + SAJWH + DCSHJ. The header toggles
+   whether M-SOH is in the total. */
+let whSohInclM = true;
+function whSohValue(item){
+  const base = branchQty(item, 'SAJWH') + branchQty(item, 'DCSHJ');
+  return whSohInclM ? base + (Number(item['M-SOH']) || 0) : base;
+}
 
 /* ============================================================
    VIEW SWITCHING
@@ -747,6 +785,7 @@ const COLUMN_LAYOUT = [
       { field:'Disct%', label:'Disct%', fmt:'pct' },
       { field:'MRG Factor', label:'Mrg', fmt:'x2' } ] },
   { type:'core', field:'SOH', label:'SOH', sortable:true },
+  { type:'core', field:'__whsoh', label:'WH SOH', sortable:true },
   { type:'core', field:'PO-Qty', label:'PO Qty', sortable:true },
   { type:'core', field:'AVG', label:'AVG', sortable:true },
   { type:'core', field:'SM', label:'SM' },
@@ -769,6 +808,7 @@ const COLUMN_LAYOUT = [
       { field:'Last Sold Date', label:'Last Sold Date' } ] },
   // Kept out of the collapsible group so it stays visible when Receipts & Sales
   // is collapsed.
+  { type:'core', field:'YTD Sold', label:'YTD Sold', sortable:true, tip: YTD_TIP },
   { type:'core', field:'Last Sold Qty', label:'Last Sold Qty', sortable:true },
   { type:'group', key:'soldby', title:'Sold by Month', short:'Sold',
     cols: MONTH_WINDOW.map((w, i) => ({ field:'__sold_'+i, label: monthColLabel(w) })) },
@@ -816,7 +856,7 @@ function sortGridItems(items){
   const arr = items.slice();
   const origIdx = new Map(arr.map((it, i) => [it, i]));
   const groupVal = it => groupKeyFor(g.field, it[g.field]);
-  const sortVal = it => Number(it[s.field]) || 0;
+  const sortVal = it => s.field === '__whsoh' ? whSohValue(it) : (Number(it[s.field]) || 0);
   const mul = s && s.dir === 'asc' ? 1 : -1;
   arr.sort((a, b) => {
     if(g){
@@ -1035,6 +1075,24 @@ function buildGridHeader(){
       } else if(entry.groupable){
         applyGroupHeader(gth, entry.field);
       }
+      if(entry.field === '__whsoh'){
+        // header click sorts (via the sortable path above); the +M / −M badge
+        // toggles whether M-SOH is in the total.
+        gth.classList.add('whsoh-head');
+        gth.classList.toggle('incl-m', whSohInclM);
+        const badge = document.createElement('span');
+        badge.className = 'whsoh-ind';
+        badge.textContent = whSohInclM ? '+M' : '−M';
+        badge.title = whSohInclM
+          ? 'M-SOH is in the total — click to drop it (SAJWH + DCSHJ only)'
+          : 'M-SOH is excluded — click to add it back';
+        badge.addEventListener('click', e => { e.stopPropagation(); whSohInclM = !whSohInclM; renderGrid(); });
+        gth.appendChild(badge);
+        gth.title = (whSohInclM
+          ? 'Warehouse stock = M-SOH + SAJWH + DCSHJ.'
+          : 'Warehouse stock = SAJWH + DCSHJ (M-SOH excluded).')
+          + '\nClick the badge to toggle M-SOH; click the header to sort.';
+      }
       addColResizer(gth);
       groupRow.appendChild(gth);
       return;
@@ -1140,6 +1198,9 @@ function buildGridBody(items, cols){
         } else if(col.field === 'SM' || col.field === 'PM'){
           td.classList.add('cover-cell', 'left');
           td.innerHTML = coverCell(item[col.field]);
+        } else if(col.field === '__whsoh'){
+          td.classList.add('whsoh-cell');
+          td.textContent = fmtInt(whSohValue(item));
         } else {
           const v = cellValueForItem(item, col.field);
           td.textContent = (v === undefined || v === null || v === '') ? '—' : v;

@@ -568,6 +568,19 @@ table.grid tbody td.avg-cell.zero{color:var(--ink-faint);}
 table.grid thead tr.group-row th.core.avg-head:not(.sorted){background:var(--stock-bg);color:var(--stock);}
 .metric-row .v.avg-v{color:var(--stock);font-weight:600;}
 
+/* WH SOH — header sorts; the +M / −M badge toggles whether M-SOH is in the total */
+table.grid thead tr.group-row th.core.whsoh-head{padding-right:24px;}
+.whsoh-ind{
+  position:absolute;top:50%;right:9px;transform:translateY(-50%);
+  line-height:1;cursor:pointer;
+  font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:800;letter-spacing:-.03em;
+  padding:2px 3px;border-radius:3px;transition:background var(--t-fast);
+}
+table.grid thead tr.group-row th.core.whsoh-head.incl-m .whsoh-ind{color:var(--primary);background:var(--primary-weak);}
+table.grid thead tr.group-row th.core.whsoh-head:not(.incl-m) .whsoh-ind{color:var(--ink-faint);background:var(--s-100);}
+table.grid thead tr.group-row th.core.whsoh-head .whsoh-ind:hover{background:var(--s-200);}
+table.grid thead tr.group-row th.core.whsoh-head.sorted .whsoh-ind{color:var(--on-primary);background:rgba(255,255,255,.22);}
+
 /* inline sales-trend sparkline — stroke colour follows the trend, line draws in */
 table.grid td.spark-cell{padding-top:3px;padding-bottom:3px;vertical-align:middle;}
 .spark{display:block;overflow:visible;--sp:var(--primary);}
