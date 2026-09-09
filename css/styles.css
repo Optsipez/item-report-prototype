@@ -398,15 +398,13 @@ table.matrix td.neg{color:var(--neg);}
 .matrix-wrap{margin-bottom:var(--sp-6);}
 .matrix-wrap:last-child{margin-bottom:0;}
 
-/* Sold matrix: current-year row drills into the weekly popup */
-table.matrix tr.wk-row td:first-child::after{content:' ›';color:var(--primary);font-weight:700;}
+/* Sold matrix: month cells drill into the weekly popup */
 table.matrix td.wk-cell{cursor:pointer;}
-table.matrix tr.wk-row:hover td.wk-cell{background:var(--primary-weak);}
-table.matrix tr.wk-row td.wk-cell:hover{background:var(--primary-line);color:var(--primary-hover);}
+table.matrix td.wk-cell:hover{background:var(--primary-weak);color:var(--primary-hover);}
 
-/* All Products grid: Sold-by-Month cells on the current-year row drill in too */
+/* All Products grid: Sold-by-Month cells drill in too */
 table.grid td.wk-cell{cursor:pointer;}
-table.grid tbody tr.row-primary td.wk-cell:hover{
+table.grid tbody tr.row-item td.wk-cell:hover{
   background:var(--primary-weak);color:var(--primary-hover);
   box-shadow:inset 0 -2px 0 var(--primary);
 }
@@ -513,9 +511,7 @@ table.grid thead tr.group-row th.collapsed{
 }
 table.grid thead tr.group-row th.collapsed:hover{background:var(--s-600);color:#fff;}
 table.grid thead tr.group-row th.collapsed .chev{margin-right:2px;}
-table.grid tbody td.collapsed-cell{padding-left:1px;padding-right:1px;}
-table.grid tbody tr.row-primary td.collapsed-cell{background:var(--row-shade);}
-table.grid tbody tr.row-secondary td.collapsed-cell{background:var(--panel);}
+table.grid tbody td.collapsed-cell{padding-left:1px;padding-right:1px;background:var(--panel);}
 table.grid thead tr.group-row th .chev{font-family:'IBM Plex Mono',monospace;margin-right:5px;opacity:.65;}
 /* sub-column headers (only these — the ones sitting under a collapsible group
    bar) carry a slate accent that ties them to the navy group titles above */
@@ -530,27 +526,23 @@ table.grid thead tr.field-row th.left{text-align:left;}
 table.grid tbody td{text-align:right;color:var(--ink);transition:background var(--t-fast);}
 table.grid tbody td.left{text-align:left;}
 table.grid tbody td.mono{font-family:'IBM Plex Mono',monospace;}
-table.grid tbody tr.row-primary td{background:var(--row-shade);border-bottom-color:var(--s-100);}
-table.grid tbody tr.row-secondary td{background:var(--panel);color:var(--ink-faint);font-size:var(--fs-xs);border-bottom-color:var(--line-strong);}
-table.grid tbody tr.row-primary td.item-code{font-weight:600;color:var(--ink);}
-/* month blocks */
+table.grid tbody tr.row-item td{background:var(--panel);border-bottom-color:var(--line);}
+table.grid tbody tr.row-item td.item-code{font-weight:600;color:var(--ink);}
+/* month blocks — one 13-month strip per item */
 table.grid thead tr.field-row th.grp-stockin{background:var(--stockin-tint-head);color:var(--ink-soft);}
 table.grid thead tr.field-row th.grp-soldby{background:var(--soldby-tint-head);color:var(--ink-soft);}
-table.grid tbody tr.row-primary td.grp-stockin{background:var(--stockin-2026);}
-table.grid tbody tr.row-secondary td.grp-stockin{background:var(--stockin-2025);}
-table.grid tbody tr.row-primary td.grp-soldby{background:var(--soldby-2026);}
-table.grid tbody tr.row-secondary td.grp-soldby{background:var(--soldby-2025);}
-/* hover + click land on the item-code row only */
-table.grid tbody tr.row-primary:hover td{background:var(--primary-weak);}
-table.grid tbody tr.row-primary{cursor:pointer;}
+table.grid tbody tr.row-item td.grp-stockin{background:var(--stockin-2026);}
+table.grid tbody tr.row-item td.grp-soldby{background:var(--soldby-2026);}
+table.grid tbody tr.row-item:hover td{background:var(--primary-weak);}
+table.grid tbody tr.row-item{cursor:pointer;}
 table.grid tbody td.item-code{padding-right:26px;}
-table.grid tbody tr.row-primary td.item-code::after{
+table.grid tbody tr.row-item td.item-code::after{
   content:'\2197';position:absolute;top:50%;right:10px;
   color:var(--primary);font-weight:700;opacity:0;pointer-events:none;
   transform:translateY(-50%) translateX(-3px);
   transition:opacity var(--t-fast),transform var(--t-fast);
 }
-table.grid tbody tr.row-primary:hover td.item-code::after{opacity:1;transform:translateY(-50%) translateX(0);}
+table.grid tbody tr.row-item:hover td.item-code::after{opacity:1;transform:translateY(-50%) translateX(0);}
 table.grid td.zero{color:var(--ink-faint);}
 table.grid td.neg{color:var(--neg);}
 
@@ -567,7 +559,7 @@ table.grid td.spark-cell{padding-top:3px;padding-bottom:3px;vertical-align:middl
 .spark-area{fill:var(--sp);opacity:.12;}
 .spark-dot{fill:var(--sp);stroke:var(--panel);stroke-width:1;opacity:0;animation:fadeIn .3s .55s ease forwards;}
 .spark-empty{color:var(--ink-faint);}
-table.grid tbody tr.row-primary:hover .spark-area{opacity:.2;}
+table.grid tbody tr.row-item:hover .spark-area{opacity:.2;}
 
 /* months-of-cover: value + health bar */
 table.grid td.cover-cell{padding-top:6px;padding-bottom:6px;}
@@ -610,9 +602,8 @@ table.grid tfoot td{
 table.grid:not(.resizable) .fz-itemcode{max-width:100px;}
 table.grid thead th.fz-itemcode{z-index:4;}
 table.grid tbody td.fz-itemcode{z-index:1;border-right:1px solid var(--line-strong);}
-table.grid tbody tr.row-primary td.fz-itemcode{background:var(--row-shade);}
-table.grid tbody tr.row-secondary td.fz-itemcode{background:var(--panel);}
-table.grid tbody tr.row-primary:hover td.fz-itemcode{background:var(--primary-weak);}
+table.grid tbody tr.row-item td.fz-itemcode{background:var(--panel);}
+table.grid tbody tr.row-item:hover td.fz-itemcode{background:var(--primary-weak);}
 
 /* Manual column resizing */
 .col-resizer{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;z-index:7;}
@@ -628,10 +619,9 @@ table.grid tbody td.group-start{border-left:1px solid var(--line-strong);}
 table.grid thead tr.field-row th.group-end, table.grid tbody td.group-end{border-right:0;}
 
 /* "Resume here" — the row you drilled into, marked when you press Back */
-table.grid tbody tr.row-primary.row-resume td,
-table.grid tbody tr.row-secondary.row-resume td{background:var(--primary-weak);}
+table.grid tbody tr.row-item.row-resume td{background:var(--primary-weak);}
 table.grid tbody tr.row-resume td.fz-itemcode{background:var(--primary-weak);box-shadow:inset 3px 0 0 var(--primary);}
-table.grid tbody tr.row-primary.row-resume td.item-code{color:var(--primary-hover);}
+table.grid tbody tr.row-item.row-resume td.item-code{color:var(--primary-hover);}
 table.grid tbody tr.row-resume td{animation:resumeFlash 1.5s ease 1;}
 @keyframes resumeFlash{0%{background:var(--i-300);}18%{background:var(--i-200);}100%{background:var(--primary-weak);}}
 

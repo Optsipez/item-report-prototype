@@ -147,6 +147,29 @@ function detectAvgAnchor(){
 }
 const AVG_ANCHOR = detectAvgAnchor();
 
+/* ============================================================
+   MONTH WINDOW — the 13-month reporting strip
+   ------------------------------------------------------------
+   From Book1.xlsx "Setup Mon" ("Final Item Month Link"): keep the
+   months whose running index sits between (anchor month, prior year)
+   and (anchor month, this year) — a rolling 13-month window ending at
+   the anchor month, the same span the AVG figure works off. The
+   "Sold by Month" / "Stock In by Month" strips (grid + Item Lookup)
+   show exactly these 13 months, oldest → newest, as one continuous
+   run across the year boundary. (Anchor comes from the export date in
+   production; here it's the latest month with sales.)
+   ============================================================ */
+const MONTH_WINDOW = (function(){
+  const out = [];
+  let y = AVG_ANCHOR.year, m = AVG_ANCHOR.month;
+  for(let i = 0; i < 13; i++){
+    out.push({ year: y, m: m });
+    if(--m < 0){ m = 11; y--; }
+  }
+  return out.reverse();          // oldest first
+})();
+function monthColLabel(w){ return MONTHS[w.m] + "'" + String(w.year).slice(-2); }
+
 /* Plan-code-"N" items have no useful sales history (they're new), so their AVG
    is estimated from the incoming PO Qty instead — a percentage that tapers as
    the order gets bigger. Workbook rule:
@@ -347,30 +370,30 @@ generateBtn.addEventListener('click', () => {
 });
 
 function buildMatrix(wrapEl, item, key){
-  const years = Object.keys(item.years).sort((a,b) => b - a);
-  /* On the Sold matrix, the current-year row drills into a weekly popup. */
-  const clickYear = key === 'sales' ? String(WEEK_ANCHOR.getFullYear()) : null;
-  let html = '<table class="matrix"><thead><tr><th>Year</th>';
-  MONTHS.forEach(m => html += `<th>${m}</th>`);
-  html += '<th>Total</th></tr></thead><tbody>';
-  years.forEach(y => {
-    const vals = item.years[y][key];
-    const total = vals.reduce((a,b) => a+b, 0);
-    const clk = String(y) === clickYear;
-    html += `<tr${clk ? ' class="wk-row"' : ''}><td>${y}</td>`;
-    vals.forEach(v => {
-      const cls = [v === 0 ? 'zero' : '', clk ? 'wk-cell' : ''].filter(Boolean).join(' ');
-      html += `<td class="${cls}">${v === 0 ? '—' : v}</td>`;
-    });
-    html += `<td><strong>${total}</strong></td></tr>`;
+  // One continuous 13-month strip (oldest -> newest), spanning the year boundary.
+  let total = 0;
+  const cells = MONTH_WINDOW.map(w => {
+    const yr = item.years[String(w.year)];
+    const v = yr ? (yr[key][w.m] || 0) : 0;
+    total += v;
+    return { w: w, v: v };
   });
-  html += '</tbody></table>';
+  const label = key === 'sales' ? 'Sold' : 'Received';
+  let html = '<table class="matrix"><thead><tr><th></th>';
+  cells.forEach(c => { html += `<th>${monthColLabel(c.w)}</th>`; });
+  html += '<th>Total</th></tr></thead><tbody><tr>';
+  html += `<td>${label}</td>`;
+  cells.forEach(c => {
+    const cls = [c.v === 0 ? 'zero' : '', key === 'sales' ? 'wk-cell' : ''].filter(Boolean).join(' ');
+    html += `<td class="${cls}">${c.v === 0 ? '—' : c.v}</td>`;
+  });
+  html += `<td><strong>${total}</strong></td></tr></tbody></table>`;
   wrapEl.innerHTML = html;
-  if(clickYear){
+  if(key === 'sales'){
     wrapEl.querySelectorAll('td.wk-cell').forEach(td =>
       td.addEventListener('click', () => openWeekModal(item)));
     const hint = document.getElementById('soldWeekHint');
-    if(hint) hint.textContent = '  ·  click a month in the ' + clickYear + ' row for the weekly breakdown';
+    if(hint) hint.textContent = '  ·  click a month for the weekly breakdown';
   }
 }
 
@@ -697,9 +720,10 @@ const COLUMN_LAYOUT = [
   // Kept out of the collapsible group so it stays visible when Receipts & Sales
   // is collapsed.
   { type:'core', field:'Last Sold Qty', label:'Last Sold Qty', sortable:true },
-  { type:'core', field:'__Year', label:'Year', sortable:true },
-  { type:'group', key:'soldby', title:'Sold by Month', short:'Sold', cols: MONTHS.map(m => ({ field:'__sold_'+m, label:m })) },
-  { type:'group', key:'stockin', title:'Stock In by Month', short:'Stock In', cols: MONTHS.map(m => ({ field:'__stock_'+m, label:m })) },
+  { type:'group', key:'soldby', title:'Sold by Month', short:'Sold',
+    cols: MONTH_WINDOW.map((w, i) => ({ field:'__sold_'+i, label: monthColLabel(w) })) },
+  { type:'group', key:'stockin', title:'Stock In by Month', short:'Stock In',
+    cols: MONTH_WINDOW.map((w, i) => ({ field:'__stock_'+i, label: monthColLabel(w) })) },
 ];
 
 const ALL_GROUP_KEYS = COLUMN_LAYOUT.filter(e => e.type === 'group').map(e => e.key);
@@ -710,9 +734,8 @@ let collapsedGroups = new Set(['class','attrs','fob','logi']); // sensible defau
      value, groups running A→Z. Click again to clear. A thin rule divides one
      group from the next. PUDA Code groups by its leading letter only (all
      A… together, then all F…); Plan groups by the whole code.
-   - SORT (directional): click SOH / PO Qty / Last Sold Qty to cycle
-     none → high→low → low→high → none. `__Year` just flips the two rows
-     within each item.
+   - SORT (directional): click SOH / PO Qty / AVG / Last Sold Qty to cycle
+     none → high→low → low→high → none.
    With both on, the group is primary and the directional sort orders rows
    inside each group; turning one on never clears the other. */
 let gridSort = null;  // { field, dir: 'desc' | 'asc' }
@@ -738,7 +761,7 @@ function cycleGroup(field){
 }
 function sortGridItems(items){
   const g = gridGroup;
-  const s = gridSort && gridSort.field !== '__Year' ? gridSort : null;
+  const s = gridSort;
   if(!g && !s) return items;
   const arr = items.slice();
   const origIdx = new Map(arr.map((it, i) => [it, i]));
@@ -1001,15 +1024,16 @@ function buildGridHeader(){
   return thead;
 }
 
-function cellValueForYearRow(item, field, yearKey){
-  if(field === '__Year') return yearKey;
+function cellValueForItem(item, field){
   if(field.startsWith('__stock_')){
-    const idx = MONTHS.indexOf(field.replace('__stock_',''));
-    return item.years[yearKey] ? item.years[yearKey].stock[idx] : null;
+    const w = MONTH_WINDOW[+field.slice(8)];
+    const yr = w && item.years[String(w.year)];
+    return yr ? yr.stock[w.m] : null;
   }
   if(field.startsWith('__sold_')){
-    const idx = MONTHS.indexOf(field.replace('__sold_',''));
-    return item.years[yearKey] ? item.years[yearKey].sales[idx] : null;
+    const w = MONTH_WINDOW[+field.slice(7)];
+    const yr = w && item.years[String(w.year)];
+    return yr ? yr.sales[w.m] : null;
   }
   return item[field];
 }
@@ -1017,7 +1041,7 @@ function cellValueForYearRow(item, field, yearKey){
 function buildGridBody(items, cols){
   const tbody = document.createElement('tbody');
   // First column of each expanded group gets a visual divider so adjacent
-  // groups (e.g. Stock In / Sold by Month, both Jan–Dec) aren't ambiguous.
+  // groups (e.g. Sold by Month / Stock In by Month, same 13-month strip) aren't ambiguous.
   const groupStartIdx = new Set();
   cols.forEach((col, i) => {
     if(col.type === 'field' && (i === 0 || cols[i-1].group !== col.group)) groupStartIdx.add(i);
@@ -1027,66 +1051,59 @@ function buildGridBody(items, cols){
   const groupEndIdx = new Set();
   groupStartIdx.forEach(i => { if(i > 0) groupEndIdx.add(i - 1); });
 
-  const yearAsc = gridSort && gridSort.field === '__Year' && gridSort.dir === 'asc';
   const gField = gridGroup ? gridGroup.field : null;
   let prevGroupVal = null;
   items.forEach((item, itemIdx) => {
     const groupVal = gField ? groupKeyFor(gField, item[gField]) : null;
     const newGroup = gField && itemIdx > 0 && groupVal !== prevGroupVal;
     prevGroupVal = groupVal;
-    const years = Object.keys(item.years).sort((a,b) => yearAsc ? a - b : b - a);
-    years.forEach((yr, idx) => {
-      const tr = document.createElement('tr');
-      tr.className = idx === 0 ? 'row-primary' : 'row-secondary';
-      tr.dataset.code = item['Item Code'];
-      if(idx === 0 && newGroup) tr.classList.add('group-break');
-      // Only the item-code (current-year) row is the click target; the blank
-      // prior-year row underneath it isn't interactive on its own.
-      if(idx === 0){
-        tr.title = 'Open ' + item['Item Code'] + ' in Item Lookup';
-        tr.addEventListener('click', () => { resumeCode = item['Item Code']; openItem(item); });
-      }
-      cols.forEach((col, ci) => {
-        const td = document.createElement('td');
-        if(groupStartIdx.has(ci)) td.classList.add('group-start');
-        if(groupEndIdx.has(ci)) td.classList.add('group-end');
-        if(col.type === 'collapsed'){
-          td.textContent = '';
-          td.classList.add('collapsed-cell');
-          // background comes from CSS (.collapsed-cell rules), not an inline colour
-          if(idx === 0 && col.key === 'soldby') makeWeeklyCell(td, item);
-        } else if(col.type === 'core'){
-          if(col.field === '__spark'){
-            td.classList.add('spark-cell', 'left');
-            td.innerHTML = idx === 0 ? sparkSVG(item) : '';
-          } else if(col.field === 'SM' || col.field === 'PM'){
-            td.classList.add('cover-cell', 'left');
-            td.innerHTML = idx === 0 ? coverCell(item[col.field]) : '';
-          } else {
-            const v = idx === 0 ? cellValueForYearRow(item, col.field, yr) : (col.field === '__Year' ? yr : '');
-            td.textContent = (v === undefined || v === null || v === '') ? (idx === 0 ? '—' : '') : v;
-            if(col.cls) td.className = col.cls;
-            if(col.fz) td.classList.add(col.fz);
-            if(col.left) td.classList.add('left');
-          }
+
+    const tr = document.createElement('tr');
+    tr.className = 'row-item';
+    tr.dataset.code = item['Item Code'];
+    if(newGroup) tr.classList.add('group-break');
+    tr.title = 'Open ' + item['Item Code'] + ' in Item Lookup';
+    tr.addEventListener('click', () => { resumeCode = item['Item Code']; openItem(item); });
+
+    cols.forEach((col, ci) => {
+      const td = document.createElement('td');
+      if(groupStartIdx.has(ci)) td.classList.add('group-start');
+      if(groupEndIdx.has(ci)) td.classList.add('group-end');
+      if(col.type === 'collapsed'){
+        td.textContent = '';
+        td.classList.add('collapsed-cell');
+        if(col.key === 'soldby') makeWeeklyCell(td, item);
+      } else if(col.type === 'core'){
+        if(col.field === '__spark'){
+          td.classList.add('spark-cell', 'left');
+          td.innerHTML = sparkSVG(item);
+        } else if(col.field === 'SM' || col.field === 'PM'){
+          td.classList.add('cover-cell', 'left');
+          td.innerHTML = coverCell(item[col.field]);
         } else {
-          td.classList.add('grp-' + col.group);
-          const isMonthly = col.field.startsWith('__stock_') || col.field.startsWith('__sold_');
-          const v = isMonthly ? cellValueForYearRow(item, col.field, yr) : (idx === 0 ? item[col.field] : '');
-          if(isMonthly){
-            const num = v === null || v === undefined ? 0 : v;
-            td.textContent = num === 0 ? '—' : num;
-            if(num === 0) td.classList.add('zero');
-            if(num < 0) td.classList.add('neg');
-            if(idx === 0 && col.group === 'soldby') makeWeeklyCell(td, item);
-          } else {
-            td.textContent = fmtCell(v, col.fmt);
-          }
+          const v = cellValueForItem(item, col.field);
+          td.textContent = (v === undefined || v === null || v === '') ? '—' : v;
+          if(col.cls) td.className = col.cls;
+          if(col.fz) td.classList.add(col.fz);
+          if(col.left) td.classList.add('left');
         }
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
+      } else {
+        td.classList.add('grp-' + col.group);
+        const isMonthly = col.field.startsWith('__stock_') || col.field.startsWith('__sold_');
+        if(isMonthly){
+          const raw = cellValueForItem(item, col.field);
+          const num = raw === null || raw === undefined ? 0 : raw;
+          td.textContent = num === 0 ? '—' : num;
+          if(num === 0) td.classList.add('zero');
+          if(num < 0) td.classList.add('neg');
+          if(col.group === 'soldby') makeWeeklyCell(td, item);
+        } else {
+          td.textContent = fmtCell(item[col.field], col.fmt);
+        }
+      }
+      tr.appendChild(td);
     });
+    tbody.appendChild(tr);
   });
   return tbody;
 }
