@@ -288,6 +288,14 @@ function uaeStoreCount(item){
   const b = BRANCH_BY_ITEM[item['Item Code']] || {};
   return UAE_STORES.reduce((n, code) => n + ((b[code] || 0) > 0 ? 1 : 0), 0);
 }
+/* SOH = the 10 UAE stores' stock plus their display-model ("-DM") stock —
+   i.e. everything actually sitting in/around a store. Replaces the old
+   "SOH = U-SOH" passthrough; WH SOH and Navision Stock are untouched and keep
+   using U-SOH / M-SOH as before. Source: Book2.xlsx (Sheet1). */
+function sohValue(item){
+  const b = BRANCH_BY_ITEM[item['Item Code']] || {};
+  return UAE_STORES.reduce((sum, code) => sum + (b[code] || 0) + (b[code + '-DM'] || 0), 0);
+}
 
 /* Units sold this calendar year so far — Jan through the current month of
    REPORT_MONTH.year. Recomputed each load, so it grows on its own as months
@@ -300,6 +308,7 @@ function ytdSold(it){
   return t;
 }
 ITEMS.forEach(it => {
+  it['SOH'] = sohValue(it);
   it['AVG'] = itemAvg(it);
   it['SM'] = monthsOfCover(Number(it['SOH']) || 0, it['AVG']);
   it['PM'] = monthsOfCover(Number(it['PO-Qty']) || 0, it['AVG']);
