@@ -460,7 +460,11 @@ table.grid tbody tr.row-item td.wk-cell:hover{
    13-MONTH TREND — trend-cell popup (4 quarter bars + overlaid line)
    ============================================================ */
 .tr-plot{position:relative;height:180px;}
-.tr-strip{position:absolute;inset:0;display:flex;gap:12px;align-items:flex-end;}
+/* No flex "gap" here — each column must be exactly 1/4 of the width so the
+   overlaid line's plain-percentage math (12 points, 3 per column) lines up
+   with the bars underneath. Visual spacing between bars instead comes from
+   the fill span below being narrower (60%) than its column. */
+.tr-strip{position:absolute;inset:0;display:flex;align-items:flex-end;}
 .tr-col{flex:1;height:100%;display:flex;align-items:flex-end;justify-content:center;}
 .tr-col span{width:60%;min-height:3px;display:block;border-radius:5px 5px 0 0;transition:height .3s ease;}
 .tr-col-up span{background:var(--pos);}
@@ -468,7 +472,7 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .tr-col-flat span{background:var(--primary);}
 .tr-col-none span{background:var(--s-300);}
 .tr-line-svg{position:absolute;top:0;left:0;width:100%;height:100%;display:block;pointer-events:none;}
-.tr-labels{display:flex;gap:12px;margin-top:var(--sp-3);}
+.tr-labels{display:flex;margin-top:var(--sp-3);}
 .tr-label{flex:1;text-align:center;}
 .tr-label-v{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:var(--fs-sm);color:var(--ink);}
 .tr-label-k{font-size:var(--fs-2xs);color:var(--ink-soft);white-space:nowrap;margin-top:2px;}

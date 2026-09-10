@@ -162,7 +162,7 @@ function buildTrendChart(item){
     ? monthColLabel(q.from).slice(0, 3) + '–' + monthColLabel(q.to)
     : monthColLabel(q.from) + '–' + monthColLabel(q.to);
   const bars = quarters.map(q => {
-    const h = 6 + (q.total / maxQ) * 94;
+    const h = Math.max(4, 6 + (q.total / maxQ) * 94);   // floor so a strongly negative total still shows a sliver
     return '<div class="tr-col tr-col-' + q.dir + '" title="' + qLabel(q) + '">' +
       '<span style="height:' + h.toFixed(0) + '%"></span></div>';
   }).join('');
