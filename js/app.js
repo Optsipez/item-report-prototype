@@ -261,6 +261,15 @@ const M_SOH_BY_ITEM = {
   '103641': 12, '103613': 12, '103622': 12, '103630': 0,
   '103636': 3,  '103629': 6, '103620': 15,
 };
+/* UAE retail stores (from the branch data / Stk Data). Excludes the Sharjah
+   warehouse + DC (SAJWH, DCSHJ) and the Oman market (M-SOH). "Displayed in a
+   store" = holds positive stock there. */
+const UAE_STORES = ['REGUS','MARIN','JUMRA','DALMA','ALNML','GALER','RAKMA','ZAHIA','PARKC','BRSHA'];
+function uaeStoreCount(item){
+  const b = BRANCH_BY_ITEM[item['Item Code']] || {};
+  return UAE_STORES.reduce((n, code) => n + ((b[code] || 0) > 0 ? 1 : 0), 0);
+}
+
 /* Units sold this calendar year so far — Jan through the current month of
    REPORT_MONTH.year. Recomputed each load, so it grows on its own as months
    pass (and picks up the current month's sales as they land). */
@@ -277,6 +286,7 @@ ITEMS.forEach(it => {
   it['PM'] = monthsOfCover(Number(it['PO-Qty']) || 0, it['AVG']);
   it['M-SOH'] = M_SOH_BY_ITEM[it['Item Code']] || 0;
   it['YTD Sold'] = ytdSold(it);
+  it['Store Count'] = uaeStoreCount(it);
 });
 
 /* Stock held at a given warehouse/branch code (from the Stk Data / branch sheet). */
@@ -796,6 +806,9 @@ const COLUMN_LAYOUT = [
   { type:'core', field:'AVG', label:'AVG', sortable:true },
   { type:'core', field:'SM', label:'SM' },
   { type:'core', field:'PM', label:'PM' },
+  { type:'group', key:'sr', title:'Store Display', short:'Stores', cols:[
+      { field:'Store Count', label:'UAE Stores',
+        tip:'How many of the ' + UAE_STORES.length + ' UAE stores currently hold stock of this item.' } ] },
   { type:'core', field:'__spark', label:'13-mo Trend', tip: SPARK_TIP },
   { type:'core', field:'Description', label:'Description', left:true },
   { type:'group', key:'attrs', title:'Attributes', short:'Attrs', cols:[
@@ -1127,6 +1140,7 @@ function buildGridHeader(){
         fth.classList.add('grp-' + entry.key);
         if(i === 0) fth.classList.add('group-start');
         fth.dataset.col = c.field;
+        if(c.tip) fth.title = c.tip;
         if(c.groupable) applyGroupHeader(fth, c.field);
         addColResizer(fth);
         fieldRow.appendChild(fth);

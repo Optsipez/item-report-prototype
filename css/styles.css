@@ -36,6 +36,7 @@
   --neg:#e11d48; --neg-bg:#fff1f2;
   --warn:#d97706;
   --stock:#0284c7; --stock-bg:#f0f9ff;
+  --sr:#7c3aed;    --sr-bg:#f5f2fe;
   --trend-up:#0f9d58; --trend-down:#e0483d;
 
   /* ---- semantic roles ---- */
@@ -547,6 +548,9 @@ table.grid thead tr.field-row th.grp-stockin{background:var(--stockin-tint-head)
 table.grid thead tr.field-row th.grp-soldby{background:var(--soldby-tint-head);color:var(--ink-soft);}
 table.grid tbody tr.row-item td.grp-stockin{background:var(--stockin-2026);}
 table.grid tbody tr.row-item td.grp-soldby{background:var(--soldby-2026);}
+/* Store Display — its own violet accent, distinct from AVG's blue */
+table.grid thead tr.field-row th.grp-sr{background:var(--sr-bg);color:var(--sr);border-bottom-color:var(--sr);}
+table.grid tbody tr.row-item td.grp-sr{background:var(--sr-bg);color:var(--sr);font-weight:600;}
 table.grid tbody tr.row-item:hover td{background:var(--primary-weak);}
 table.grid tbody tr.row-item{cursor:pointer;}
 /* tighter padding so the narrower frozen column still fits a 6-digit code */
