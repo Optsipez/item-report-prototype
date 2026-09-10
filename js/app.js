@@ -503,14 +503,15 @@ generateBtn.addEventListener('click', () => {
 });
 
 function buildMatrix(wrapEl, item, key){
-  // One continuous 13-month strip (oldest -> newest), spanning the year boundary.
+  // One continuous 13-month strip, spanning the year boundary, displayed
+  // current month first then backwards (newest -> oldest).
   let total = 0;
   const cells = MONTH_WINDOW.map(w => {
     const yr = item.years[String(w.year)];
     const v = yr ? (yr[key][w.m] || 0) : 0;
     total += v;
     return { w: w, v: v };
-  });
+  }).reverse();
   const label = key === 'sales' ? 'Sold' : 'Received';
   let html = '<table class="matrix"><thead><tr><th></th>';
   cells.forEach(c => { html += `<th>${monthColLabel(c.w)}</th>`; });
@@ -860,10 +861,14 @@ const COLUMN_LAYOUT = [
   // is collapsed.
   { type:'core', field:'YTD Sold', label:'YTD Sold', sortable:true, tip: YTD_TIP },
   { type:'core', field:'Last Sold Qty', label:'Last Sold Qty', sortable:true },
+  // Displayed current month first, then backwards (newest -> oldest); MONTH_WINDOW
+  // itself stays oldest -> newest internally since the trend sparkline / YTD
+  // math depend on that order. field:'__sold_'+i still points at the right
+  // MONTH_WINDOW entry regardless of the display order below.
   { type:'group', key:'soldby', title:'Sold by Month', short:'Sold',
-    cols: MONTH_WINDOW.map((w, i) => ({ field:'__sold_'+i, label: monthColLabel(w) })) },
+    cols: MONTH_WINDOW.map((w, i) => ({ field:'__sold_'+i, label: monthColLabel(w) })).reverse() },
   { type:'group', key:'stockin', title:'Stock In by Month', short:'Stock In',
-    cols: MONTH_WINDOW.map((w, i) => ({ field:'__stock_'+i, label: monthColLabel(w) })) },
+    cols: MONTH_WINDOW.map((w, i) => ({ field:'__stock_'+i, label: monthColLabel(w) })).reverse() },
 ];
 
 const ALL_GROUP_KEYS = COLUMN_LAYOUT.filter(e => e.type === 'group').map(e => e.key);
