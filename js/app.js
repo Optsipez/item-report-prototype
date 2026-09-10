@@ -125,11 +125,17 @@ function sparkSVG(item){
 }
 
 /* Months-of-cover cell: value + a health bar (red <1, amber <2.5, green above). */
+/* Colour bands for months-of-cover (SM / PM):
+   X or under 3 months -> red, 3–5 -> gold, over 5 -> green. */
 function coverCell(v){
   const isX = v === 'X';
   const n = parseFloat(v);
-  const cls = isX ? 'cover-crit' : !isFinite(n) ? 'cover-flat' : n < 1 ? 'cover-crit' : n < 2.5 ? 'cover-warn' : 'cover-ok';
-  const w = isX ? 8 : Math.max(6, Math.min(100, (n / 6) * 100));
+  const cls = isX ? 'cover-crit'
+    : !isFinite(n) ? 'cover-flat'
+    : n < 3 ? 'cover-crit'
+    : n <= 5 ? 'cover-warn'
+    : 'cover-ok';
+  const w = isX ? 8 : Math.max(6, Math.min(100, (n / 8) * 100));
   return '<span class="cover ' + cls + '">'
     + '<span class="cover-v">' + v + '</span>'
     + '<span class="cover-track"><span class="cover-fill" style="width:' + w.toFixed(0) + '%"></span></span>'

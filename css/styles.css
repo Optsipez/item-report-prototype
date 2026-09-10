@@ -602,8 +602,9 @@ table.grid td.cover-cell{padding-top:6px;padding-bottom:6px;}
 .cover-v{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:var(--fs-sm);line-height:1;font-variant-numeric:tabular-nums;text-align:left;}
 .cover-track{width:100%;height:5px;border-radius:var(--r-pill);background:var(--s-150);overflow:hidden;}
 .cover-fill{display:block;height:100%;border-radius:var(--r-pill);transition:width var(--t-med);}
-.cover-crit .cover-v{color:var(--neg);}        .cover-crit .cover-fill{background:var(--neg);}
-.cover-warn .cover-v{color:var(--warn);}        .cover-warn .cover-fill{background:var(--warn);}
+/* red = under 3 months of cover (or X) · gold = 3–5 · green = over 5 */
+.cover-crit .cover-v{color:var(--neg);}         .cover-crit .cover-fill{background:var(--neg);}
+.cover-warn .cover-v{color:var(--i-600);}       .cover-warn .cover-fill{background:var(--i-500);}
 .cover-ok   .cover-v{color:var(--pos);}         .cover-ok   .cover-fill{background:var(--pos);}
 .cover-flat .cover-v{color:var(--ink-faint);}   .cover-flat .cover-fill{background:var(--s-300);}
 
