@@ -548,9 +548,12 @@ table.grid thead tr.field-row th.grp-stockin{background:var(--stockin-tint-head)
 table.grid thead tr.field-row th.grp-soldby{background:var(--soldby-tint-head);color:var(--ink-soft);}
 table.grid tbody tr.row-item td.grp-stockin{background:var(--stockin-2026);}
 table.grid tbody tr.row-item td.grp-soldby{background:var(--soldby-2026);}
-/* Store Display — its own violet accent, distinct from AVG's blue */
-table.grid thead tr.field-row th.grp-sr{background:var(--sr-bg);color:var(--sr);border-bottom-color:var(--sr);}
+/* SR (store-display count) — its own violet accent, distinct from AVG's blue;
+   kept narrow since it's just a small count */
+table.grid thead tr.field-row th.grp-sr{background:var(--sr-bg);color:var(--sr);border-bottom-color:var(--sr);text-align:right;}
 table.grid tbody tr.row-item td.grp-sr{background:var(--sr-bg);color:var(--sr);font-weight:600;}
+table.grid:not(.resizable) th.grp-sr, table.grid:not(.resizable) td.grp-sr,
+table.grid:not(.resizable) th.grp-bar-sr{max-width:44px;}
 table.grid tbody tr.row-item:hover td{background:var(--primary-weak);}
 table.grid tbody tr.row-item{cursor:pointer;}
 /* tighter padding so the narrower frozen column still fits a 6-digit code */

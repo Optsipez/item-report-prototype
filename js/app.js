@@ -806,9 +806,9 @@ const COLUMN_LAYOUT = [
   { type:'core', field:'AVG', label:'AVG', sortable:true },
   { type:'core', field:'SM', label:'SM' },
   { type:'core', field:'PM', label:'PM' },
-  { type:'group', key:'sr', title:'Store Display', short:'Stores', cols:[
-      { field:'Store Count', label:'UAE Stores',
-        tip:'How many of the ' + UAE_STORES.length + ' UAE stores currently hold stock of this item.' } ] },
+  { type:'group', key:'sr', title:'SR', short:'SR', cols:[
+      { field:'Store Count', label:'SR',
+        tip:'SR display — how many of the ' + UAE_STORES.length + ' UAE stores currently hold stock of this item.' } ] },
   { type:'core', field:'__spark', label:'13-mo Trend', tip: SPARK_TIP },
   { type:'core', field:'Description', label:'Description', left:true },
   { type:'group', key:'attrs', title:'Attributes', short:'Attrs', cols:[
@@ -1129,6 +1129,7 @@ function buildGridHeader(){
     } else {
       const gth = document.createElement('th');
       gth.colSpan = entry.cols.length;
+      gth.classList.add('grp-bar-' + entry.key);
       gth.innerHTML = `<span class="chev">−</span>${entry.title}`;
       gth.title = 'Click to collapse this section';
       gth.addEventListener('click', () => toggleGroup(entry.key));
