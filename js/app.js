@@ -253,18 +253,12 @@ function monthsOfCover(qty, avg){
   const r = Math.round((qty / avg) * 10) / 10;
   return r === 0 ? 'X' : r.toFixed(1);
 }
-/* M-SOH per item — read from Navision "Stk Data" (column "M-SOH"). Sits
-   alongside SAJWH / DCSHJ, which are already in the branch data. Moves into
-   data.js once full ingestion lands. */
-const M_SOH_BY_ITEM = {
-  '101313': 21, '101453': 0, '101459': 0, '101460': 0,
-  '103641': 12, '103613': 12, '103622': 12, '103630': 0,
-  '103636': 3,  '103629': 6, '103620': 15,
-};
 /* Navision Stock — Navision U-SOH + M-SOH (UAE stock on hand + Oman market
-   stock), per item. Read from Book2.xlsx (Sheet1, columns "U-SOH" and "M-SOH").
-   Kept as { u, m } so the split stays visible; folds into data.js / the live
-   Navision feed once full ingestion lands. */
+   stock), per item. Read from Book2.xlsx (Sheet1, columns "U-SOH" and "M-SOH") —
+   the newer of the two sample exports, so SOH (data.js, = U-SOH) and WH SOH's
+   M-SOH component both read off this same map rather than the older
+   Navision Report Format.xlsx. Kept as { u, m } so the split stays visible;
+   folds into data.js / the live Navision feed once full ingestion lands. */
 const NAV_STK_BY_ITEM = {
   '101313': { u: 26,  m: 21 },
   '101453': { u: 5,   m: 0  },
@@ -281,6 +275,10 @@ const NAV_STK_BY_ITEM = {
 function navStockValue(item){
   const r = NAV_STK_BY_ITEM[item['Item Code']];
   return r ? r.u + r.m : 0;
+}
+function mSohValue(item){
+  const r = NAV_STK_BY_ITEM[item['Item Code']];
+  return r ? r.m : 0;
 }
 /* UAE retail stores (from the branch data / Stk Data). Excludes the Sharjah
    warehouse + DC (SAJWH, DCSHJ) and the Oman market (M-SOH). "Displayed in a
@@ -305,7 +303,7 @@ ITEMS.forEach(it => {
   it['AVG'] = itemAvg(it);
   it['SM'] = monthsOfCover(Number(it['SOH']) || 0, it['AVG']);
   it['PM'] = monthsOfCover(Number(it['PO-Qty']) || 0, it['AVG']);
-  it['M-SOH'] = M_SOH_BY_ITEM[it['Item Code']] || 0;
+  it['M-SOH'] = mSohValue(it);
   it['Nav Stock'] = navStockValue(it);
   it['YTD Sold'] = ytdSold(it);
   it['Store Count'] = uaeStoreCount(it);
