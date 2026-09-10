@@ -185,14 +185,15 @@ function buildTrendChart(item){
   const pts = plotVals.map((v, i) => {
     const x = (i + 0.5) / plotVals.length * 100;
     const y = 100 - 6 - (v - min) / span * 88;
-    return x.toFixed(1) + ',' + y.toFixed(1);
-  }).join(' ');
+    return x.toFixed(1) + ' ' + y.toFixed(1);
+  });
+  const line = pts.join(' L');
 
   return '<div class="tr-chart">' +
     '<div class="tr-plot">' +
       '<div class="tr-strip">' + bars + '</div>' +
       '<svg class="tr-line-svg spark spark-' + dir + '" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">' +
-      '<polyline class="spark-line" pathLength="1" points="' + pts + '"/>' +
+      '<path class="spark-line" pathLength="1" d="M' + line + '"/>' +
       '</svg>' +
     '</div>' +
     '<div class="tr-labels">' + labels + '</div>' +
