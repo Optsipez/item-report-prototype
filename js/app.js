@@ -261,6 +261,27 @@ const M_SOH_BY_ITEM = {
   '103641': 12, '103613': 12, '103622': 12, '103630': 0,
   '103636': 3,  '103629': 6, '103620': 15,
 };
+/* Navision Stock — Navision U-SOH + M-SOH (UAE stock on hand + Oman market
+   stock), per item. Read from Book2.xlsx (Sheet1, columns "U-SOH" and "M-SOH").
+   Kept as { u, m } so the split stays visible; folds into data.js / the live
+   Navision feed once full ingestion lands. */
+const NAV_STK_BY_ITEM = {
+  '101313': { u: 26,  m: 21 },
+  '101453': { u: 5,   m: 0  },
+  '101459': { u: 2,   m: 0  },
+  '101460': { u: 1,   m: 0  },
+  '103641': { u: 63,  m: 7  },
+  '103613': { u: 173, m: 10 },
+  '103622': { u: 245, m: 12 },
+  '103630': { u: 31,  m: 0  },
+  '103636': { u: 323, m: 4  },
+  '103629': { u: 43,  m: 4  },
+  '103620': { u: 116, m: 15 },
+};
+function navStockValue(item){
+  const r = NAV_STK_BY_ITEM[item['Item Code']];
+  return r ? r.u + r.m : 0;
+}
 /* UAE retail stores (from the branch data / Stk Data). Excludes the Sharjah
    warehouse + DC (SAJWH, DCSHJ) and the Oman market (M-SOH). "Displayed in a
    store" = holds positive stock there. */
@@ -285,6 +306,7 @@ ITEMS.forEach(it => {
   it['SM'] = monthsOfCover(Number(it['SOH']) || 0, it['AVG']);
   it['PM'] = monthsOfCover(Number(it['PO-Qty']) || 0, it['AVG']);
   it['M-SOH'] = M_SOH_BY_ITEM[it['Item Code']] || 0;
+  it['Nav Stock'] = navStockValue(it);
   it['YTD Sold'] = ytdSold(it);
   it['Store Count'] = uaeStoreCount(it);
 });
@@ -800,6 +822,8 @@ const COLUMN_LAYOUT = [
       { field:'Now (Aed)', label:'Now', fmt:'money0' },
       { field:'Disct%', label:'Disct%', fmt:'pct' },
       { field:'MRG Factor', label:'Mrg', fmt:'x2' } ] },
+  { type:'core', field:'Nav Stock', label:'Navision Stock', sortable:true, stack:true,
+    tip:'Navision Stock = Navision U-SOH + M-SOH (UAE stock on hand + Oman market stock).\nCurrently sourced from Book2.xlsx; moves to the live Navision feed later.' },
   { type:'core', field:'SOH', label:'SOH', sortable:true },
   { type:'core', field:'__whsoh', label:'WH SOH', sortable:true },
   { type:'core', field:'PO-Qty', label:'PO Qty', sortable:true },
@@ -1222,6 +1246,9 @@ function buildGridBody(items, cols){
         } else if(col.field === '__whsoh'){
           td.classList.add('whsoh-cell');
           td.textContent = fmtInt(whSohValue(item));
+        } else if(col.field === 'Nav Stock'){
+          td.classList.add('navstock-cell');
+          td.textContent = fmtInt(navStockValue(item));
         } else {
           const v = cellValueForItem(item, col.field);
           td.textContent = (v === undefined || v === null || v === '') ? '—' : v;
