@@ -222,6 +222,22 @@
   </div>
 </div>
 
+<!-- 13-month trend popup (opened from the 13-mo Trend cell in All Products) -->
+<div id="trendModal" class="wk-modal" role="dialog" aria-modal="true" aria-labelledby="trTitle" aria-hidden="true" hidden>
+  <div class="wk-backdrop" data-tr-close></div>
+  <div class="wk-dialog" role="document">
+    <div class="wk-head">
+      <div>
+        <h3 id="trTitle">13-month trend</h3>
+        <p id="trSub" class="wk-sub"></p>
+      </div>
+      <button id="trClose" class="wk-x" type="button" data-tr-close aria-label="Close">&times;</button>
+    </div>
+    <div id="trBody" class="wk-body"></div>
+    <p class="wk-note">Bars group the 12 most recent months into four 3-month periods, current period first; each bar's colour compares it to the period right before it. The line overlays the same month-by-month figures as the grid's trend sparkline.</p>
+  </div>
+</div>
+
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>
 

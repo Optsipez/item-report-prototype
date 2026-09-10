@@ -124,6 +124,109 @@ function sparkSVG(item){
     '</svg>';
 }
 
+/* 13-month trend popup — the same monthly figures behind sparkSVG, regrouped
+   into four 3-month "quarters" (current quarter first, then backwards) with
+   the 13th (oldest) month dropped so 12 divides evenly by 3. Each bar is a
+   quarter's total units sold; its colour compares it to the quarter right
+   before it (same ±15% bands as trendDir). The oldest quarter has nothing
+   before it to compare to, so it renders neutral. */
+function monthlySeries(item){
+  return MONTH_WINDOW.map(w => {
+    const yr = item.years[String(w.year)];
+    return yr ? (yr.sales[w.m] || 0) : 0;
+  });
+}
+function quarterDir(cur, prev){
+  if(prev <= 0) return cur > 0 ? 'up' : 'flat';
+  const r = cur / prev;
+  return r > 1.15 ? 'up' : r < 0.85 ? 'down' : 'flat';
+}
+function trendQuarters(item){
+  const s = monthlySeries(item);              // 13 values, oldest -> newest
+  const months = s.slice(1);                  // drop the oldest month -> 12 values, oldest -> newest
+  const windows = MONTH_WINDOW.slice(1);
+  const quarters = [];
+  for(let i = 0; i < 4; i++){                  // oldest -> newest quarter
+    const vals = months.slice(i * 3, i * 3 + 3);
+    const ws = windows.slice(i * 3, i * 3 + 3);
+    quarters.push({ total: vals.reduce((a, b) => a + b, 0), from: ws[0], to: ws[2] });
+  }
+  quarters.reverse();                          // newest -> oldest, to match the grid's month order
+  quarters.forEach((q, i) => { q.dir = i === quarters.length - 1 ? 'none' : quarterDir(q.total, quarters[i + 1].total); });
+  return quarters;
+}
+function buildTrendChart(item){
+  const quarters = trendQuarters(item);
+  const maxQ = Math.max(1, ...quarters.map(q => q.total));
+  const qLabel = q => q.from.year === q.to.year
+    ? monthColLabel(q.from).slice(0, 3) + '–' + monthColLabel(q.to)
+    : monthColLabel(q.from) + '–' + monthColLabel(q.to);
+  const bars = quarters.map(q => {
+    const h = 6 + (q.total / maxQ) * 94;
+    return '<div class="tr-col tr-col-' + q.dir + '" title="' + qLabel(q) + '">' +
+      '<span style="height:' + h.toFixed(0) + '%"></span></div>';
+  }).join('');
+  const labels = quarters.map(q =>
+    '<div class="tr-label">' +
+      '<div class="tr-label-v">' + (q.total === 0 ? '—' : q.total.toLocaleString('en-US')) + '</div>' +
+      '<div class="tr-label-k">' + qLabel(q) + '</div>' +
+    '</div>'
+  ).join('');
+
+  // Overlaid line — the same 12 monthly figures behind the bars, plotted in the
+  // same newest-first left-to-right order; scaled on its own min/max (a single
+  // month is naturally smaller than a 3-month bar total, so it needs its own scale
+  // to read as a shape rather than hug the bottom).
+  const lineVals = monthlySeries(item).slice(1);   // drop the oldest month -> 12 values, oldest -> newest
+  const dir = trendDir(lineVals);
+  const plotVals = lineVals.slice().reverse();     // newest -> oldest, matches the bars left-to-right
+  const max = Math.max.apply(null, plotVals), min = Math.min(0, ...plotVals);
+  const span = (max - min) || 1;
+  const pts = plotVals.map((v, i) => {
+    const x = (i + 0.5) / plotVals.length * 100;
+    const y = 100 - 6 - (v - min) / span * 88;
+    return x.toFixed(1) + ',' + y.toFixed(1);
+  }).join(' ');
+
+  return '<div class="tr-chart">' +
+    '<div class="tr-plot">' +
+      '<div class="tr-strip">' + bars + '</div>' +
+      '<svg class="tr-line-svg spark spark-' + dir + '" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">' +
+      '<polyline class="spark-line" pathLength="1" points="' + pts + '"/>' +
+      '</svg>' +
+    '</div>' +
+    '<div class="tr-labels">' + labels + '</div>' +
+    '</div>';
+}
+let trendModalReturn = null;
+function openTrendModal(item){
+  if(!item) return;
+  document.getElementById('trTitle').textContent = '13-month trend — ' + item['Description'];
+  document.getElementById('trSub').textContent = item['Item Code'];
+  document.getElementById('trBody').innerHTML = buildTrendChart(item);
+
+  const modal = document.getElementById('trendModal');
+  modal.hidden = false;
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+  trendModalReturn = document.activeElement;
+  document.getElementById('trClose').focus();
+}
+function closeTrendModal(){
+  const modal = document.getElementById('trendModal');
+  if(modal.hidden) return;
+  modal.hidden = true;
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+  if(trendModalReturn && trendModalReturn.focus) trendModalReturn.focus();
+}
+(function(){
+  const modal = document.getElementById('trendModal');
+  if(!modal) return;
+  modal.querySelectorAll('[data-tr-close]').forEach(el => el.addEventListener('click', closeTrendModal));
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') closeTrendModal(); });
+})();
+
 /* Months-of-cover cell: value + a health bar (red <1, amber <2.5, green above). */
 /* Colour bands for months-of-cover (SM / PM):
    X or under 3 months -> red, 3–5 -> gold, over 5 -> green. */
@@ -219,7 +322,8 @@ const SPARK_TIP =
   'Colour = momentum: the average of the last 3 months vs the 3 months before —\n' +
   '  up   more than 15% higher   (green)\n' +
   '  down more than 15% lower    (red)\n' +
-  '  flat within that band       (gold)';
+  '  flat within that band       (gold)\n' +
+  'Click for a breakdown into four 3-month periods, with a bar per period.';
 
 /* Hover explainer for the YTD Sold column header. */
 const YTD_TIP =
@@ -1251,8 +1355,10 @@ function buildGridBody(items, cols){
         if(col.key === 'soldby') makeWeeklyCell(td, item);
       } else if(col.type === 'core'){
         if(col.field === '__spark'){
-          td.classList.add('spark-cell', 'left');
+          td.classList.add('spark-cell', 'left', 'wk-cell');
           td.innerHTML = sparkSVG(item);
+          td.title = 'Click for the full 13-month trend breakdown';
+          td.addEventListener('click', e => { e.stopPropagation(); openTrendModal(item); });
         } else if(col.field === 'SM' || col.field === 'PM'){
           td.classList.add('cover-cell', 'left');
           td.innerHTML = coverCell(item[col.field]);
