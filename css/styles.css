@@ -38,7 +38,6 @@
   --stock:#0284c7; --stock-bg:#f0f9ff;
   --sr:#7c3aed;    --sr-bg:#f5f2fe;
   --soh:#0d9488;   --soh-bg:#f0fdfa;
-  --wsoh:#4f46e5;  --wsoh-bg:#eef2ff;
   --trend-up:#0f9d58; --trend-down:#e0483d;
 
   /* ---- semantic roles ---- */
@@ -571,24 +570,24 @@ table.grid td.zero{color:var(--ink-faint);}
 table.grid td.neg{color:var(--neg);}
 
 /* AVG column — its own cool accent so the demand figure reads apart from the
-   plain counts (SOH / PO Qty). zero/neg still win where they apply. */
-table.grid tbody td.avg-cell{background:var(--stock-bg);color:var(--stock);font-weight:600;}
-table.grid tbody td.avg-cell.zero{color:var(--ink-faint);}
+   plain counts (SOH / PO Qty). zero/neg still win where they apply.
+   (Selector repeats tr.row-item, matching the SR rule, so the background wins
+   against the base ".row-item td{background:...}" rule instead of losing to it —
+   without that repeat the row background always overrode the accent here.) */
+table.grid tbody tr.row-item td.avg-cell{background:var(--stock-bg);color:var(--stock);font-weight:600;}
+table.grid tbody tr.row-item td.avg-cell.zero{color:var(--ink-faint);}
 table.grid thead tr.group-row th.core.avg-head:not(.sorted){background:var(--stock-bg);color:var(--stock);}
 .metric-row .v.avg-v{color:var(--stock);font-weight:600;}
 
-/* SOH column — teal accent, distinct from AVG's blue / WH SOH's indigo / SR's violet.
-   (Selector repeats tr.row-item, matching the SR rule, so it outweighs the base
-   ".row-item td{background:...}" rule instead of losing to it.) */
+/* SOH + WH SOH — share one accent (teal) so the two stock-quantity columns read
+   as a matched pair, distinct from AVG's blue and SR's violet. */
 table.grid tbody tr.row-item td.soh-cell{background:var(--soh-bg);color:var(--soh);font-weight:600;}
 table.grid tbody tr.row-item td.soh-cell.zero{color:var(--ink-faint);}
 table.grid thead tr.group-row th.core.soh-head:not(.sorted){background:var(--soh-bg);color:var(--soh);}
 
-/* WH SOH — indigo accent; header sorts, and the +M / −M badge (its own line,
-   under the label) toggles whether M-SOH is in the total */
-table.grid tbody tr.row-item td.whsoh-cell{background:var(--wsoh-bg);color:var(--wsoh);font-weight:600;}
+table.grid tbody tr.row-item td.whsoh-cell{background:var(--soh-bg);color:var(--soh);font-weight:600;}
 table.grid tbody tr.row-item td.whsoh-cell.zero{color:var(--ink-faint);}
-table.grid thead tr.group-row th.core.whsoh-head:not(.sorted){background:var(--wsoh-bg);color:var(--wsoh);}
+table.grid thead tr.group-row th.core.whsoh-head:not(.sorted){background:var(--soh-bg);color:var(--soh);}
 .whsoh-ind{
   display:block;width:30px;margin-top:8px;
   cursor:pointer;line-height:1;text-align:center;
