@@ -37,6 +37,8 @@
   --warn:#d97706;
   --stock:#0284c7; --stock-bg:#f0f9ff;
   --sr:#7c3aed;    --sr-bg:#f5f2fe;
+  --soh:#0d9488;   --soh-bg:#f0fdfa;
+  --wsoh:#4f46e5;  --wsoh-bg:#eef2ff;
   --trend-up:#0f9d58; --trend-down:#e0483d;
 
   /* ---- semantic roles ---- */
@@ -575,13 +577,23 @@ table.grid tbody td.avg-cell.zero{color:var(--ink-faint);}
 table.grid thead tr.group-row th.core.avg-head:not(.sorted){background:var(--stock-bg);color:var(--stock);}
 .metric-row .v.avg-v{color:var(--stock);font-weight:600;}
 
-/* WH SOH — header sorts; the +M / −M badge (its own line, under the label)
-   toggles whether M-SOH is in the total */
+/* SOH column — teal accent, distinct from AVG's blue / WH SOH's indigo / SR's violet.
+   (Selector repeats tr.row-item, matching the SR rule, so it outweighs the base
+   ".row-item td{background:...}" rule instead of losing to it.) */
+table.grid tbody tr.row-item td.soh-cell{background:var(--soh-bg);color:var(--soh);font-weight:600;}
+table.grid tbody tr.row-item td.soh-cell.zero{color:var(--ink-faint);}
+table.grid thead tr.group-row th.core.soh-head:not(.sorted){background:var(--soh-bg);color:var(--soh);}
+
+/* WH SOH — indigo accent; header sorts, and the +M / −M badge (its own line,
+   under the label) toggles whether M-SOH is in the total */
+table.grid tbody tr.row-item td.whsoh-cell{background:var(--wsoh-bg);color:var(--wsoh);font-weight:600;}
+table.grid tbody tr.row-item td.whsoh-cell.zero{color:var(--ink-faint);}
+table.grid thead tr.group-row th.core.whsoh-head:not(.sorted){background:var(--wsoh-bg);color:var(--wsoh);}
 .whsoh-ind{
-  display:block;width:-moz-fit-content;width:fit-content;margin-top:7px;
-  cursor:pointer;line-height:1;
-  font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:800;letter-spacing:-.02em;
-  padding:3px 6px;border-radius:4px;transition:background var(--t-fast);
+  display:block;width:30px;margin-top:8px;
+  cursor:pointer;line-height:1;text-align:center;
+  font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:800;letter-spacing:-.02em;
+  padding:4px 0;border-radius:5px;transition:background var(--t-fast);
 }
 table.grid thead tr.group-row th.core.whsoh-head.incl-m .whsoh-ind{color:var(--primary);background:var(--primary-weak);}
 table.grid thead tr.group-row th.core.whsoh-head:not(.incl-m) .whsoh-ind{color:var(--ink-faint);background:var(--s-100);}

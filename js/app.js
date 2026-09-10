@@ -1104,6 +1104,7 @@ function buildGridHeader(){
       }
       gth.dataset.col = entry.field;
       if(entry.field === 'AVG') gth.classList.add('avg-head');
+      if(entry.field === 'SOH') gth.classList.add('soh-head');
       if(entry.tip) gth.title = entry.tip;
       if(entry.sortable){
         gth.classList.add('sortable');
@@ -1125,7 +1126,7 @@ function buildGridHeader(){
         gth.classList.toggle('incl-m', whSohInclM);
         const badge = document.createElement('span');
         badge.className = 'whsoh-ind';
-        badge.textContent = whSohInclM ? '+M' : '−M';
+        badge.textContent = whSohInclM ? '+M' : '-M';
         badge.title = whSohInclM
           ? 'M-SOH is in the total — click to drop it (SAJWH + DCSHJ only)'
           : 'M-SOH is excluded — click to add it back';
@@ -1256,6 +1257,7 @@ function buildGridBody(items, cols){
           if(col.fz) td.classList.add(col.fz);
           if(col.left) td.classList.add('left');
           if(col.field === 'AVG') td.classList.add('avg-cell');
+          if(col.field === 'SOH') td.classList.add('soh-cell');
         }
       } else {
         td.classList.add('grp-' + col.group);
