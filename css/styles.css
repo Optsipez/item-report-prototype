@@ -577,16 +577,17 @@ table.grid tbody tr.row-item td.grp-sr{background:var(--sr-bg);color:var(--sr);f
 table.grid:not(.resizable) th.grp-sr, table.grid:not(.resizable) td.grp-sr,
 table.grid:not(.resizable) th.grp-bar-sr{max-width:44px;}
 table.grid tbody tr.row-item:hover td{background:var(--primary-weak);}
-table.grid tbody tr.row-item{cursor:pointer;}
-/* tighter padding so the narrower frozen column still fits a 6-digit code */
-table.grid td.item-code{padding-left:10px;padding-right:12px;}
+/* Only the Item Code cell opens the item — everything else stays plain text
+   (default cursor) so values can be click-dragged and copied. Padding is
+   tighter here too, so the narrower frozen column still fits a 6-digit code. */
+table.grid td.item-code{cursor:pointer;padding-left:10px;padding-right:12px;}
 table.grid tbody tr.row-item td.item-code::after{
   content:'\2197';position:absolute;top:50%;right:3px;
   color:var(--primary);font-weight:700;font-size:10px;opacity:0;pointer-events:none;
   transform:translateY(-50%) translateX(-3px);
   transition:opacity var(--t-fast),transform var(--t-fast);
 }
-table.grid tbody tr.row-item:hover td.item-code::after{opacity:1;transform:translateY(-50%) translateX(0);}
+table.grid tbody tr.row-item td.item-code:hover::after{opacity:1;transform:translateY(-50%) translateX(0);}
 table.grid td.zero{color:var(--ink-faint);}
 table.grid td.neg{color:var(--neg);}
 

@@ -1378,8 +1378,6 @@ function buildGridBody(items, cols){
     tr.className = 'row-item';
     tr.dataset.code = item['Item Code'];
     if(newGroup) tr.classList.add('group-break');
-    tr.title = 'Open ' + item['Item Code'] + ' in Item Lookup';
-    tr.addEventListener('click', () => { resumeCode = item['Item Code']; openItem(item); });
 
     cols.forEach((col, ci) => {
       const td = document.createElement('td');
@@ -1415,6 +1413,12 @@ function buildGridBody(items, cols){
           if(col.left) td.classList.add('left');
           if(col.field === 'AVG') td.classList.add('avg-cell');
           if(col.field === 'SOH') td.classList.add('soh-cell');
+          if(col.field === 'Item Code'){
+            // Only this cell opens the item — everywhere else in the row stays
+            // plain text so values can be selected and copied.
+            td.title = 'Open ' + item['Item Code'] + ' in Item Lookup';
+            td.addEventListener('click', e => { e.stopPropagation(); resumeCode = item['Item Code']; openItem(item); });
+          }
         }
       } else {
         td.classList.add('grp-' + col.group);
