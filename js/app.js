@@ -407,6 +407,27 @@ function sohValue(item){
   const extra = SOH_EXTRA_CODES.reduce((sum, code) => sum + (b[code] || 0), 0);
   return stores + extra;
 }
+/* SR Qty = SOH (above) + Oman's M-Tot Pending Order Qty + M-MOMAN + M-WHOMN.
+   The three Oman fields aren't in BRANCH_BY_ITEM (that's UAE store/warehouse
+   data), so they get their own small map. Source: Book2.xlsx (Sheet1). */
+const SR_QTY_OMAN_BY_ITEM = {
+  '101313': { pend: 0, moman: 21, whomn: 0 },
+  '101453': { pend: 0, moman: 0,  whomn: 0 },
+  '101459': { pend: 0, moman: 0,  whomn: 0 },
+  '101460': { pend: 0, moman: 0,  whomn: 0 },
+  '103641': { pend: 0, moman: 7,  whomn: 0 },
+  '103613': { pend: 0, moman: 10, whomn: 0 },
+  '103622': { pend: 0, moman: 12, whomn: 0 },
+  '103630': { pend: 0, moman: 0,  whomn: 0 },
+  '103636': { pend: 0, moman: 4,  whomn: 0 },
+  '103629': { pend: 0, moman: 4,  whomn: 0 },
+  '103620': { pend: 0, moman: 15, whomn: 0 },
+};
+function srQtyValue(item){
+  const r = SR_QTY_OMAN_BY_ITEM[item['Item Code']];
+  const extra = r ? r.pend + r.moman + r.whomn : 0;
+  return sohValue(item) + extra;
+}
 
 /* Units sold this calendar year so far — Jan through the current month of
    REPORT_MONTH.year. Recomputed each load, so it grows on its own as months
@@ -420,6 +441,7 @@ function ytdSold(it){
 }
 ITEMS.forEach(it => {
   it['SOH'] = sohValue(it);
+  it['SR Qty'] = srQtyValue(it);
   it['AVG'] = itemAvg(it);
   it['SM'] = monthsOfCover(Number(it['SOH']) || 0, it['AVG']);
   it['PM'] = monthsOfCover(Number(it['PO-Qty']) || 0, it['AVG']);
@@ -943,6 +965,8 @@ const COLUMN_LAYOUT = [
     tip:'Navision Stock = Navision U-SOH + M-SOH (UAE stock on hand + Oman market stock).\nCurrently sourced from Book2.xlsx; moves to the live Navision feed later.' },
   { type:'core', field:'SOH', label:'SOH', sortable:true },
   { type:'core', field:'__whsoh', label:'WH SOH', sortable:true },
+  { type:'core', field:'SR Qty', label:'SR QTY', sortable:true, stack:true,
+    tip:'SR Qty = SOH + Oman\'s M-Tot Pending Order Qty + M-MOMAN + M-WHOMN.' },
   { type:'core', field:'PO-Qty', label:'PO Qty', sortable:true },
   { type:'core', field:'AVG', label:'AVG', sortable:true },
   { type:'core', field:'SM', label:'SM' },
