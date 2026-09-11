@@ -124,78 +124,75 @@ function sparkSVG(item){
     '</svg>';
 }
 
-/* 13-month trend popup — the same monthly figures behind sparkSVG, regrouped
-   into four 3-month "quarters" (current quarter first, then backwards) with
-   the 13th (oldest) month dropped so 12 divides evenly by 3. Each bar is a
-   quarter's total units sold; its colour compares it to the quarter right
-   before it (same ±15% bands as trendDir). The oldest quarter has nothing
-   before it to compare to, so it renders neutral. */
+/* 13-month trend popup — stacked bars only now (no overlaid line). Uses all
+   13 months, none dropped: the current month gets its own single-month bar,
+   then four 3-month buckets going backwards. Each bar stacks two segments —
+   Stock (received) on top, Sold on the bottom, in the same warm/cool tint
+   already used for Stock In / Sold in the monthly matrices. Colour
+   (up/down/flat) is judged on Sold, comparing the PER-MONTH AVERAGE against
+   the bucket right before it — a 1-month bar and a 3-month bucket aren't
+   comparable by raw total, so the average puts them on equal footing. The
+   oldest bucket has nothing before it to compare to, so it renders neutral. */
 function monthlySeries(item){
   return MONTH_WINDOW.map(w => {
     const yr = item.years[String(w.year)];
     return yr ? (yr.sales[w.m] || 0) : 0;
   });
 }
-function quarterDir(cur, prev){
+function monthlyStockSeries(item){
+  return MONTH_WINDOW.map(w => {
+    const yr = item.years[String(w.year)];
+    return yr ? (yr.stock[w.m] || 0) : 0;
+  });
+}
+function trendDirRate(cur, prev){
   if(prev <= 0) return cur > 0 ? 'up' : 'flat';
   const r = cur / prev;
   return r > 1.15 ? 'up' : r < 0.85 ? 'down' : 'flat';
 }
-function trendQuarters(item){
-  const s = monthlySeries(item);              // 13 values, oldest -> newest
-  const months = s.slice(1);                  // drop the oldest month -> 12 values, oldest -> newest
-  const windows = MONTH_WINDOW.slice(1);
-  const quarters = [];
-  for(let i = 0; i < 4; i++){                  // oldest -> newest quarter
-    const vals = months.slice(i * 3, i * 3 + 3);
-    const ws = windows.slice(i * 3, i * 3 + 3);
-    quarters.push({ total: vals.reduce((a, b) => a + b, 0), from: ws[0], to: ws[2] });
-  }
-  quarters.reverse();                          // newest -> oldest, to match the grid's month order
-  quarters.forEach((q, i) => { q.dir = i === quarters.length - 1 ? 'none' : quarterDir(q.total, quarters[i + 1].total); });
-  return quarters;
+const TREND_BUCKET_IDX = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], [12]]; // oldest -> newest
+function trendBars(item){
+  const sold = monthlySeries(item), stock = monthlyStockSeries(item);
+  const bars = TREND_BUCKET_IDX.map(idxs => {
+    const soldTotal = idxs.reduce((a, i) => a + sold[i], 0);
+    const stockTotal = idxs.reduce((a, i) => a + stock[i], 0);
+    return {
+      soldTotal, stockTotal, monthCount: idxs.length, soldAvg: soldTotal / idxs.length,
+      from: MONTH_WINDOW[idxs[0]], to: MONTH_WINDOW[idxs[idxs.length - 1]],
+    };
+  });
+  bars.reverse();   // newest -> oldest, current month first, matching the grid's month order
+  bars.forEach((b, i) => { b.dir = i === bars.length - 1 ? 'none' : trendDirRate(b.soldAvg, bars[i + 1].soldAvg); });
+  return bars;
 }
 function buildTrendChart(item){
-  const quarters = trendQuarters(item);
-  const maxQ = Math.max(1, ...quarters.map(q => q.total));
-  const qLabel = q => q.from.year === q.to.year
-    ? monthColLabel(q.from).slice(0, 3) + '–' + monthColLabel(q.to)
-    : monthColLabel(q.from) + '–' + monthColLabel(q.to);
-  const bars = quarters.map(q => {
-    const h = Math.max(4, 6 + (q.total / maxQ) * 94);   // floor so a strongly negative total still shows a sliver
-    return '<div class="tr-col tr-col-' + q.dir + '" title="' + qLabel(q) + '">' +
-      '<span style="height:' + h.toFixed(0) + '%"></span></div>';
+  const bars = trendBars(item);
+  const visTotal = b => Math.max(0, b.stockTotal) + Math.max(0, b.soldTotal);
+  const maxTotal = Math.max(1, ...bars.map(visTotal));
+  const bLabel = b => b.monthCount === 1 ? monthColLabel(b.from)
+    : b.from.year === b.to.year ? monthColLabel(b.from).slice(0, 3) + '–' + monthColLabel(b.to)
+    : monthColLabel(b.from) + '–' + monthColLabel(b.to);
+
+  const cols = bars.map(b => {
+    const vt = visTotal(b);
+    const h = Math.max(4, (vt / maxTotal) * 96);
+    const stockPct = vt > 0 ? (Math.max(0, b.stockTotal) / vt) * 100 : 50;
+    return '<div class="tr-col tr-dir-' + b.dir + '" title="' + bLabel(b) + '">' +
+      '<span class="tr-col-fill" style="height:' + h.toFixed(0) + '%">' +
+        '<span class="tr-seg tr-seg-stock" style="height:' + stockPct.toFixed(0) + '%"></span>' +
+        '<span class="tr-seg tr-seg-sold" style="height:' + (100 - stockPct).toFixed(0) + '%"></span>' +
+      '</span></div>';
   }).join('');
-  const labels = quarters.map(q =>
-    '<div class="tr-label">' +
-      '<div class="tr-label-v">' + (q.total === 0 ? '—' : q.total.toLocaleString('en-US')) + '</div>' +
-      '<div class="tr-label-k">' + qLabel(q) + '</div>' +
+  const labels = bars.map(b =>
+    '<div class="tr-label tr-dir-' + b.dir + '">' +
+      '<div class="tr-label-v"><span class="tr-swatch tr-swatch-stock"></span>' + (b.stockTotal === 0 ? '—' : b.stockTotal.toLocaleString('en-US')) + '</div>' +
+      '<div class="tr-label-v"><span class="tr-swatch tr-swatch-sold"></span>' + (b.soldTotal === 0 ? '—' : b.soldTotal.toLocaleString('en-US')) + '</div>' +
+      '<div class="tr-label-k">' + bLabel(b) + '</div>' +
     '</div>'
   ).join('');
 
-  // Overlaid line — the same 12 monthly figures behind the bars, plotted in the
-  // same newest-first left-to-right order; scaled on its own min/max (a single
-  // month is naturally smaller than a 3-month bar total, so it needs its own scale
-  // to read as a shape rather than hug the bottom).
-  const lineVals = monthlySeries(item).slice(1);   // drop the oldest month -> 12 values, oldest -> newest
-  const dir = trendDir(lineVals);
-  const plotVals = lineVals.slice().reverse();     // newest -> oldest, matches the bars left-to-right
-  const max = Math.max.apply(null, plotVals), min = Math.min(0, ...plotVals);
-  const span = (max - min) || 1;
-  const pts = plotVals.map((v, i) => {
-    const x = (i + 0.5) / plotVals.length * 100;
-    const y = 100 - 6 - (v - min) / span * 88;
-    return x.toFixed(1) + ' ' + y.toFixed(1);
-  });
-  const line = pts.join(' L');
-
   return '<div class="tr-chart">' +
-    '<div class="tr-plot">' +
-      '<div class="tr-strip">' + bars + '</div>' +
-      '<svg class="tr-line-svg spark spark-' + dir + '" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">' +
-      '<path class="spark-line" pathLength="1" d="M' + line + '"/>' +
-      '</svg>' +
-    '</div>' +
+    '<div class="tr-plot"><div class="tr-strip">' + cols + '</div></div>' +
     '<div class="tr-labels">' + labels + '</div>' +
     '</div>';
 }
@@ -324,7 +321,8 @@ const SPARK_TIP =
   '  up   more than 15% higher   (green)\n' +
   '  down more than 15% lower    (red)\n' +
   '  flat within that band       (gold)\n' +
-  'Click for a breakdown into four 3-month periods, with a bar per period.';
+  'Click for a breakdown: the current month, then four 3-month periods\n' +
+  'going backwards. Each bar stacks Stock received on top of Units sold.';
 
 /* Hover explainer for the YTD Sold column header. */
 const YTD_TIP =
