@@ -423,10 +423,15 @@ const SR_QTY_OMAN_BY_ITEM = {
   '103629': { pend: 0, moman: 4,  whomn: 0 },
   '103620': { pend: 0, moman: 15, whomn: 0 },
 };
+/* Header badge toggles whether the Oman fields (M-Tot Pending Order Qty,
+   M-MOMAN, M-WHOMN) are folded into SR Qty, or SR Qty is just SOH. */
+let srQtyInclOman = true;
 function srQtyValue(item){
+  const soh = sohValue(item);
+  if(!srQtyInclOman) return soh;
   const r = SR_QTY_OMAN_BY_ITEM[item['Item Code']];
   const extra = r ? r.pend + r.moman + r.whomn : 0;
-  return sohValue(item) + extra;
+  return soh + extra;
 }
 
 /* Units sold this calendar year so far — Jan through the current month of
@@ -441,7 +446,6 @@ function ytdSold(it){
 }
 ITEMS.forEach(it => {
   it['SOH'] = sohValue(it);
-  it['SR Qty'] = srQtyValue(it);
   it['AVG'] = itemAvg(it);
   it['SM'] = monthsOfCover(Number(it['SOH']) || 0, it['AVG']);
   it['PM'] = monthsOfCover(Number(it['PO-Qty']) || 0, it['AVG']);
@@ -965,8 +969,7 @@ const COLUMN_LAYOUT = [
     tip:'Navision Stock = Navision U-SOH + M-SOH (UAE stock on hand + Oman market stock).\nCurrently sourced from Book2.xlsx; moves to the live Navision feed later.' },
   { type:'core', field:'SOH', label:'SOH', sortable:true },
   { type:'core', field:'__whsoh', label:'WH SOH', sortable:true },
-  { type:'core', field:'SR Qty', label:'SR QTY', sortable:true, stack:true,
-    tip:'SR Qty = SOH + Oman\'s M-Tot Pending Order Qty + M-MOMAN + M-WHOMN.' },
+  { type:'core', field:'SR Qty', label:'SR QTY', sortable:true, stack:true },
   { type:'core', field:'PO-Qty', label:'PO Qty', sortable:true },
   { type:'core', field:'AVG', label:'AVG', sortable:true },
   { type:'core', field:'SM', label:'SM' },
@@ -1044,7 +1047,7 @@ function sortGridItems(items){
   const arr = items.slice();
   const origIdx = new Map(arr.map((it, i) => [it, i]));
   const groupVal = it => groupKeyFor(g.field, it[g.field]);
-  const sortVal = it => s.field === '__whsoh' ? whSohValue(it) : (Number(it[s.field]) || 0);
+  const sortVal = it => s.field === '__whsoh' ? whSohValue(it) : s.field === 'SR Qty' ? srQtyValue(it) : (Number(it[s.field]) || 0);
   const mul = s && s.dir === 'asc' ? 1 : -1;
   arr.sort((a, b) => {
     if(g){
@@ -1268,6 +1271,24 @@ function buildGridHeader(){
         gth.classList.add('whsoh-head');
         gth.title = 'Warehouse stock = SAJWH (Sajja) + DCSHJ (DC Sharjah), the two UAE warehouses.\nClick the header to sort.';
       }
+      if(entry.field === 'SR Qty'){
+        // header click sorts (via the sortable path above); the +OM / −OM
+        // badge toggles whether Oman's fields are folded into the total.
+        gth.classList.add('sroty-head');
+        gth.classList.toggle('incl-om', srQtyInclOman);
+        const badge = document.createElement('span');
+        badge.className = 'sroty-ind';
+        badge.textContent = srQtyInclOman ? '+OM' : '-OM';
+        badge.title = srQtyInclOman
+          ? 'Oman (M-Tot Pending Order Qty + M-MOMAN + M-WHOMN) is in the total — click to drop it (SOH only)'
+          : 'Oman is excluded — click to add it back';
+        badge.addEventListener('click', e => { e.stopPropagation(); srQtyInclOman = !srQtyInclOman; renderGrid(); });
+        gth.appendChild(badge);
+        gth.title = (srQtyInclOman
+          ? 'SR Qty = SOH + Oman (M-Tot Pending Order Qty + M-MOMAN + M-WHOMN).'
+          : 'SR Qty = SOH only (Oman excluded).')
+          + '\nClick the badge to toggle Oman; click the header to sort.';
+      }
       addColResizer(gth);
       groupRow.appendChild(gth);
       return;
@@ -1380,6 +1401,9 @@ function buildGridBody(items, cols){
         } else if(col.field === '__whsoh'){
           td.classList.add('whsoh-cell');
           td.textContent = fmtInt(whSohValue(item));
+        } else if(col.field === 'SR Qty'){
+          td.classList.add('srqty-cell');
+          td.textContent = fmtInt(srQtyValue(item));
         } else if(col.field === 'Nav Stock'){
           td.classList.add('navstock-cell');
           td.textContent = fmtInt(navStockValue(item));
