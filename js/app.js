@@ -393,13 +393,19 @@ function uaeStoreCount(item){
   const b = BRANCH_BY_ITEM[item['Item Code']] || {};
   return UAE_STORES.reduce((n, code) => n + ((b[code] || 0) > 0 ? 1 : 0), 0);
 }
-/* SOH = the 10 UAE stores' stock plus their display-model ("-DM") stock —
-   i.e. everything actually sitting in/around a store. Replaces the old
-   "SOH = U-SOH" passthrough; WH SOH and Navision Stock are untouched and keep
-   using U-SOH / M-SOH as before. Source: Book2.xlsx (Sheet1). */
+/* Clearance / web / click-and-collect stock, on top of the 10 UAE stores —
+   still part of "everything sitting in/around a store", just not tied to one
+   specific store's own bin. Source: Book2.xlsx (Sheet1). */
+const SOH_EXTRA_CODES = ['CLRNC', 'CL-DCSHJ', 'WEBSTR', 'CL-JUMRA', 'CL-MARIN', 'CL-REGUS'];
+/* SOH = the 10 UAE stores' stock, their display-model ("-DM") stock, and the
+   clearance/web/click-and-collect codes above. Replaces the old "SOH = U-SOH"
+   passthrough; WH SOH and Navision Stock are untouched and keep using
+   U-SOH / M-SOH as before. Source: Book2.xlsx (Sheet1). */
 function sohValue(item){
   const b = BRANCH_BY_ITEM[item['Item Code']] || {};
-  return UAE_STORES.reduce((sum, code) => sum + (b[code] || 0) + (b[code + '-DM'] || 0), 0);
+  const stores = UAE_STORES.reduce((sum, code) => sum + (b[code] || 0) + (b[code + '-DM'] || 0), 0);
+  const extra = SOH_EXTRA_CODES.reduce((sum, code) => sum + (b[code] || 0), 0);
+  return stores + extra;
 }
 
 /* Units sold this calendar year so far — Jan through the current month of
