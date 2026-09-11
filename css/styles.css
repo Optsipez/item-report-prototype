@@ -609,16 +609,6 @@ table.grid thead tr.group-row th.core.soh-head:not(.sorted){background:var(--soh
 table.grid tbody tr.row-item td.whsoh-cell{background:var(--soh-bg);color:var(--soh);font-weight:600;}
 table.grid tbody tr.row-item td.whsoh-cell.zero{color:var(--ink-faint);}
 table.grid thead tr.group-row th.core.whsoh-head:not(.sorted){background:var(--soh-bg);color:var(--soh);}
-.whsoh-ind{
-  display:block;width:30px;margin-top:8px;
-  cursor:pointer;line-height:1;text-align:center;
-  font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:800;letter-spacing:-.02em;
-  padding:4px 0;border-radius:5px;transition:background var(--t-fast);
-}
-table.grid thead tr.group-row th.core.whsoh-head.incl-m .whsoh-ind{color:var(--primary);background:var(--primary-weak);}
-table.grid thead tr.group-row th.core.whsoh-head:not(.incl-m) .whsoh-ind{color:var(--ink-faint);background:var(--s-100);}
-table.grid thead tr.group-row th.core.whsoh-head .whsoh-ind:hover{background:var(--s-200);}
-table.grid thead tr.group-row th.core.whsoh-head.sorted .whsoh-ind{color:var(--on-primary);background:rgba(255,255,255,.22);}
 
 /* inline sales-trend sparkline — stroke colour follows the trend, line draws in */
 table.grid td.spark-cell{padding-top:3px;padding-bottom:3px;vertical-align:middle;}

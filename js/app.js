@@ -428,12 +428,10 @@ function branchQty(item, code){
   const b = BRANCH_BY_ITEM[item['Item Code']];
   return b && b[code] ? b[code] : 0;
 }
-/* WH SOH — warehouse stock across M-SOH + SAJWH + DCSHJ. The header toggles
-   whether M-SOH is in the total. */
-let whSohInclM = true;
+/* WH SOH — warehouse stock on hand across the two UAE warehouses, Sajja
+   (SAJWH) and DC Sharjah (DCSHJ). No toggle, no M-SOH — that's Oman stock. */
 function whSohValue(item){
-  const base = branchQty(item, 'SAJWH') + branchQty(item, 'DCSHJ');
-  return whSohInclM ? base + (Number(item['M-SOH']) || 0) : base;
+  return branchQty(item, 'SAJWH') + branchQty(item, 'DCSHJ');
 }
 
 /* ============================================================
@@ -1237,22 +1235,8 @@ function buildGridHeader(){
         applyGroupHeader(gth, entry.field);
       }
       if(entry.field === '__whsoh'){
-        // header click sorts (via the sortable path above); the +M / −M badge
-        // toggles whether M-SOH is in the total.
         gth.classList.add('whsoh-head');
-        gth.classList.toggle('incl-m', whSohInclM);
-        const badge = document.createElement('span');
-        badge.className = 'whsoh-ind';
-        badge.textContent = whSohInclM ? '+M' : '-M';
-        badge.title = whSohInclM
-          ? 'M-SOH is in the total — click to drop it (SAJWH + DCSHJ only)'
-          : 'M-SOH is excluded — click to add it back';
-        badge.addEventListener('click', e => { e.stopPropagation(); whSohInclM = !whSohInclM; renderGrid(); });
-        gth.appendChild(badge);
-        gth.title = (whSohInclM
-          ? 'Warehouse stock = M-SOH + SAJWH + DCSHJ.'
-          : 'Warehouse stock = SAJWH + DCSHJ (M-SOH excluded).')
-          + '\nClick the badge to toggle M-SOH; click the header to sort.';
+        gth.title = 'Warehouse stock = SAJWH (Sajja) + DCSHJ (DC Sharjah), the two UAE warehouses.\nClick the header to sort.';
       }
       addColResizer(gth);
       groupRow.appendChild(gth);
