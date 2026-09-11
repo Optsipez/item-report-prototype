@@ -1553,6 +1553,16 @@ function pudaProductName(v){
   return i === -1 ? s.trim() : s.slice(i + 1).trim();
 }
 const FILTER_MATCH_KEY = { 'PUDA Desc': pudaProductName };
+// Lets the PUDA Desc search box also match by PUDA Code, without ever
+// showing the code itself in the filter list.
+const PUDA_DESC_TO_CODES = (() => {
+  const map = {};
+  ITEMS.forEach(it => {
+    const desc = it['PUDA Desc'], code = it['PUDA Code'];
+    (map[desc] || (map[desc] = new Set())).add(code);
+  });
+  return map;
+})();
 function filterKey(label, val){
   const fn = FILTER_MATCH_KEY[label];
   return fn ? fn(val) : String(val);
@@ -1607,7 +1617,11 @@ function renderFilterBlocks(){
         const q = search.value.trim().toLowerCase();
         optsWrap.querySelectorAll('.filter-opt').forEach(row => {
           const cb = row.querySelector('input');
-          const hay = (row.textContent + ' ' + (cb ? cb.value : '')).toLowerCase();
+          let hay = (row.textContent + ' ' + (cb ? cb.value : '')).toLowerCase();
+          if(label === 'PUDA Desc' && cb){
+            const codes = PUDA_DESC_TO_CODES[cb.value];
+            if(codes) hay += ' ' + Array.from(codes).join(' ').toLowerCase();
+          }
           row.classList.toggle('nomatch', q !== '' && !hay.includes(q));
         });
       });
