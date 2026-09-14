@@ -420,6 +420,10 @@ table.matrix td.neg{color:var(--neg);}
    uses) so this reads as its own distinct section rather than a plain grid. */
 #yearMatrices{margin-top:var(--sp-6);}
 table.year-matrix{border-radius:var(--r-sm);overflow:hidden;}
+table.year-matrix tbody tr{animation:rowFade .2s ease both;}
+/* ...except mid-regroup, where the FLIP slide drives `transform` on these
+   same rows itself — same fix as the grid, avoids the two fighting. */
+table.year-matrix tbody tr.no-entrance{animation:none;}
 table.year-matrix thead th{
   background:var(--s-800);color:#cbd5e1;border-bottom:2px solid var(--s-700);
   border-color:rgba(255,255,255,.08);
@@ -761,7 +765,7 @@ table.grid tbody td.fz-itemcode{box-shadow:none;transition:box-shadow var(--t-me
 @keyframes fadeDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 @keyframes popIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
 @keyframes checkPop{from{transform:rotate(43deg) scale(0)}60%{transform:rotate(43deg) scale(1.15)}to{transform:rotate(43deg) scale(1)}}
-@keyframes rowFade{from{opacity:.25}to{opacity:1}}
+@keyframes rowFade{from{opacity:.25;transform:translateY(3px)}to{opacity:1;transform:none}}
 @keyframes sheen{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
 @keyframes sparkDraw{to{stroke-dashoffset:0}}
 @keyframes emptyFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
@@ -794,6 +798,10 @@ table.grid tbody td.fz-itemcode{box-shadow:none;transition:box-shadow var(--t-me
 
 /* grid — soft pulse on (re)render: sort / filter / collapse */
 table.grid tbody tr{animation:rowFade .16s ease both;}
+/* ...except on a sort/group render, where the FLIP slide (app.js) drives
+   `transform` on these same rows itself — running both at once caused the
+   two to fight over that property and jitter. */
+table.grid tbody tr.no-entrance{animation:none;}
 
 /* hover lifts */
 .metric-group{transition:box-shadow var(--t-med),transform var(--t-med),border-color var(--t-med);}
@@ -809,6 +817,22 @@ table.grid tbody tr{animation:rowFade .16s ease both;}
 
 /* sort indicator entrance */
 .sort-ind{animation:fadeDown .2s ease both;}
+
+/* Sort/group feedback: rows that change position FLIP-slide there with a
+   spring overshoot (see flipRows/captureRowTops in app.js — inline
+   transform+transition, not CSS-driven) and trail a brief gold glow while
+   in flight; the header you clicked pulses a gold ring outward so the click
+   itself visibly reads as the cause, not just "the table changed". */
+@keyframes sortFlash{
+  0%{box-shadow:inset 0 0 0 999px rgba(163,120,29,.4),0 0 0 0 rgba(163,120,29,.5);}
+  60%{box-shadow:inset 0 0 0 999px rgba(163,120,29,.12),0 0 0 5px rgba(163,120,29,0);}
+  100%{box-shadow:inset 0 0 0 999px rgba(163,120,29,0),0 0 0 0 rgba(163,120,29,0);}
+}
+.sort-flash{animation:sortFlash .6s cubic-bezier(.22,.8,.22,1);position:relative;z-index:1;}
+@keyframes flipGlowPulse{0%{background-color:var(--primary-weak);}100%{background-color:transparent;}}
+tr.flip-glow td{animation:flipGlowPulse .5s ease-out;position:relative;z-index:2;}
+/* Overview metric-regroup: the newly-primary group header pops in a touch */
+table.year-matrix tr.year-row td{animation:popIn .22s cubic-bezier(.16,1,.3,1) both;}
 
 /* rail toggle nudge on hover */
 .rail-toggle{transition:left var(--t-med),background var(--t-fast),color var(--t-fast),border-color var(--t-fast),width var(--t-fast);}

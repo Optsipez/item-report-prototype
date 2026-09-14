@@ -672,6 +672,7 @@ function runningBalanceMap(item){
    (year first, then its 3 metric rows). One shared setting across all 3
    years, kept across re-renders until changed. */
 let ovSortKey = null;   // 'stock' | 'sold' | 'remaining' | null
+let flipOverviewRows = false;
 const OV_ROW_ORDER = ['stock', 'sold', 'remaining'];
 const OV_ROW_META = {
   stock: { label: 'Stock by month', wkCell: false },
@@ -706,6 +707,12 @@ function buildYearMatrices(wrapEl, item){
   const balances = runningBalanceMap(item);
   const headerCells = MONTHS.map(m => `<th>${m}</th>`).join('');
 
+  // On a flip-driven regroup, the row-entrance animation and the FLIP slide
+  // would both drive `transform` on the same rows and jitter — same fix as
+  // the grid: skip the entrance (via "no-entrance") and let FLIP own it.
+  let rowN = 0;
+  const rowExtraCls = flipOverviewRows ? ' no-entrance' : '';
+  const rowExtraAttr = () => flipOverviewRows ? '' : ` style="animation-delay:${Math.min(rowN++ * 22, 200)}ms"`;
   let body;
   if(ovSortKey){
     const order = [ovSortKey, ...OV_ROW_ORDER.filter(k => k !== ovSortKey)];
@@ -713,33 +720,40 @@ function buildYearMatrices(wrapEl, item){
       const meta = OV_ROW_META[key];
       const rows = years.map(year => {
         const { cellsHtml, totalHtml } = ovRowData(item, year, balances, key);
-        return `<tr data-key="${key}"><td class="ov-year-label">${year}</td>${cellsHtml}<td>${totalHtml}</td></tr>`;
+        return `<tr class="${rowExtraCls.trim()}" data-key="${key}" data-row-id="${key}-${year}"${rowExtraAttr()}><td class="ov-year-label">${year}</td>${cellsHtml}<td>${totalHtml}</td></tr>`;
       }).join('');
       const activeCls = key === ovSortKey ? ' ov-sorted' : '';
-      return `<tr class="year-row"><td class="ov-row-label${activeCls}" data-key="${key}" colspan="14">${meta.label}</td></tr>` + rows;
+      return `<tr class="year-row${rowExtraCls}"${rowExtraAttr()}><td class="ov-row-label${activeCls}" data-key="${key}" colspan="14">${meta.label}</td></tr>` + rows;
     }).join('');
   } else {
     body = years.map(year => {
       const rows = OV_ROW_ORDER.map(key => {
         const meta = OV_ROW_META[key];
         const { cellsHtml, totalHtml } = ovRowData(item, year, balances, key);
-        return `<tr data-key="${key}"><td class="ov-row-label" data-key="${key}">${meta.label}</td>${cellsHtml}<td>${totalHtml}</td></tr>`;
+        return `<tr class="${rowExtraCls.trim()}" data-key="${key}" data-row-id="${key}-${year}"${rowExtraAttr()}><td class="ov-row-label" data-key="${key}">${meta.label}</td>${cellsHtml}<td>${totalHtml}</td></tr>`;
       }).join('');
-      return `<tr class="year-row"><td colspan="14">${year}</td></tr>` + rows;
+      return `<tr class="year-row${rowExtraCls}"${rowExtraAttr()}><td colspan="14">${year}</td></tr>` + rows;
     }).join('');
   }
+
+  const oldTable = wrapEl.querySelector('table.year-matrix');
+  const oldRowTops = flipOverviewRows && oldTable ? captureRowTops(oldTable, 'tr[data-row-id]', 'rowId') : null;
 
   wrapEl.innerHTML =
     '<div class="matrix-wrap"><table class="matrix year-matrix">' +
     '<thead><tr><th></th>' + headerCells + '<th>Total</th></tr></thead>' +
     '<tbody>' + body + '</tbody></table></div>';
+  if(oldRowTops) flipRows(wrapEl.querySelector('table.year-matrix'), 'tr[data-row-id]', 'rowId', oldRowTops);
+  flipOverviewRows = false;
   wrapEl.querySelectorAll('td.wk-cell').forEach(td =>
     td.addEventListener('click', e => { e.stopPropagation(); openWeekModal(item); }));
   wrapEl.querySelectorAll('td.ov-row-label').forEach(td =>
     td.addEventListener('click', () => {
       const key = td.dataset.key;
       ovSortKey = (ovSortKey === key) ? null : key;
+      flipOverviewRows = true;
       buildYearMatrices(wrapEl, item);
+      flashHeader('td.ov-row-label[data-key="' + key + '"]');
     }));
   // Hovering one metric's row (in any year) highlights that same metric's
   // row in every other year too, so you can trace e.g. "Sold by month"
@@ -1115,15 +1129,77 @@ function groupKeyFor(field, val){
   const fn = GROUP_KEY[field];
   return fn ? fn(val) : String(val == null ? '' : val).trim().toUpperCase();
 }
+/* FLIP reorder animation (First-Last-Invert-Play): capture each row's
+   screen position keyed by a stable id before the DOM rebuilds, then after
+   the rebuild give the matching row (same id, new position) an inverted
+   transform back to where it used to be and transition it to zero — so
+   rows visibly slide into their new spot instead of just popping there.
+   Used for both the grid's sort/group and the Overview metric regroup. */
+function captureRowTops(container, selector, keyAttr){
+  const map = new Map();
+  container.querySelectorAll(selector).forEach(el => {
+    const key = el.dataset[keyAttr];
+    if(key) map.set(key, el.getBoundingClientRect().top);
+  });
+  return map;
+}
+function flipRows(container, selector, keyAttr, oldTops){
+  if(!oldTops) return;
+  // Movers are staggered by how far up the final list they land — the row
+  // that jumps to the very top leads, the rest cascade in just behind it —
+  // instead of the whole table snapping into motion in frozen unison.
+  const movers = [];
+  container.querySelectorAll(selector).forEach(el => {
+    const key = el.dataset[keyAttr];
+    const oldTop = key ? oldTops.get(key) : null;
+    if(oldTop == null) return;
+    const newTop = el.getBoundingClientRect().top;
+    const dy = oldTop - newTop;
+    if(!dy) return;
+    movers.push({ el, dy, newTop });
+  });
+  movers.sort((a, b) => a.newTop - b.newTop);
+  movers.forEach(({ el, dy }, i) => {
+    const dist = Math.abs(dy);
+    const duration = Math.min(560, 300 + dist * 0.55);   // farther jumps run a touch longer
+    const delay = Math.min(i * 18, 160);                 // gentle top-to-bottom cascade
+    el.style.transition = 'none';
+    el.style.transform = 'translateY(' + dy + 'px)';
+    el.classList.add('flip-glow');
+    requestAnimationFrame(() => {
+      el.style.transition = 'transform ' + duration + 'ms cubic-bezier(.3,1.4,.55,1) ' + delay + 'ms';
+      el.style.transform = '';
+    });
+    const cleanup = () => { el.style.transition = ''; el.style.transform = ''; el.classList.remove('flip-glow'); };
+    el.addEventListener('transitionend', cleanup, { once: true });
+    setTimeout(cleanup, duration + delay + 120);   // safety net if transitionend never fires
+  });
+}
+/* Brief highlight flash on the header that was just clicked, so a sort/group
+   change reads as an action you took, not just a table that silently
+   changed. Re-triggerable: forces a reflow so clicking the same header
+   again (e.g. cycling desc -> asc) restarts the flash instead of no-op'ing. */
+function flashHeader(selector){
+  const el = document.querySelector(selector);
+  if(!el) return;
+  el.classList.remove('sort-flash');
+  void el.offsetWidth;
+  el.classList.add('sort-flash');
+}
+let flipGridRows = false;
 function cycleSort(field){
   if(!gridSort || gridSort.field !== field) gridSort = { field: field, dir: 'desc' };
   else if(gridSort.dir === 'desc') gridSort = { field: field, dir: 'asc' };
   else gridSort = null;
+  flipGridRows = true;
   renderGrid();
+  flashHeader('#gridTable thead th[data-col="' + field + '"]');
 }
 function cycleGroup(field){
   gridGroup = gridGroup && gridGroup.field === field ? null : { field: field };
+  flipGridRows = true;
   renderGrid();
+  flashHeader('#gridTable thead [data-col="' + field + '"]');
 }
 function sortGridItems(items){
   const g = gridGroup;
@@ -1463,6 +1539,11 @@ function buildGridBody(items, cols){
     tr.className = 'row-item';
     tr.dataset.code = item['Item Code'];
     if(newGroup) tr.classList.add('group-break');
+    // The FLIP slide (below) drives `transform` on this same element for this
+    // render — the CSS entrance animation would fight it over that property
+    // and cause a visible jitter, so skip the entrance here and let FLIP own it.
+    if(flipGridRows) tr.classList.add('no-entrance');
+    else tr.style.animationDelay = Math.min(itemIdx * 12, 200) + 'ms';
 
     cols.forEach((col, ci) => {
       const td = document.createElement('td');
@@ -1538,6 +1619,9 @@ function getFilteredItems(){
 }
 
 function renderGrid(){
+  const oldTbody = document.querySelector('#gridTable tbody');
+  const oldRowTops = flipGridRows && oldTbody ? captureRowTops(oldTbody, 'tr[data-code]', 'code') : null;
+
   const items = sortGridItems(getFilteredItems());
   const cols = visibleColumns();
   const table = document.getElementById('gridTable');
@@ -1550,6 +1634,8 @@ function renderGrid(){
   table.appendChild(buildGridBody(items, cols));
   document.getElementById('gridRowCount').textContent = items.length + ' of ' + ITEMS.length + ' items';
   document.getElementById('clearSortBtn').hidden = !gridSort && !gridGroup;
+  if(oldRowTops) flipRows(table.querySelector('tbody'), 'tr[data-code]', 'code', oldRowTops);
+  flipGridRows = false;
   if(colResizeActive){
     // capture the natural width of any column shown for the first time (grid is
     // still auto-laid-out here), then lock it to fixed widths.
