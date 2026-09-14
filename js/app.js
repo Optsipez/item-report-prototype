@@ -644,18 +644,36 @@ function monthsForYear(year){
   for(let m = 0; m <= upTo; m++) months.push(m);
   return months.reverse();
 }
+/* Remaining stock is a running balance, anchored at 0 before Jan of the
+   earliest year shown (currently 2024, which has no data yet — once real
+   2024 figures land, they'll flow through this same chain automatically).
+   Carries continuously across year boundaries: a month with no data at all
+   contributes nothing (balance just holds), it doesn't reset to 0. */
+function runningBalanceMap(item){
+  const map = {};
+  let balance = 0;
+  for(let year = REPORT_MONTH.year - 2; year <= REPORT_MONTH.year; year++){
+    const yr = item.years[String(year)];
+    const upTo = (year === REPORT_MONTH.year) ? REPORT_MONTH.month : 11;
+    for(let m = 0; m <= upTo; m++){
+      if(yr) balance += (yr.stock[m] || 0) - (yr.sales[m] || 0);
+      map[year + '-' + m] = balance;
+    }
+  }
+  return map;
+}
 /* Combined Stock by month / Sold by month / Remaining stock, one block per
    calendar year (current year, then back two more), replacing the old
-   separate Stock In / Sold by Month tabs. Remaining stock is a simple net
-   for that month only (Stock In − Sold), not a running balance. Years with
-   no data at all (e.g. no 2024 in this sample) render as "—" placeholders. */
+   separate Stock In / Sold by Month tabs. Years with no data at all (e.g.
+   no 2024 in this sample) render Stock/Sold as "—" placeholders. */
 function buildYearMatrices(wrapEl, item){
   const years = [REPORT_MONTH.year, REPORT_MONTH.year - 1, REPORT_MONTH.year - 2];
-  wrapEl.innerHTML = years.map(year => buildYearBlock(item, year)).join('');
+  const balances = runningBalanceMap(item);
+  wrapEl.innerHTML = years.map(year => buildYearBlock(item, year, balances)).join('');
   wrapEl.querySelectorAll('td.wk-cell').forEach(td =>
     td.addEventListener('click', () => openWeekModal(item)));
 }
-function buildYearBlock(item, year){
+function buildYearBlock(item, year, balances){
   const yr = item.years[String(year)];
   const months = monthsForYear(year);   // newest -> oldest within this year
   const headerCells = months.map(m => `<th>${MONTHS[m]}</th>`).join('');
@@ -671,6 +689,17 @@ function buildYearBlock(item, year){
     }).join('');
     return `<tr><td>${label}</td>${cells}<td><strong>${yr ? total : '—'}</strong></td></tr>`;
   }
+  // A running balance can't meaningfully be summed into a "Total" column, and
+  // its most recent value is already the first data cell — so Total is n/a.
+  function balanceRowHtml(label){
+    const cells = months.map(m => {
+      if(!yr) return '<td>—</td>';
+      const v = balances[year + '-' + m];
+      const cls = v < 0 ? 'neg' : '';
+      return `<td class="${cls}">${v}</td>`;
+    }).join('');
+    return `<tr><td>${label}</td>${cells}<td>—</td></tr>`;
+  }
 
   return '<div class="year-block">' +
     '<h5>' + year + '</h5>' +
@@ -679,7 +708,7 @@ function buildYearBlock(item, year){
     '<tbody>' +
       rowHtml('Stock by month', m => yr.stock[m] || 0, false) +
       rowHtml('Sold by month', m => yr.sales[m] || 0, true) +
-      rowHtml('Remaining stock', m => (yr.stock[m] || 0) - (yr.sales[m] || 0), false) +
+      balanceRowHtml('Remaining stock') +
     '</tbody></table></div>' +
     '</div>';
 }
