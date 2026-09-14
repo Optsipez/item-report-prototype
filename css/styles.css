@@ -425,9 +425,12 @@ table.year-matrix thead th{
   border-color:rgba(255,255,255,.08);
 }
 table.year-matrix thead th:first-child{background:var(--s-800);}
+/* Same dark slate family as the Jan-Dec header above, one shade lighter, so
+   the year bands read as "header-ish" rather than sharing gold with the
+   hover highlight below (which made the two look identical). */
 table.year-matrix tr.year-row td{
-  padding-top:var(--sp-4);font-size:var(--fs-base);color:var(--primary);font-weight:800;
-  letter-spacing:-.01em;border-bottom:1px solid var(--primary-line);background:var(--primary-weak);
+  padding-top:var(--sp-4);font-size:var(--fs-base);color:#fff;font-weight:800;
+  letter-spacing:-.01em;border-bottom:1px solid var(--s-600);background:var(--s-700);
 }
 table.year-matrix tr.year-row:first-child td{padding-top:var(--sp-3);}
 /* Clicking a row label ("Stock by month" etc.) regroups the whole table by
