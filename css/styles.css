@@ -415,13 +415,21 @@ table.matrix td.neg{color:var(--neg);}
 .matrix-wrap:last-child{margin-bottom:0;}
 
 /* Combined Stock/Sold/Remaining-stock blocks, one per calendar year, shown
-   below the Overview info cards (replaces the old separate monthly tabs). */
+   below the Overview info cards (replaces the old separate monthly tabs).
+   Own header/year-row treatment (not the shared .matrix look Branch Wise
+   uses) so this reads as its own distinct section rather than a plain grid. */
 #yearMatrices{margin-top:var(--sp-6);}
-table.year-matrix tr.year-row td{
-  padding-top:var(--sp-4);font-size:var(--fs-sm);color:var(--ink);font-weight:700;
-  letter-spacing:-.01em;border-bottom:1px solid var(--line);background:var(--s-25);
+table.year-matrix{border-radius:var(--r-sm);overflow:hidden;}
+table.year-matrix thead th{
+  background:var(--s-800);color:#cbd5e1;border-bottom:2px solid var(--s-700);
+  border-color:rgba(255,255,255,.08);
 }
-table.year-matrix tr.year-row:first-child td{padding-top:var(--sp-2);}
+table.year-matrix thead th:first-child{background:var(--s-800);}
+table.year-matrix tr.year-row td{
+  padding-top:var(--sp-4);font-size:var(--fs-base);color:var(--primary);font-weight:800;
+  letter-spacing:-.01em;border-bottom:1px solid var(--primary-line);background:var(--primary-weak);
+}
+table.year-matrix tr.year-row:first-child td{padding-top:var(--sp-3);}
 
 /* Sold matrix: month cells drill into the weekly popup */
 table.matrix td.wk-cell{cursor:pointer;}
