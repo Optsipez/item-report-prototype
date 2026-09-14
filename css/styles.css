@@ -436,6 +436,9 @@ table.year-matrix td.ov-row-label{cursor:pointer;transition:color var(--t-fast);
 table.year-matrix td.ov-row-label:hover{color:var(--primary);}
 table.year-matrix td.ov-row-label.ov-sorted::after{content:' \25BE';font-size:10px;}
 table.year-matrix td.ov-year-label{color:var(--ink-soft);}
+/* Hovering one metric's row highlights that same metric's row in every
+   other year too (see the mouseenter/mouseleave wiring in buildYearMatrices). */
+table.year-matrix tbody tr.ov-row-hl td{background:var(--primary-weak);}
 
 /* Sold matrix: month cells drill into the weekly popup */
 table.matrix td.wk-cell{cursor:pointer;}

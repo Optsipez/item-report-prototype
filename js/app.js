@@ -713,7 +713,7 @@ function buildYearMatrices(wrapEl, item){
       const meta = OV_ROW_META[key];
       const rows = years.map(year => {
         const { cellsHtml, totalHtml } = ovRowData(item, year, balances, key);
-        return `<tr><td class="ov-year-label">${year}</td>${cellsHtml}<td>${totalHtml}</td></tr>`;
+        return `<tr data-key="${key}"><td class="ov-year-label">${year}</td>${cellsHtml}<td>${totalHtml}</td></tr>`;
       }).join('');
       const activeCls = key === ovSortKey ? ' ov-sorted' : '';
       return `<tr class="year-row"><td class="ov-row-label${activeCls}" data-key="${key}" colspan="14">${meta.label}</td></tr>` + rows;
@@ -723,7 +723,7 @@ function buildYearMatrices(wrapEl, item){
       const rows = OV_ROW_ORDER.map(key => {
         const meta = OV_ROW_META[key];
         const { cellsHtml, totalHtml } = ovRowData(item, year, balances, key);
-        return `<tr><td class="ov-row-label" data-key="${key}">${meta.label}</td>${cellsHtml}<td>${totalHtml}</td></tr>`;
+        return `<tr data-key="${key}"><td class="ov-row-label" data-key="${key}">${meta.label}</td>${cellsHtml}<td>${totalHtml}</td></tr>`;
       }).join('');
       return `<tr class="year-row"><td colspan="14">${year}</td></tr>` + rows;
     }).join('');
@@ -741,6 +741,18 @@ function buildYearMatrices(wrapEl, item){
       ovSortKey = (ovSortKey === key) ? null : key;
       buildYearMatrices(wrapEl, item);
     }));
+  // Hovering one metric's row (in any year) highlights that same metric's
+  // row in every other year too, so you can trace e.g. "Sold by month"
+  // across 2026/2025/2024 even when they're not adjacent (default grouping).
+  wrapEl.querySelectorAll('tr[data-key]').forEach(tr => {
+    const key = tr.dataset.key;
+    tr.addEventListener('mouseenter', () => {
+      wrapEl.querySelectorAll('tr[data-key="' + key + '"]').forEach(t => t.classList.add('ov-row-hl'));
+    });
+    tr.addEventListener('mouseleave', () => {
+      wrapEl.querySelectorAll('tr[data-key="' + key + '"]').forEach(t => t.classList.remove('ov-row-hl'));
+    });
+  });
 }
 
 /* ============================================================
