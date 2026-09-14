@@ -648,7 +648,9 @@ function monthsForYear(year){
    earliest year shown (currently 2024, which has no data yet — once real
    2024 figures land, they'll flow through this same chain automatically).
    Carries continuously across year boundaries: a month with no data at all
-   contributes nothing (balance just holds), it doesn't reset to 0. */
+   contributes nothing (balance just holds), it doesn't reset to 0. Floored
+   at 0 — stock can't go negative, and a month that floors carries 0 forward
+   into the next month rather than the raw negative total. */
 function runningBalanceMap(item){
   const map = {};
   let balance = 0;
@@ -657,6 +659,7 @@ function runningBalanceMap(item){
     const upTo = (year === REPORT_MONTH.year) ? REPORT_MONTH.month : 11;
     for(let m = 0; m <= upTo; m++){
       if(yr) balance += (yr.stock[m] || 0) - (yr.sales[m] || 0);
+      if(balance <= 0) balance = 0;
       map[year + '-' + m] = balance;
     }
   }
