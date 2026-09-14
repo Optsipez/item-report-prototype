@@ -927,19 +927,42 @@ function closeWeekModal(){
   modal.querySelectorAll('[data-wk-close]').forEach(el => el.addEventListener('click', closeWeekModal));
   document.addEventListener('keydown', e => { if(e.key === 'Escape') closeWeekModal(); });
 })();
+/* Real per-branch SOLD figures aren't in any source file yet — Sale/GRN only
+   break sales down by item + month, never by branch, in either workbook
+   (only stock-on-hand is tracked per branch). Placeholder map, empty until
+   the real data lands; once it's keyed by item code the same way as
+   BRANCH_BY_ITEM (e.g. {"103641": {"SAJWH": 12, "REGUS": 3, ...}}), the
+   Sold row below picks it up with no other changes. */
+const BRANCH_SOLD_BY_ITEM = {};
 function buildBranchTable(wrapEl, item){
   const branch = BRANCH_BY_ITEM[item['Item Code']];
   if(!branch){ wrapEl.innerHTML = '<p class="foot-note">No branch-level data found for this item.</p>'; return; }
   const codes = Object.keys(branch);
-  const total = codes.reduce((a,c) => a + branch[c], 0);
+  const sold = BRANCH_SOLD_BY_ITEM[item['Item Code']];
+
   let html = '<table class="matrix"><thead><tr><th>Branch Code</th>';
   codes.forEach(c => html += `<th>${c}</th>`);
-  html += '<th>Total</th></tr></thead><tbody><tr><td>SOH</td>';
+  html += '<th>Total</th></tr></thead><tbody>';
+
+  const sohTotal = codes.reduce((a, c) => a + branch[c], 0);
+  html += '<tr><td>SOH</td>';
   codes.forEach(c => {
     const v = branch[c];
     html += `<td class="${v === 0 ? 'zero' : (v < 0 ? 'neg' : '')}">${v}</td>`;
   });
-  html += `<td><strong>${total}</strong></td></tr></tbody></table>`;
+  html += `<td><strong>${sohTotal}</strong></td></tr>`;
+
+  html += '<tr><td>Sold</td>';
+  codes.forEach(c => {
+    const v = sold ? sold[c] : null;
+    html += v == null
+      ? '<td class="zero" title="Awaiting branch-level sales data">—</td>'
+      : `<td class="${v === 0 ? 'zero' : (v < 0 ? 'neg' : '')}">${v}</td>`;
+  });
+  const soldTotal = sold ? codes.reduce((a, c) => a + (sold[c] || 0), 0) : null;
+  html += `<td><strong>${soldTotal == null ? '—' : soldTotal}</strong></td></tr>`;
+
+  html += '</tbody></table>';
   wrapEl.innerHTML = html;
 }
 
