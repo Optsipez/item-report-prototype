@@ -857,9 +857,6 @@ function renderReport(item){
   document.getElementById('mMrg').textContent = item['MRG Factor'].toFixed(2) + 'x';
 
   document.getElementById('mSoh').textContent = fmtInt(item['SOH']);
-  document.getElementById('mAvg').textContent = fmtInt(item['AVG']);
-  document.getElementById('mSm').textContent = item['SM'];
-  document.getElementById('mPm').textContent = item['PM'];
   document.getElementById('mPoQty').textContent = fmtInt(item['PO-Qty']);
   document.getElementById('mLrcvQty').textContent = fmtInt(item['Lrcv Qty']);
   document.getElementById('mLrcvDate').textContent = item['Lrcv Date'];

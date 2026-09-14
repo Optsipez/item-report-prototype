@@ -599,7 +599,6 @@ table.grid td.neg{color:var(--neg);}
 table.grid tbody tr.row-item td.avg-cell{background:var(--stock-bg);color:var(--stock);font-weight:600;}
 table.grid tbody tr.row-item td.avg-cell.zero{color:var(--ink-faint);}
 table.grid thead tr.group-row th.core.avg-head:not(.sorted){background:var(--stock-bg);color:var(--stock);}
-.metric-row .v.avg-v{color:var(--stock);font-weight:600;}
 
 /* SOH + WH SOH — share one accent (teal) so the two stock-quantity columns read
    as a matched pair, distinct from AVG's blue and SR's violet. */
