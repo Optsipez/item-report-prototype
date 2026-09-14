@@ -664,48 +664,83 @@ function runningBalanceMap(item){
    (e.g. Oct-Dec of the current year) just carries its already-zero data
    like any other zero month. Years with no data at all (no 2024 in this
    sample) render Stock/Sold as "—" placeholders. */
+/* Click a row label ("Stock by month" / "Sold by month" / "Remaining stock")
+   to regroup the whole table by that metric instead of by year: all 3
+   years' rows for the clicked metric appear together first (one row per
+   year, labelled by year), then all 3 years' rows for the next metric, then
+   the last. Click the active one again to go back to the default grouping
+   (year first, then its 3 metric rows). One shared setting across all 3
+   years, kept across re-renders until changed. */
+let ovSortKey = null;   // 'stock' | 'sold' | 'remaining' | null
+const OV_ROW_ORDER = ['stock', 'sold', 'remaining'];
+const OV_ROW_META = {
+  stock: { label: 'Stock by month', wkCell: false },
+  sold: { label: 'Sold by month', wkCell: true },
+  remaining: { label: 'Remaining stock', wkCell: false },
+};
+/* One metric's 12 month cells + Total for one year — shared by both the
+   year-grouped and metric-grouped layouts below. */
+function ovRowData(item, year, balances, key){
+  const yr = item.years[String(year)];
+  if(!yr) return { cellsHtml: MONTHS.map(() => '<td>—</td>').join(''), totalHtml: '—' };
+  if(key === 'remaining'){
+    const cellsHtml = MONTHS.map((_, m) => {
+      const v = balances[year + '-' + m];
+      return `<td class="${v < 0 ? 'neg' : ''}">${v}</td>`;
+    }).join('');
+    return { cellsHtml, totalHtml: '—' };
+  }
+  const arr = key === 'stock' ? yr.stock : yr.sales;
+  const wkCell = OV_ROW_META[key].wkCell;
+  let total = 0;
+  const cellsHtml = MONTHS.map((_, m) => {
+    const v = arr[m] || 0;
+    total += v;
+    const cls = [v === 0 ? 'zero' : (v < 0 ? 'neg' : ''), wkCell ? 'wk-cell' : ''].filter(Boolean).join(' ');
+    return `<td class="${cls}">${v === 0 ? '—' : v}</td>`;
+  }).join('');
+  return { cellsHtml, totalHtml: `<strong>${total}</strong>` };
+}
 function buildYearMatrices(wrapEl, item){
   const years = [REPORT_MONTH.year, REPORT_MONTH.year - 1, REPORT_MONTH.year - 2];
   const balances = runningBalanceMap(item);
   const headerCells = MONTHS.map(m => `<th>${m}</th>`).join('');
-  const body = years.map(year => buildYearRows(item, year, balances)).join('');
+
+  let body;
+  if(ovSortKey){
+    const order = [ovSortKey, ...OV_ROW_ORDER.filter(k => k !== ovSortKey)];
+    body = order.map(key => {
+      const meta = OV_ROW_META[key];
+      const rows = years.map(year => {
+        const { cellsHtml, totalHtml } = ovRowData(item, year, balances, key);
+        return `<tr><td class="ov-year-label">${year}</td>${cellsHtml}<td>${totalHtml}</td></tr>`;
+      }).join('');
+      const activeCls = key === ovSortKey ? ' ov-sorted' : '';
+      return `<tr class="year-row"><td class="ov-row-label${activeCls}" data-key="${key}" colspan="14">${meta.label}</td></tr>` + rows;
+    }).join('');
+  } else {
+    body = years.map(year => {
+      const rows = OV_ROW_ORDER.map(key => {
+        const meta = OV_ROW_META[key];
+        const { cellsHtml, totalHtml } = ovRowData(item, year, balances, key);
+        return `<tr><td class="ov-row-label" data-key="${key}">${meta.label}</td>${cellsHtml}<td>${totalHtml}</td></tr>`;
+      }).join('');
+      return `<tr class="year-row"><td colspan="14">${year}</td></tr>` + rows;
+    }).join('');
+  }
+
   wrapEl.innerHTML =
     '<div class="matrix-wrap"><table class="matrix year-matrix">' +
     '<thead><tr><th></th>' + headerCells + '<th>Total</th></tr></thead>' +
     '<tbody>' + body + '</tbody></table></div>';
   wrapEl.querySelectorAll('td.wk-cell').forEach(td =>
-    td.addEventListener('click', () => openWeekModal(item)));
-}
-function buildYearRows(item, year, balances){
-  const yr = item.years[String(year)];
-
-  function rowHtml(label, getVal, wkCell){
-    let total = 0;
-    const cells = MONTHS.map((_, m) => {
-      if(!yr){ return '<td>—</td>'; }
-      const v = getVal(m);
-      total += v;
-      const cls = [v === 0 ? 'zero' : (v < 0 ? 'neg' : ''), wkCell ? 'wk-cell' : ''].filter(Boolean).join(' ');
-      return `<td class="${cls}">${v === 0 ? '—' : v}</td>`;
-    }).join('');
-    return `<tr><td>${label}</td>${cells}<td><strong>${yr ? total : '—'}</strong></td></tr>`;
-  }
-  // A running balance can't meaningfully be summed into a "Total" column, and
-  // its most recent value is already the first data cell — so Total is n/a.
-  function balanceRowHtml(label){
-    const cells = MONTHS.map((_, m) => {
-      if(!yr) return '<td>—</td>';
-      const v = balances[year + '-' + m];
-      const cls = v < 0 ? 'neg' : '';
-      return `<td class="${cls}">${v}</td>`;
-    }).join('');
-    return `<tr><td>${label}</td>${cells}<td>—</td></tr>`;
-  }
-
-  return `<tr class="year-row"><td colspan="14">${year}</td></tr>` +
-    rowHtml('Stock by month', m => yr.stock[m] || 0, false) +
-    rowHtml('Sold by month', m => yr.sales[m] || 0, true) +
-    balanceRowHtml('Remaining stock');
+    td.addEventListener('click', e => { e.stopPropagation(); openWeekModal(item); }));
+  wrapEl.querySelectorAll('td.ov-row-label').forEach(td =>
+    td.addEventListener('click', () => {
+      const key = td.dataset.key;
+      ovSortKey = (ovSortKey === key) ? null : key;
+      buildYearMatrices(wrapEl, item);
+    }));
 }
 
 /* ============================================================
