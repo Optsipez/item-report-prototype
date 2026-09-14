@@ -635,33 +635,53 @@ generateBtn.addEventListener('click', () => {
   openItem(pick);
 });
 
-function buildMatrix(wrapEl, item, key){
-  // One continuous 13-month strip, spanning the year boundary, displayed
-  // current month first then backwards (newest -> oldest).
-  let total = 0;
-  const cells = MONTH_WINDOW.map(w => {
-    const yr = item.years[String(w.year)];
-    const v = yr ? (yr[key][w.m] || 0) : 0;
-    total += v;
-    return { w: w, v: v };
-  }).reverse();
-  const label = key === 'sales' ? 'Sold' : 'Received';
-  let html = '<table class="matrix"><thead><tr><th></th>';
-  cells.forEach(c => { html += `<th>${monthColLabel(c.w)}</th>`; });
-  html += '<th>Total</th></tr></thead><tbody><tr>';
-  html += `<td>${label}</td>`;
-  cells.forEach(c => {
-    const cls = [c.v === 0 ? 'zero' : '', key === 'sales' ? 'wk-cell' : ''].filter(Boolean).join(' ');
-    html += `<td class="${cls}">${c.v === 0 ? '—' : c.v}</td>`;
-  });
-  html += `<td><strong>${total}</strong></td></tr></tbody></table>`;
-  wrapEl.innerHTML = html;
-  if(key === 'sales'){
-    wrapEl.querySelectorAll('td.wk-cell').forEach(td =>
-      td.addEventListener('click', () => openWeekModal(item)));
-    const hint = document.getElementById('soldWeekHint');
-    if(hint) hint.textContent = '  ·  click a month for the weekly breakdown';
+/* Months to show for one calendar year, current month first then backwards
+   to January (not the 13-month rolling window used elsewhere). The current
+   year stops at the current month — no not-yet-happened months shown. */
+function monthsForYear(year){
+  const upTo = (year === REPORT_MONTH.year) ? REPORT_MONTH.month : 11;
+  const months = [];
+  for(let m = 0; m <= upTo; m++) months.push(m);
+  return months.reverse();
+}
+/* Combined Stock by month / Sold by month / Remaining stock, one block per
+   calendar year (current year, then back two more), replacing the old
+   separate Stock In / Sold by Month tabs. Remaining stock is a simple net
+   for that month only (Stock In − Sold), not a running balance. Years with
+   no data at all (e.g. no 2024 in this sample) render as "—" placeholders. */
+function buildYearMatrices(wrapEl, item){
+  const years = [REPORT_MONTH.year, REPORT_MONTH.year - 1, REPORT_MONTH.year - 2];
+  wrapEl.innerHTML = years.map(year => buildYearBlock(item, year)).join('');
+  wrapEl.querySelectorAll('td.wk-cell').forEach(td =>
+    td.addEventListener('click', () => openWeekModal(item)));
+}
+function buildYearBlock(item, year){
+  const yr = item.years[String(year)];
+  const months = monthsForYear(year);   // newest -> oldest within this year
+  const headerCells = months.map(m => `<th>${MONTHS[m]}</th>`).join('');
+
+  function rowHtml(label, getVal, wkCell){
+    let total = 0;
+    const cells = months.map(m => {
+      if(!yr){ return '<td>—</td>'; }
+      const v = getVal(m);
+      total += v;
+      const cls = [v === 0 ? 'zero' : (v < 0 ? 'neg' : ''), wkCell ? 'wk-cell' : ''].filter(Boolean).join(' ');
+      return `<td class="${cls}">${v === 0 ? '—' : v}</td>`;
+    }).join('');
+    return `<tr><td>${label}</td>${cells}<td><strong>${yr ? total : '—'}</strong></td></tr>`;
   }
+
+  return '<div class="year-block">' +
+    '<h5>' + year + '</h5>' +
+    '<div class="matrix-wrap"><table class="matrix">' +
+    '<thead><tr><th></th>' + headerCells + '<th>Total</th></tr></thead>' +
+    '<tbody>' +
+      rowHtml('Stock by month', m => yr.stock[m] || 0, false) +
+      rowHtml('Sold by month', m => yr.sales[m] || 0, true) +
+      rowHtml('Remaining stock', m => (yr.stock[m] || 0) - (yr.sales[m] || 0), false) +
+    '</tbody></table></div>' +
+    '</div>';
 }
 
 /* ============================================================
@@ -880,8 +900,7 @@ function renderReport(item){
   document.getElementById('oVendorName').textContent = item['Vendor Name'];
   document.getElementById('oOrigin').textContent = item['Country Of Origin'];
 
-  buildMatrix(document.getElementById('stockMatrixWrap'), item, 'stock');
-  buildMatrix(document.getElementById('soldMatrixWrap'), item, 'sales');
+  buildYearMatrices(document.getElementById('yearMatrices'), item);
   buildBranchTable(document.getElementById('branchMatrixWrap'), item);
 
   countUpMetrics();
