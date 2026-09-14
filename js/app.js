@@ -635,15 +635,6 @@ generateBtn.addEventListener('click', () => {
   openItem(pick);
 });
 
-/* Months to show for one calendar year, current month first then backwards
-   to January (not the 13-month rolling window used elsewhere). The current
-   year stops at the current month — no not-yet-happened months shown. */
-function monthsForYear(year){
-  const upTo = (year === REPORT_MONTH.year) ? REPORT_MONTH.month : 11;
-  const months = [];
-  for(let m = 0; m <= upTo; m++) months.push(m);
-  return months.reverse();
-}
 /* Remaining stock is a running balance, anchored at 0 before Jan of the
    earliest year shown (currently 2024, which has no data yet — once real
    2024 figures land, they'll flow through this same chain automatically).
@@ -656,8 +647,7 @@ function runningBalanceMap(item){
   let balance = 0;
   for(let year = REPORT_MONTH.year - 2; year <= REPORT_MONTH.year; year++){
     const yr = item.years[String(year)];
-    const upTo = (year === REPORT_MONTH.year) ? REPORT_MONTH.month : 11;
-    for(let m = 0; m <= upTo; m++){
+    for(let m = 0; m <= 11; m++){
       if(yr) balance += (yr.stock[m] || 0) - (yr.sales[m] || 0);
       if(balance <= 0) balance = 0;
       map[year + '-' + m] = balance;
@@ -665,25 +655,33 @@ function runningBalanceMap(item){
   }
   return map;
 }
-/* Combined Stock by month / Sold by month / Remaining stock, one block per
-   calendar year (current year, then back two more), replacing the old
-   separate Stock In / Sold by Month tabs. Years with no data at all (e.g.
-   no 2024 in this sample) render Stock/Sold as "—" placeholders. */
+/* Combined Stock by month / Sold by month / Remaining stock, one shared
+   table for all 3 years (current year, then back two more) — a single
+   Jan-Dec header on top, with a year label row + 3 data rows per year
+   below it, replacing the old separate Stock In / Sold by Month tabs (and
+   the earlier version of this section that gave each year its own header).
+   Every year always shows the full 12 months; a not-yet-happened month
+   (e.g. Oct-Dec of the current year) just carries its already-zero data
+   like any other zero month. Years with no data at all (no 2024 in this
+   sample) render Stock/Sold as "—" placeholders. */
 function buildYearMatrices(wrapEl, item){
   const years = [REPORT_MONTH.year, REPORT_MONTH.year - 1, REPORT_MONTH.year - 2];
   const balances = runningBalanceMap(item);
-  wrapEl.innerHTML = years.map(year => buildYearBlock(item, year, balances)).join('');
+  const headerCells = MONTHS.map(m => `<th>${m}</th>`).join('');
+  const body = years.map(year => buildYearRows(item, year, balances)).join('');
+  wrapEl.innerHTML =
+    '<div class="matrix-wrap"><table class="matrix year-matrix">' +
+    '<thead><tr><th></th>' + headerCells + '<th>Total</th></tr></thead>' +
+    '<tbody>' + body + '</tbody></table></div>';
   wrapEl.querySelectorAll('td.wk-cell').forEach(td =>
     td.addEventListener('click', () => openWeekModal(item)));
 }
-function buildYearBlock(item, year, balances){
+function buildYearRows(item, year, balances){
   const yr = item.years[String(year)];
-  const months = monthsForYear(year);   // newest -> oldest within this year
-  const headerCells = months.map(m => `<th>${MONTHS[m]}</th>`).join('');
 
   function rowHtml(label, getVal, wkCell){
     let total = 0;
-    const cells = months.map(m => {
+    const cells = MONTHS.map((_, m) => {
       if(!yr){ return '<td>—</td>'; }
       const v = getVal(m);
       total += v;
@@ -695,7 +693,7 @@ function buildYearBlock(item, year, balances){
   // A running balance can't meaningfully be summed into a "Total" column, and
   // its most recent value is already the first data cell — so Total is n/a.
   function balanceRowHtml(label){
-    const cells = months.map(m => {
+    const cells = MONTHS.map((_, m) => {
       if(!yr) return '<td>—</td>';
       const v = balances[year + '-' + m];
       const cls = v < 0 ? 'neg' : '';
@@ -704,16 +702,10 @@ function buildYearBlock(item, year, balances){
     return `<tr><td>${label}</td>${cells}<td>—</td></tr>`;
   }
 
-  return '<div class="year-block">' +
-    '<h5>' + year + '</h5>' +
-    '<div class="matrix-wrap"><table class="matrix">' +
-    '<thead><tr><th></th>' + headerCells + '<th>Total</th></tr></thead>' +
-    '<tbody>' +
-      rowHtml('Stock by month', m => yr.stock[m] || 0, false) +
-      rowHtml('Sold by month', m => yr.sales[m] || 0, true) +
-      balanceRowHtml('Remaining stock') +
-    '</tbody></table></div>' +
-    '</div>';
+  return `<tr class="year-row"><td colspan="14">${year}</td></tr>` +
+    rowHtml('Stock by month', m => yr.stock[m] || 0, false) +
+    rowHtml('Sold by month', m => yr.sales[m] || 0, true) +
+    balanceRowHtml('Remaining stock');
 }
 
 /* ============================================================

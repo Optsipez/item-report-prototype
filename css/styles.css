@@ -417,9 +417,11 @@ table.matrix td.neg{color:var(--neg);}
 /* Combined Stock/Sold/Remaining-stock blocks, one per calendar year, shown
    below the Overview info cards (replaces the old separate monthly tabs). */
 #yearMatrices{margin-top:var(--sp-6);}
-.year-block{margin-top:var(--sp-6);padding-top:var(--sp-5);border-top:1px solid var(--line);}
-.year-block:first-child{margin-top:0;padding-top:0;border-top:0;}
-.year-block h5{font-size:var(--fs-sm);color:var(--ink);margin:0 0 var(--sp-3);font-weight:700;letter-spacing:-.01em;}
+table.year-matrix tr.year-row td{
+  padding-top:var(--sp-4);font-size:var(--fs-sm);color:var(--ink);font-weight:700;
+  letter-spacing:-.01em;border-bottom:1px solid var(--line);background:var(--s-25);
+}
+table.year-matrix tr.year-row:first-child td{padding-top:var(--sp-2);}
 
 /* Sold matrix: month cells drill into the weekly popup */
 table.matrix td.wk-cell{cursor:pointer;}
