@@ -1914,7 +1914,31 @@ function renderFilterBlocks(){
   });
   updateFilterCounts();
   updateFilterAvailability();
+  snapFilterOptsHeights();
 }
+/* Each filter's option list gets an equal flex share of the rail's height,
+   which almost never divides evenly into whole rows — left alone, the last
+   visible row is sliced off mid-height, which reads as broken rather than
+   "scroll for more". Cap each list's height at a whole number of rows
+   instead: the leftover sliver becomes a bit of blank space at the bottom of
+   that block rather than a cut-off row. Never makes anything taller than its
+   already-allotted flex share, so it can't reintroduce page-level scrolling. */
+function snapFilterOptsHeights(){
+  document.querySelectorAll('.filter-opts').forEach(el => {
+    el.style.maxHeight = '';
+    const row = el.querySelector('.filter-opt');
+    if(!row) return;
+    const rowH = row.getBoundingClientRect().height;
+    if(rowH <= 0) return;
+    const rows = Math.max(1, Math.floor(el.clientHeight / rowH));
+    el.style.maxHeight = (rows * rowH) + 'px';
+  });
+}
+let snapFilterOptsResizeT = null;
+window.addEventListener('resize', () => {
+  clearTimeout(snapFilterOptsResizeT);
+  snapFilterOptsResizeT = setTimeout(snapFilterOptsHeights, 120);
+});
 function updateFilterCounts(){
   document.querySelectorAll('[data-count-for]').forEach(el => {
     const label = el.dataset.countFor;
