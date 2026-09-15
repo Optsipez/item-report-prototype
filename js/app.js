@@ -1865,6 +1865,23 @@ function uniqueValues(field){
   return Array.from(set).sort();
 }
 
+// One small glyph per filter category — plain geometric shapes (no
+// hand-drawn paths to typo), masked to a single gold tone so they read as a
+// matched set rather than a rainbow of category colors.
+const FILTER_ICONS = {
+  'Vendor Code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><polygon points="8,1 15,7 1,7"/><rect x="3" y="7" width="10" height="8"/></svg>',
+  'Range Name': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><polygon points="1,1 9,1 15,7 9,13 1,13"/></svg>',
+  'Category Code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect x="1" y="1" width="6" height="6"/><rect x="9" y="1" width="6" height="6"/><rect x="1" y="9" width="6" height="6"/><rect x="9" y="9" width="6" height="6"/></svg>',
+  'Department Desc': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="3"/><rect x="1" y="7" width="10" height="3"/><rect x="1" y="12" width="6" height="3"/></svg>',
+  'Group Desc': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="6" cy="7" r="4.2"/><circle cx="11" cy="7" r="3.4"/></svg>',
+  'PUDA Desc': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="6" r="5"/><polygon points="4,9 12,9 8,15"/></svg>',
+  'Current Plan Code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect x="2" y="1" width="2" height="14"/><polygon points="4,2 14,2 11,6 14,10 4,10"/></svg>',
+};
+function filterIconUrl(label){
+  const svg = FILTER_ICONS[label];
+  return svg ? 'data:image/svg+xml,' + encodeURIComponent(svg) : '';
+}
+
 function renderFilterBlocks(){
   const wrap = document.getElementById('filterBlocks');
   wrap.innerHTML = '';
@@ -1872,7 +1889,9 @@ function renderFilterBlocks(){
     const block = document.createElement('div');
     block.className = 'filter-block';
     const h3 = document.createElement('h3');
-    h3.innerHTML = `<span>${label}</span><span class="n" data-count-for="${label}"></span>`;
+    const iconUrl = filterIconUrl(label);
+    const icon = iconUrl ? `<span class="ico" style="-webkit-mask-image:url('${iconUrl}');mask-image:url('${iconUrl}')"></span>` : '';
+    h3.innerHTML = `<span class="lbl-wrap">${icon}<span class="lbl-text">${label}</span></span><span class="n" data-count-for="${label}"></span>`;
     block.appendChild(h3);
     const optsWrap = document.createElement('div');
     optsWrap.className = 'filter-opts';
