@@ -207,11 +207,18 @@ button{font-family:inherit;}
 .layout.view-all .rail-toggle{display:flex;}
 .layout.filters-collapsed .rail-toggle{left:0;}
 
-/* ===== Left rail ===== */
+/* ===== Left rail =====
+   Bounded to the viewport height (not stretched by a tall grid, per
+   align-self:start) and laid out as a flex column so an active panel's
+   content can flex-fill exactly that height — no position:sticky here, so
+   the rail-toggle's existing positioning is untouched. */
 .rail{
   background:var(--panel);
   border-right:1px solid var(--line);
-  padding:var(--sp-6) var(--sp-5) var(--sp-7);
+  padding:var(--sp-4) var(--sp-5) var(--sp-5);
+  height:calc(100vh - 56px);
+  align-self:start;
+  display:flex;flex-direction:column;
   overflow-y:auto;
 }
 .rail h2{
@@ -219,7 +226,7 @@ button{font-family:inherit;}
   color:var(--ink-faint);margin:0 0 var(--sp-3);font-weight:600;
 }
 .rail-panel{display:none;}
-.rail-panel.active{display:block;}
+.rail-panel.active{display:flex;flex-direction:column;flex:1;min-height:0;overflow-y:auto;}
 
 .lookup-box{margin-bottom:var(--sp-6);}
 .lookup-box input{
@@ -261,7 +268,12 @@ button{font-family:inherit;}
 .legend dd{margin:0;font-size:var(--fs-xs);color:var(--ink-soft);}
 
 /* ---- Filters ---- */
-.filters-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--sp-4);}
+/* All 7 All Products filters share the rail's available height evenly (flex:1
+   each) instead of stacking to whatever total height they naturally want —
+   that's what guarantees every filter is visible with no scrolling to find
+   one. A filter with more values than fits its share still scrolls
+   internally, in its own small list (.filter-opts), independent of the rest. */
+.filters-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--sp-3);flex:none;}
 .filters-head .count{font-size:var(--fs-xs);color:var(--ink-faint);}
 .clear-filters{
   background:var(--panel);border:1px solid var(--line-strong);border-radius:var(--r-sm);
@@ -269,26 +281,28 @@ button{font-family:inherit;}
   transition:border-color var(--t-fast),color var(--t-fast),background var(--t-fast);
 }
 .clear-filters:hover{border-color:var(--primary-line);color:var(--primary);background:var(--primary-weak);}
-.filter-block{margin-bottom:var(--sp-5);}
+#filterBlocks{display:flex;flex-direction:column;flex:1;min-height:0;}
+.filter-block{flex:1;min-height:0;display:flex;flex-direction:column;margin-bottom:var(--sp-2);}
+.filter-block:last-child{margin-bottom:0;}
 .filter-block h3{
-  font-size:var(--fs-xs);font-weight:600;margin:0 0 var(--sp-2);color:var(--ink);
-  display:flex;justify-content:space-between;align-items:center;
+  font-size:var(--fs-xs);font-weight:600;margin:0 0 var(--sp-1);color:var(--ink);
+  display:flex;justify-content:space-between;align-items:center;flex:none;
 }
 .filter-block h3 .n{font-size:var(--fs-2xs);color:var(--primary);font-weight:600;background:var(--primary-weak);padding:1px 7px;border-radius:var(--r-pill);}
 .filter-opts{
   border:1px solid var(--line);border-radius:var(--r-sm);
-  max-height:144px;overflow-y:auto;background:var(--panel);
+  flex:1;min-height:0;overflow-y:auto;background:var(--panel);
 }
 .filter-opt{
   display:flex;align-items:center;gap:var(--sp-2);
-  padding:6px 10px;font-size:var(--fs-sm);cursor:pointer;
+  padding:4px 10px;font-size:var(--fs-sm);cursor:pointer;
   border-bottom:1px solid var(--line);transition:background var(--t-fast);
 }
 .filter-opt:last-child{border-bottom:none;}
 .filter-opt.nomatch,.filter-opt.unavail{display:none;}
 .filter-search{
-  width:100%;box-sizing:border-box;margin-bottom:6px;
-  padding:6px 9px;font-size:var(--fs-xs);font-family:inherit;color:var(--ink);
+  width:100%;box-sizing:border-box;margin-bottom:4px;flex:none;
+  padding:4px 8px;font-size:var(--fs-xs);font-family:inherit;color:var(--ink);
   border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--panel);
   transition:border-color var(--t-fast),box-shadow var(--t-fast);
 }

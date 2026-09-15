@@ -1709,13 +1709,17 @@ function syncStickyHeader(){
 window.addEventListener('resize', syncStickyHeader);
 
 /* ---- Filters ---- */
+// Ordered to match the grid's own column order left-to-right (Vendor Code,
+// Range Name, then Classification's Catg Code / Department Desc / Group Desc,
+// then PUDA Desc, then Plan) rather than an arbitrary order.
 const FILTER_FIELD_MAP = {
+  'Vendor Code': 'Vendor Code',
+  'Range Name': 'Range Name',
   'Category Code': 'Catg Code',
   'Department Desc': 'Department Desc',
-  'Vendor Code': 'Vendor Code',
+  'Group Desc': 'Group Desc',
   'PUDA Desc': 'PUDA Desc',
   'Current Plan Code': 'Current Plan Code',
-  'Range Name': 'Range Name',
 };
 // Some fields have a known master list of codes that's bigger than whatever
 // happens to be in the current sample data — show the full list and grey
@@ -1736,7 +1740,7 @@ const FILTER_VALUE_LABELS = {
   },
 };
 // Filters that get a text box to search within their (often long) option list.
-const FILTER_SEARCHABLE = new Set(['Vendor Code', 'PUDA Desc', 'Range Name']);
+const FILTER_SEARCHABLE = new Set(['Vendor Code', 'PUDA Desc', 'Group Desc', 'Range Name']);
 function filterValueLabel(label, val){
   const map = FILTER_VALUE_LABELS[label];
   return (map && map[val]) || val;
@@ -1751,15 +1755,21 @@ function pudaProductName(v){
   return i === -1 ? s.trim() : s.slice(i + 1).trim();
 }
 const FILTER_MATCH_KEY = { 'PUDA Desc': pudaProductName };
-// Lets the PUDA Desc search box also match by PUDA Code, without ever
-// showing the code itself in the filter list.
-const PUDA_DESC_TO_CODES = (() => {
-  const map = {};
-  ITEMS.forEach(it => {
-    const desc = it['PUDA Desc'], code = it['PUDA Code'];
-    (map[desc] || (map[desc] = new Set())).add(code);
+// Lets a "<X> Desc" filter's search box also match by "<X> Code", without
+// ever showing the code itself in the filter list (PUDA Desc / PUDA Code,
+// Group Desc / Group Code).
+const DESC_CODE_PAIRS = { 'PUDA Desc': 'PUDA Code', 'Group Desc': 'Group Code' };
+const DESC_TO_CODES = (() => {
+  const out = {};
+  Object.entries(DESC_CODE_PAIRS).forEach(([descField, codeField]) => {
+    const map = {};
+    ITEMS.forEach(it => {
+      const desc = it[descField], code = it[codeField];
+      (map[desc] || (map[desc] = new Set())).add(code);
+    });
+    out[descField] = map;
   });
-  return map;
+  return out;
 })();
 function filterKey(label, val){
   const fn = FILTER_MATCH_KEY[label];
@@ -1816,8 +1826,8 @@ function renderFilterBlocks(){
         optsWrap.querySelectorAll('.filter-opt').forEach(row => {
           const cb = row.querySelector('input');
           let hay = (row.textContent + ' ' + (cb ? cb.value : '')).toLowerCase();
-          if(label === 'PUDA Desc' && cb){
-            const codes = PUDA_DESC_TO_CODES[cb.value];
+          if(DESC_TO_CODES[label] && cb){
+            const codes = DESC_TO_CODES[label][cb.value];
             if(codes) hay += ' ' + Array.from(codes).join(' ').toLowerCase();
           }
           row.classList.toggle('nomatch', q !== '' && !hay.includes(q));
