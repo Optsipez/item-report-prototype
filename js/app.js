@@ -797,6 +797,15 @@ const DAY_MS = 86400000;
      data for, clamp to that month's last day and count it as complete, so
      the popup still lands on populated weeks. Real data reaching the
      current month flips this back to the live path automatically. */
+/* How many of the anchor day's own week have actually happened, counting
+   Monday THROUGH the anchor day itself (inclusive) — Tue = 2, Wed = 3, ...,
+   Sun = 7 (a genuinely full week). Monday is the one exception: on a Monday
+   almost nothing has posted yet (especially on a morning run), so that
+   bucket isn't shown at all rather than as a near-empty 1-day sliver. */
+function partialWeekElapsed(d){
+  const dow = (d.getDay() + 6) % 7;   // Monday=0 ... Sunday=6
+  return dow === 0 ? 0 : dow + 1;
+}
 const WEEK_VIEW = (function(){
   const now = new Date();
   const y = now.getFullYear();
@@ -807,9 +816,9 @@ const WEEK_VIEW = (function(){
   });
   const dataEnd = lastM === -1 ? null : new Date(y, lastM + 1, 0);
   if(!dataEnd || now <= dataEnd){
-    return { anchor: now, elapsed: (now.getDay() + 6) % 7 };          // Mon..yesterday
+    return { anchor: now, elapsed: partialWeekElapsed(now) };
   }
-  return { anchor: dataEnd, elapsed: ((dataEnd.getDay() + 6) % 7) + 1 }; // Mon..dataEnd
+  return { anchor: dataEnd, elapsed: partialWeekElapsed(dataEnd) };  // clamped to the last month with real data
 })();
 const WEEK_ANCHOR = WEEK_VIEW.anchor;
 
