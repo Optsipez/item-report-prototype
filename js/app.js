@@ -700,7 +700,8 @@ function ovRowData(item, year, balances, key){
     const v = arr[m] || 0;
     total += v;
     const cls = [v === 0 ? 'zero' : (v < 0 ? 'neg' : ''), wkCell ? 'wk-cell' : ''].filter(Boolean).join(' ');
-    return `<td class="${cls}">${v === 0 ? '—' : v}</td>`;
+    const attrs = wkCell ? ` data-year="${year}" data-month="${m}"` : '';
+    return `<td class="${cls}"${attrs}>${v === 0 ? '—' : v}</td>`;
   }).join('');
   return { cellsHtml, totalHtml: `<strong>${total}</strong>` };
 }
@@ -748,7 +749,10 @@ function buildYearMatrices(wrapEl, item){
   if(oldRowTops) flipRows(wrapEl.querySelector('table.year-matrix'), 'tr[data-row-id]', 'rowId', oldRowTops);
   flipOverviewRows = false;
   wrapEl.querySelectorAll('td.wk-cell').forEach(td =>
-    td.addEventListener('click', e => { e.stopPropagation(); openWeekModal(item); }));
+    td.addEventListener('click', e => {
+      e.stopPropagation();
+      openWeekModal(item, { year: +td.dataset.year, month: +td.dataset.month });
+    }));
   wrapEl.querySelectorAll('td.ov-row-label').forEach(td =>
     td.addEventListener('click', () => {
       const key = td.dataset.key;
@@ -815,6 +819,7 @@ function mondayOf(d){
   return x;
 }
 function fmtDay(d){ return d.getDate() + ' ' + MONTHS[d.getMonth()]; }
+function fmtDayYear(d){ return fmtDay(d) + " '" + String(d.getFullYear()).slice(-2); }
 
 /* Stable ±12% wobble from a string key (FNV-1a). */
 function seededWobble(key){
@@ -841,72 +846,136 @@ function weekUnits(item, weekStart, dayCount, cache){
   let sum = 0;
   for(let i = 0; i < dayCount; i++){
     const d = new Date(weekStart.getTime() + i * DAY_MS);
-    if(d.getFullYear() !== WEEK_ANCHOR.getFullYear()) continue;
-    const ck = d.getMonth();
+    const ck = d.getFullYear() + '-' + d.getMonth();
     if(!cache[ck]) cache[ck] = dailySales(item, d.getFullYear(), d.getMonth());
     sum += cache[ck][d.getDate() - 1] || 0;
   }
   return Math.round(sum);
 }
-/* Mon–Sun weeks touching the 3 calendar months ending at the anchor month,
-   newest first. The current week is partial (Mon → yesterday). */
-function weeklyBreakdown(item){
-  const curMon = mondayOf(WEEK_ANCHOR);
-  const elapsed = WEEK_VIEW.elapsed;                          // days counted in the current week
-  const firstMon = mondayOf(new Date(WEEK_ANCHOR.getFullYear(), WEEK_ANCHOR.getMonth() - 2, 1));
+/* Does this week belong to the given month — i.e. do most of its days fall
+   there? A week straddling a month boundary (e.g. Mon 23 Feb – Sun 1 Mar)
+   only counts for whichever side holds the majority of its days, so it
+   doesn't get highlighted for a month it barely touches. Used to mark the
+   weeks belonging to whichever month cell was clicked. */
+function weekBelongsToMonth(weekStart, dayCount, year, month){
+  let count = 0;
+  for(let i = 0; i < dayCount; i++){
+    const d = new Date(weekStart.getTime() + i * DAY_MS);
+    if(d.getFullYear() === year && d.getMonth() === month) count++;
+  }
+  return count > dayCount / 2;
+}
+/* With no monthCtx: Mon–Sun weeks for the last 3 calendar months ending at
+   the data anchor, newest first, current week partial (the original view).
+
+   With `monthCtx` ({year, month}, 0-indexed month) — the month cell that was
+   clicked — the window instead STARTS at that month and runs forward through
+   the following two months, oldest (the clicked month) first, so "click
+   April" reads left-to-right as April → May → June. It's capped so it never
+   runs past the real data anchor; if the anchor falls inside the window,
+   that week is the partial one, exactly like the default view. Weeks
+   touching the clicked month come back flagged `highlight:true`. */
+function weeklyBreakdown(item, monthCtx){
+  const anchorMon = mondayOf(WEEK_ANCHOR);
   const cache = {};
-  const weeks = [];
-  for(let ws = new Date(curMon); ws >= firstMon; ws = new Date(ws.getTime() - 7 * DAY_MS)){
-    const isCurrent = ws.getTime() === curMon.getTime();
-    if(isCurrent && elapsed === 0) continue;                   // anchor is a Monday — skip
-    const dayCount = isCurrent ? elapsed : 7;
-    weeks.push({
+  const isAnchorWeek = ws => ws.getTime() === anchorMon.getTime();
+  const weekEntry = ws => {
+    const isCurrent = isAnchorWeek(ws);
+    const dayCount = isCurrent ? WEEK_VIEW.elapsed : 7;
+    return {
       start: new Date(ws),
       end: new Date(ws.getTime() + (dayCount - 1) * DAY_MS),
       partial: isCurrent,
       dayCount,
       units: weekUnits(item, ws, dayCount, cache),
-    });
+      highlight: monthCtx ? weekBelongsToMonth(ws, dayCount, monthCtx.year, monthCtx.month) : false,
+    };
+  };
+
+  const weeks = [];
+  if(!monthCtx){
+    const firstMon = mondayOf(new Date(WEEK_ANCHOR.getFullYear(), WEEK_ANCHOR.getMonth() - 2, 1));
+    for(let ws = new Date(anchorMon); ws >= firstMon; ws = new Date(ws.getTime() - 7 * DAY_MS)){
+      if(isAnchorWeek(ws) && WEEK_VIEW.elapsed === 0) continue;      // anchor is a Monday — skip
+      weeks.push(weekEntry(ws));
+    }
+    return weeks;
+  }
+
+  let ws = mondayOf(new Date(monthCtx.year, monthCtx.month, 1));
+  const nominalEnd = new Date(monthCtx.year, monthCtx.month + 3, 0);   // clicked month + the next 2
+  const cappedEnd = nominalEnd < WEEK_ANCHOR ? nominalEnd : WEEK_ANCHOR;
+  const lastMon = mondayOf(cappedEnd);
+  if(ws > lastMon) ws = lastMon;         // clicked month is entirely beyond the data anchor
+  for(; ws <= lastMon; ws = new Date(ws.getTime() + 7 * DAY_MS)){
+    if(isAnchorWeek(ws) && WEEK_VIEW.elapsed === 0) continue;
+    weeks.push(weekEntry(ws));
   }
   return weeks;
 }
 
 /* Turn a Sold-by-Month cell (Item Lookup matrix or All Products grid) into a
-   drill-in to the weekly popup, without triggering the grid row's own click. */
-function makeWeeklyCell(td, item){
+   drill-in to the weekly popup, without triggering the grid row's own click.
+   `monthCtx` ({year, month}), when the cell represents one specific month,
+   re-anchors the popup there and highlights that month's weeks. */
+function makeWeeklyCell(td, item, monthCtx){
   td.classList.add('wk-cell');
-  td.title = 'Weekly breakdown';
-  td.addEventListener('click', e => { e.stopPropagation(); openWeekModal(item); });
+  td.title = monthCtx ? 'Weekly breakdown, starting ' + MONTHS[monthCtx.month] + ' ' + monthCtx.year : 'Weekly breakdown';
+  td.addEventListener('click', e => { e.stopPropagation(); openWeekModal(item, monthCtx); });
 }
 
 let weekModalReturn = null;
-function openWeekModal(item){
+function openWeekModal(item, monthCtx){
   if(!item) return;
-  const weeks = weeklyBreakdown(item);
+  const weeks = weeklyBreakdown(item, monthCtx);
   if(!weeks.length) return;
   const total = weeks.reduce((a, w) => a + w.units, 0);
   const max = Math.max(1, ...weeks.map(w => w.units));
 
+  // Endpoints found by min/max rather than array position, since the default
+  // (newest-first) and month-anchored (oldest-first) views order weeks
+  // opposite ways.
+  const rangeStart = weeks.reduce((min, w) => w.start < min ? w.start : min, weeks[0].start);
+  const rangeEnd = weeks.reduce((max, w) => w.end > max ? w.end : max, weeks[0].end);
   document.getElementById('wkTitle').textContent = 'Weekly sales — ' + item['Description'];
   document.getElementById('wkSub').textContent =
-    item['Item Code'] + '  ·  ' + fmtDay(weeks[weeks.length - 1].start) + ' – ' +
-    fmtDay(weeks[0].end) + '  ·  ' + weeks.length + ' weeks';
+    item['Item Code'] + '  ·  ' + fmtDayYear(rangeStart) + ' – ' +
+    fmtDayYear(rangeEnd) + '  ·  ' + weeks.length + ' weeks';
 
+  // The forward-anchored window can cross a calendar-year boundary (e.g. a
+  // click near the end of the year runs into the next one) — the compact
+  // per-column label only needs the year stamped where it actually changes,
+  // whichever direction the weeks are ordered in.
+  let lastYearSeen = null;
   const cols = weeks.map(w => {
     const heat = w.units / max;
-    return '<div class="wk-col' + (w.partial ? ' wk-col-partial' : '') +
-        '" title="' + fmtDay(w.start) + ' – ' + fmtDay(w.end) +
+    const cls = ['wk-col', w.partial ? 'wk-col-partial' : '', w.highlight ? 'wk-col-hl' : ''].filter(Boolean).join(' ');
+    const yearChanged = lastYearSeen !== null && lastYearSeen !== w.start.getFullYear();
+    lastYearSeen = w.start.getFullYear();
+    const label = yearChanged ? fmtDayYear(w.start) : fmtDay(w.start);
+    return '<div class="' + cls +
+        '" title="' + fmtDayYear(w.start) + ' – ' + fmtDayYear(w.end) +
         (w.partial ? ' (' + w.dayCount + ' of 7 days)' : '') + '">' +
         '<div class="wk-col-v">' + (w.units === 0 ? '—' : w.units) + '</div>' +
         '<div class="wk-col-bar"><span style="height:' + (6 + heat * 94).toFixed(0) + '%"></span></div>' +
-        '<div class="wk-col-k">' + fmtDay(w.start) + '</div>' +
+        '<div class="wk-col-k">' + label + '</div>' +
         (w.partial ? '<div class="wk-col-tag">' + w.dayCount + '/7 d</div>' : '') +
       '</div>';
   }).join('');
 
+  // Only a month-anchored view has anything to distinguish — the default
+  // (no cell clicked) view has no highlighted weeks to explain.
+  const legend = monthCtx ?
+    '<div class="wk-legend">' +
+      '<span class="wk-legend-item"><span class="wk-legend-dot wk-legend-dot-hl"></span>' +
+        MONTHS[monthCtx.month] + ' ' + monthCtx.year + '</span>' +
+      '<span class="wk-legend-item"><span class="wk-legend-dot"></span>Surrounding weeks</span>' +
+    '</div>' : '';
+
   document.getElementById('wkBody').innerHTML =
+    legend +
     '<div class="wk-strip">' + cols + '</div>' +
-    '<div class="wk-total">Last 3 months <strong>' + total.toLocaleString('en-US') + '</strong> units</div>';
+    '<div class="wk-total">' + weeks.length + '-week total <strong>' + total.toLocaleString('en-US') + '</strong> units</div>';
 
   const modal = document.getElementById('weekModal');
   modal.hidden = false;
@@ -1619,7 +1688,10 @@ function buildGridBody(items, cols){
           td.textContent = num === 0 ? '—' : num;
           if(num === 0) td.classList.add('zero');
           if(num < 0) td.classList.add('neg');
-          if(col.group === 'soldby') makeWeeklyCell(td, item);
+          if(col.group === 'soldby'){
+            const w = MONTH_WINDOW[+col.field.slice(7)];
+            makeWeeklyCell(td, item, w ? { year: w.year, month: w.m } : undefined);
+          }
         } else {
           td.textContent = fmtCell(item[col.field], col.fmt);
         }

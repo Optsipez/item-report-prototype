@@ -35,7 +35,7 @@
   --pos:#059669; --pos-bg:#ecfdf5;
   --neg:#e11d48; --neg-bg:#fff1f2;
   --warn:#d97706;
-  --stock:#0284c7; --stock-bg:#f0f9ff;
+  --stock:#0284c7; --stock-bg:#f0f9ff; --stock-light:#38bdf8;
   --sr:#7c3aed;    --sr-bg:#f5f2fe;
   --soh:#0d9488;   --soh-bg:#f0fdfa;
   --trend-up:#0f9d58; --trend-down:#e0483d;
@@ -488,17 +488,32 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .wk-x{flex:none;border:0;background:var(--s-100);color:var(--ink-soft);width:30px;height:30px;
   border-radius:var(--r-sm);font-size:20px;line-height:1;cursor:pointer;transition:background .12s,color .12s;}
 .wk-x:hover{background:var(--neg-bg);color:var(--neg);}
-.wk-strip{display:flex;gap:6px;align-items:flex-end;overflow-x:auto;padding-bottom:var(--sp-2);}
+/* Vertical padding here (not just padding-bottom) matters: a highlighted
+   column's border/shadow is drawn at its own edge, and .wk-strip sets
+   overflow-x, which per spec forces overflow-y to a clipping value too — with
+   no headroom above/below, that clipped the border/shadow right off. */
+.wk-strip{display:flex;gap:7px;align-items:flex-end;overflow-x:auto;overflow-y:visible;padding:10px 4px 12px;}
 .wk-col{flex:1 0 54px;display:flex;flex-direction:column;align-items:center;gap:6px;
-  padding:var(--sp-2) 4px;border-radius:var(--r-sm);}
-.wk-col-partial{background:var(--primary-weak);outline:1px dashed var(--primary-line);}
-.wk-col-v{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:var(--fs-sm);color:var(--ink);}
+  padding:var(--sp-2) 4px;border-radius:var(--r-md);border:1px solid transparent;transition:transform .15s ease,box-shadow .15s ease;}
+.wk-col-partial{background:var(--primary-weak);border-color:var(--primary-line);border-style:dashed;}
+.wk-col-v{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:var(--fs-sm);color:var(--ink);font-variant-numeric:tabular-nums;}
 .wk-col-bar{width:100%;height:100px;display:flex;align-items:flex-end;justify-content:center;}
-.wk-col-bar span{width:58%;min-height:2px;display:block;border-radius:3px 3px 0 0;
+.wk-col-bar span{width:58%;min-height:2px;display:block;border-radius:4px 4px 1px 1px;
   background:linear-gradient(180deg,var(--i-400),var(--i-600));transition:height .3s ease;}
 .wk-col-partial .wk-col-bar span{background:linear-gradient(180deg,var(--i-300),var(--i-500));}
 .wk-col-k{font-size:var(--fs-2xs);color:var(--ink-soft);white-space:nowrap;}
 .wk-col-tag{font-size:9px;text-transform:uppercase;letter-spacing:.04em;font-weight:700;color:var(--primary);}
+/* The weeks belonging to whichever month cell was clicked — set apart from
+   the surrounding context weeks with a solid blue card (crisp border + soft
+   lift), taking priority over the (unrelated) partial-week dashed styling. */
+.wk-col-hl{background:var(--stock-bg);border-color:var(--stock);box-shadow:0 2px 6px -2px rgba(2,132,199,.35);}
+.wk-col-hl .wk-col-bar span{background:linear-gradient(180deg,var(--stock-light),var(--stock));}
+.wk-col-hl .wk-col-v{color:var(--stock);font-weight:700;}
+.wk-col-hl:hover{transform:translateY(-1px);box-shadow:0 4px 10px -3px rgba(2,132,199,.45);}
+.wk-legend{display:flex;align-items:center;gap:var(--sp-4);margin-bottom:var(--sp-3);font-size:var(--fs-2xs);color:var(--ink-soft);}
+.wk-legend-item{display:flex;align-items:center;gap:6px;font-weight:500;}
+.wk-legend-dot{width:9px;height:9px;border-radius:50%;flex:none;background:linear-gradient(180deg,var(--i-400),var(--i-600));}
+.wk-legend-dot-hl{background:linear-gradient(180deg,var(--stock-light),var(--stock));}
 .wk-total{margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--line);
   font-size:var(--fs-sm);color:var(--ink-soft);}
 .wk-total strong{color:var(--ink);font-family:'IBM Plex Mono',monospace;}
