@@ -95,33 +95,30 @@ function trendDir(s){
   return r > 1.15 ? 'up' : r < 0.85 ? 'down' : 'flat';
 }
 
-/* Tiny inline sales-trend sparkline — the elapsed part of MONTH_WINDOW (same
-   window as the Sold by Month strip), oldest -> newest, baseline pinned at 0.
-   Stroke colour follows trendDir; the line draws itself in on render. */
-function sparkSVG(item){
-  const s = MONTH_WINDOW.slice(0, MONTH_WINDOW_LAST_DATA + 1).map(w => {
-    const yr = item.years[String(w.year)];
-    return yr ? (yr.sales[w.m] || 0) : 0;
-  });
-  if(s.every(v => v === 0)) return '<span class="spark-empty">—</span>';
-  const dir = trendDir(s);
-  const W = 82, H = 22, p = 2.5;
-  const max = Math.max.apply(null, s), min = Math.min(0, ...s);
-  const span = (max - min) || 1;
-  const pts = s.map((v, i) => {
-    const x = p + i * (W - 2 * p) / Math.max(1, s.length - 1);
-    const y = H - p - (v - min) / span * (H - 2 * p);
-    return x.toFixed(1) + ' ' + y.toFixed(1);
-  });
-  const line = pts.join(' L');
-  const lastX = (W - p).toFixed(1);
-  const lastY = pts[pts.length - 1].split(' ')[1];
-  return '<svg class="spark spark-' + dir + '" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H +
-    '" preserveAspectRatio="none" aria-hidden="true">' +
-    '<path class="spark-area" d="M' + line + ' L' + lastX + ' ' + (H - p) + ' L' + pts[0].split(' ')[0] + ' ' + (H - p) + ' Z"/>' +
-    '<path class="spark-line" pathLength="1" d="M' + line + '"/>' +
-    '<circle class="spark-dot" cx="' + lastX + '" cy="' + lastY + '" r="1.7"/>' +
-    '</svg>';
+/* Tiny inline 13-mo Trend cell — a mini diverging bar (no line/SVG at all):
+   Stock received (whole 13-month window, oldest -> newest) diverges left of
+   a centre zero line, Sold diverges right of it. Sold's colour follows
+   trendDir (recent-3-month momentum); Stock stays a fixed blue. Click opens
+   the full period-by-period breakdown in the popup. */
+function trendMiniBar(item){
+  const sold = monthlySeries(item), stock = monthlyStockSeries(item);
+  const stockTotal = stock.reduce((a, b) => a + b, 0);
+  const soldTotal = sold.reduce((a, b) => a + b, 0);
+  const clickHint = ' — click for the full 13-month breakdown';
+  if(stockTotal === 0 && soldTotal === 0) return '<span class="spark-empty" title="No stock or sales activity' + clickHint + '">—</span>';
+  const maxVal = Math.max(1, stockTotal, soldTotal);
+  const stockPct = (Math.max(0, stockTotal) / maxVal * 100).toFixed(0);
+  const soldPct = (Math.max(0, soldTotal) / maxVal * 100).toFixed(0);
+  const denom = stockTotal + soldTotal;
+  const sellThrough = denom > 0 ? Math.round((soldTotal / denom) * 100) : null;
+  const dir = trendDir(sold);
+  const title = 'Stock ' + stockTotal.toLocaleString('en-US') + '  ·  Sold ' + soldTotal.toLocaleString('en-US') +
+    (sellThrough == null ? '' : '  ·  ' + sellThrough + '% sell-through') + ' (13-month total)' + clickHint;
+  return '<span class="mini-drow" title="' + title + '">' +
+    '<span class="mini-drow-half mini-drow-left"><span class="mini-drow-bar mini-drow-stock" style="width:' + stockPct + '%"></span></span>' +
+    '<span class="mini-drow-mid"></span>' +
+    '<span class="mini-drow-half mini-drow-right"><span class="mini-drow-bar mini-dir-' + dir + '" style="width:' + soldPct + '%"></span></span>' +
+    '</span>';
 }
 
 /* 13-month trend popup — stacked bars only now (no overlaid line). Uses all
@@ -167,34 +164,38 @@ function trendBars(item){
 }
 function buildTrendChart(item){
   const bars = trendBars(item);
-  const visTotal = b => Math.max(0, b.stockTotal) + Math.max(0, b.soldTotal);
-  const maxTotal = Math.max(1, ...bars.map(visTotal));
+  const maxVal = Math.max(1, ...bars.map(b => Math.max(0, b.stockTotal, b.soldTotal)));
   const bLabel = b => b.monthCount === 1 ? monthColLabel(b.from)
     : b.from.year === b.to.year ? monthColLabel(b.from).slice(0, 3) + '–' + monthColLabel(b.to)
     : monthColLabel(b.from) + '–' + monthColLabel(b.to);
 
-  const cols = bars.map(b => {
-    const vt = visTotal(b);
-    const h = Math.max(4, (vt / maxTotal) * 96);
-    const stockPct = vt > 0 ? (Math.max(0, b.stockTotal) / vt) * 100 : 50;
-    return '<div class="tr-col tr-dir-' + b.dir + '" title="' + bLabel(b) + '">' +
-      '<span class="tr-col-fill" style="height:' + h.toFixed(0) + '%">' +
-        '<span class="tr-seg tr-seg-stock" style="height:' + stockPct.toFixed(0) + '%"></span>' +
-        '<span class="tr-seg tr-seg-sold" style="height:' + (100 - stockPct).toFixed(0) + '%"></span>' +
-      '</span></div>';
-  }).join('');
-  const labels = bars.map(b =>
-    '<div class="tr-label tr-dir-' + b.dir + '">' +
-      '<div class="tr-label-v"><span class="tr-swatch tr-swatch-stock"></span>' + (b.stockTotal === 0 ? '—' : b.stockTotal.toLocaleString('en-US')) + '</div>' +
-      '<div class="tr-label-v"><span class="tr-swatch tr-swatch-sold"></span>' + (b.soldTotal === 0 ? '—' : b.soldTotal.toLocaleString('en-US')) + '</div>' +
-      '<div class="tr-label-k">' + bLabel(b) + '</div>' +
-    '</div>'
-  ).join('');
-
-  return '<div class="tr-chart">' +
-    '<div class="tr-plot"><div class="tr-strip">' + cols + '</div></div>' +
-    '<div class="tr-labels">' + labels + '</div>' +
+  const head = '<div class="tr-drow tr-drow-head">' +
+    '<span class="tr-drow-label">Period</span>' +
+    '<span class="tr-drow-val tr-drow-val-stock">Stock</span>' +
+    '<span class="tr-drow-track"></span>' +
+    '<span class="tr-drow-val tr-drow-val-sold">Sold</span>' +
+    '<span class="tr-drow-pct">Sell-thru</span>' +
     '</div>';
+
+  const rows = bars.map(b => {
+    const stockPct = (Math.max(0, b.stockTotal) / maxVal * 100).toFixed(0);
+    const soldPct = (Math.max(0, b.soldTotal) / maxVal * 100).toFixed(0);
+    const denom = b.stockTotal + b.soldTotal;
+    const sellThrough = denom > 0 ? Math.round((b.soldTotal / denom) * 100) : null;
+    return '<div class="tr-drow tr-dir-' + b.dir + '">' +
+      '<span class="tr-drow-label">' + bLabel(b) + '</span>' +
+      '<span class="tr-drow-val tr-drow-val-stock">' + (b.stockTotal === 0 ? '—' : b.stockTotal.toLocaleString('en-US')) + '</span>' +
+      '<span class="tr-drow-track">' +
+        '<span class="tr-drow-half tr-drow-left"><span class="tr-drow-bar tr-drow-stock-bar" style="width:' + stockPct + '%"></span></span>' +
+        '<span class="tr-drow-mid"></span>' +
+        '<span class="tr-drow-half tr-drow-right"><span class="tr-drow-bar tr-drow-sold-bar" style="width:' + soldPct + '%"></span></span>' +
+      '</span>' +
+      '<span class="tr-drow-val tr-drow-val-sold">' + (b.soldTotal === 0 ? '—' : b.soldTotal.toLocaleString('en-US')) + '</span>' +
+      '<span class="tr-drow-pct">' + (sellThrough == null ? '—' : sellThrough + '%') + '</span>' +
+      '</div>';
+  }).join('');
+
+  return '<div class="tr-chart">' + head + rows + '</div>';
 }
 let trendModalReturn = null;
 function openTrendModal(item){
@@ -314,15 +315,16 @@ const MONTH_WINDOW_LAST_DATA = (function(){
 
 /* Hover explainer for the 13-mo Trend column header. */
 const SPARK_TIP =
-  '13-month sales trend — units sold per month, ' +
+  '13-month trend, ' +
   monthColLabel(MONTH_WINDOW[0]) + ' to ' + monthColLabel(MONTH_WINDOW[MONTH_WINDOW_LAST_DATA]) +
-  ' (oldest to newest), baseline at 0.\n' +
-  'Colour = momentum: the average of the last 3 months vs the 3 months before —\n' +
+  ' — a diverging bar: Stock received (blue, left) vs Units sold (right),\n' +
+  'either side of a centre line, plus the sell-through rate (Sold ÷ (Stock + Sold)).\n' +
+  'Sold\'s colour = momentum: the average of the last 3 months vs the 3 months before —\n' +
   '  up   more than 15% higher   (green)\n' +
   '  down more than 15% lower    (red)\n' +
   '  flat within that band       (gold)\n' +
-  'Click for a breakdown: the current month, then four 3-month periods\n' +
-  'going backwards. Each bar stacks Stock received on top of Units sold.';
+  'Click for a full breakdown: the current month, then four 3-month periods\n' +
+  'going backwards, each with its own diverging bar and sell-through %.';
 
 /* Hover explainer for the YTD Sold column header. */
 const YTD_TIP =
@@ -1579,8 +1581,7 @@ function buildGridBody(items, cols){
       } else if(col.type === 'core'){
         if(col.field === '__spark'){
           td.classList.add('spark-cell', 'left', 'wk-cell');
-          td.innerHTML = sparkSVG(item);
-          td.title = 'Click for the full 13-month trend breakdown';
+          td.innerHTML = trendMiniBar(item);
           td.addEventListener('click', e => { e.stopPropagation(); openTrendModal(item); });
         } else if(col.field === 'SM' || col.field === 'PM'){
           td.classList.add('cover-cell', 'left');

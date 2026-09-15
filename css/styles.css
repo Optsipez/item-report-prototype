@@ -505,25 +505,54 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .wk-note{margin:var(--sp-4) 0 0;font-size:var(--fs-2xs);color:var(--ink-faint);line-height:1.6;}
 
 /* ============================================================
-   13-MONTH TREND — trend-cell popup (5 stacked bars: current month, then
-   four 3-month periods; each bar = Stock received on top of Units sold)
+   13-MONTH TREND — diverging bar chart (trend-cell popup + mini grid cell)
+   Stock diverges left of a centre zero line, Sold diverges right of it, one
+   row per period (current month, then four 3-month periods). No line/SVG
+   anywhere — replaced entirely by these bars. Sold's colour still reflects
+   momentum (up/down/flat vs the period before it); Stock stays a fixed blue.
    ============================================================ */
-.tr-plot{position:relative;height:180px;}
-.tr-strip{position:absolute;inset:0;display:flex;gap:10px;align-items:flex-end;}
-.tr-col{flex:1;height:100%;display:flex;align-items:flex-end;justify-content:center;}
-.tr-col-fill{width:60%;min-height:4px;display:flex;flex-direction:column;border-radius:5px 5px 0 0;overflow:hidden;transition:height .3s ease;}
-.tr-seg{display:block;width:100%;transition:height .3s ease;}
-.tr-seg-stock{background:var(--stock);}
-.tr-dir-up .tr-seg-sold, .tr-dir-up .tr-swatch-sold{background:var(--pos);}
-.tr-dir-down .tr-seg-sold, .tr-dir-down .tr-swatch-sold{background:var(--neg);}
-.tr-dir-flat .tr-seg-sold, .tr-dir-flat .tr-swatch-sold{background:var(--primary);}
-.tr-dir-none .tr-seg-sold, .tr-dir-none .tr-swatch-sold{background:var(--s-300);}
-.tr-labels{display:flex;gap:10px;margin-top:var(--sp-3);}
-.tr-label{flex:1;text-align:center;}
-.tr-label-v{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:var(--fs-2xs);color:var(--ink);display:flex;align-items:center;justify-content:center;gap:4px;line-height:1.5;}
-.tr-swatch{width:7px;height:7px;border-radius:2px;flex:none;}
-.tr-swatch-stock{background:var(--stock);}
-.tr-label-k{font-size:var(--fs-2xs);color:var(--ink-soft);white-space:nowrap;margin-top:3px;}
+.tr-chart{display:flex;flex-direction:column;}
+.tr-drow{display:flex;align-items:center;gap:var(--sp-2);padding:5px 0;}
+.tr-drow-head{padding-bottom:5px;margin-bottom:2px;border-bottom:1px solid var(--line-strong);}
+.tr-drow-head .tr-drow-label,.tr-drow-head .tr-drow-val,.tr-drow-head .tr-drow-pct{
+  font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:700;
+}
+.tr-drow-label{width:74px;flex:none;font-size:var(--fs-2xs);color:var(--ink-soft);text-align:right;white-space:nowrap;}
+.tr-drow-val{width:46px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:var(--fs-2xs);font-weight:600;color:var(--ink);}
+.tr-drow-val-stock{text-align:right;color:var(--stock);}
+.tr-drow-val-sold{text-align:left;}
+.tr-dir-up .tr-drow-val-sold{color:var(--pos);}
+.tr-dir-down .tr-drow-val-sold{color:var(--neg);}
+.tr-dir-flat .tr-drow-val-sold{color:var(--primary);}
+.tr-dir-none .tr-drow-val-sold{color:var(--ink-faint);}
+.tr-drow-track{flex:1;display:flex;align-items:center;height:15px;}
+.tr-drow-half{flex:1;height:100%;display:flex;}
+.tr-drow-left{justify-content:flex-end;}
+.tr-drow-right{justify-content:flex-start;}
+.tr-drow-mid{width:2px;align-self:stretch;background:var(--line-strong);flex:none;}
+.tr-drow-bar{display:block;height:100%;min-width:2px;transition:width .3s ease;}
+.tr-drow-left .tr-drow-bar{border-radius:3px 0 0 3px;}
+.tr-drow-right .tr-drow-bar{border-radius:0 3px 3px 0;}
+.tr-drow-stock-bar{background:var(--stock);}
+.tr-dir-up .tr-drow-sold-bar{background:var(--pos);}
+.tr-dir-down .tr-drow-sold-bar{background:var(--neg);}
+.tr-dir-flat .tr-drow-sold-bar{background:var(--primary);}
+.tr-dir-none .tr-drow-sold-bar{background:var(--s-300);}
+.tr-drow-pct{width:48px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:var(--fs-2xs);font-weight:600;color:var(--ink-soft);text-align:right;}
+
+/* mini diverging bar in the grid's own 13-mo Trend cell — same idea, one bar,
+   whole-window Stock vs Sold totals instead of a period breakdown. */
+.mini-drow{display:inline-flex;align-items:center;width:64px;height:12px;vertical-align:middle;}
+.mini-drow-half{flex:1;height:100%;display:flex;}
+.mini-drow-left{justify-content:flex-end;}
+.mini-drow-right{justify-content:flex-start;}
+.mini-drow-mid{width:1px;align-self:stretch;background:var(--line-strong);flex:none;}
+.mini-drow-bar{display:block;height:100%;min-width:2px;border-radius:2px;}
+.mini-drow-stock{background:var(--stock);}
+.mini-dir-up{background:var(--pos);}
+.mini-dir-down{background:var(--neg);}
+.mini-dir-flat{background:var(--primary);}
+.mini-dir-none{background:var(--s-300);}
 .foot-note{margin-top:var(--sp-4);font-size:var(--fs-xs);color:var(--ink-faint);border-top:1px dashed var(--line-strong);padding-top:var(--sp-3);line-height:1.6;}
 
 /* ===== All Products grid ===== */
@@ -671,20 +700,9 @@ table.grid thead tr.group-row th.core.sroty-head:not(.incl-om) .sroty-ind{color:
 table.grid thead tr.group-row th.core.sroty-head .sroty-ind:hover{background:var(--s-200);}
 table.grid thead tr.group-row th.core.sroty-head.sorted .sroty-ind{color:var(--on-primary);background:rgba(255,255,255,.22);}
 
-/* inline sales-trend sparkline — stroke colour follows the trend, line draws in */
+/* 13-mo Trend cell — no line/SVG here any more, see .mini-drow above */
 table.grid td.spark-cell{padding-top:3px;padding-bottom:3px;vertical-align:middle;}
-.spark{display:block;overflow:visible;--sp:var(--primary);}
-.spark-up{--sp:var(--trend-up);}
-.spark-down{--sp:var(--trend-down);}
-.spark-line{
-  fill:none;stroke:var(--sp);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round;
-  vector-effect:non-scaling-stroke;
-  stroke-dasharray:1;stroke-dashoffset:1;animation:sparkDraw .7s .05s ease forwards;
-}
-.spark-area{fill:var(--sp);opacity:.12;}
-.spark-dot{fill:var(--sp);stroke:var(--panel);stroke-width:1;opacity:0;animation:fadeIn .3s .55s ease forwards;}
 .spark-empty{color:var(--ink-faint);}
-table.grid tbody tr.row-item:hover .spark-area{opacity:.2;}
 
 /* months-of-cover: value + health bar */
 table.grid td.cover-cell{padding-top:6px;padding-bottom:6px;}
@@ -781,7 +799,6 @@ table.grid tbody td.fz-itemcode{box-shadow:none;transition:box-shadow var(--t-me
 @keyframes checkPop{from{transform:rotate(43deg) scale(0)}60%{transform:rotate(43deg) scale(1.15)}to{transform:rotate(43deg) scale(1)}}
 @keyframes rowFade{from{opacity:.25;transform:translateY(3px)}to{opacity:1;transform:none}}
 @keyframes sheen{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
-@keyframes sparkDraw{to{stroke-dashoffset:0}}
 @keyframes emptyFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 
 .metric-row .v.counting{color:var(--primary-hover);}
