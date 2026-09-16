@@ -82,42 +82,29 @@ function trailing13Sales(item, anchorYear, anchorMonth){
   return s;
 }
 
-/* Direction of a monthly sales series (oldest -> newest): compares the most
-   recent 3 months against the 3 before them, so it reflects where the item is
-   heading now rather than how it compares to a year ago. */
-function trendDir(s){
-  if(s.length < 4) return 'flat';
-  const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
-  const recent = mean(s.slice(-3));
-  const prior = mean(s.slice(-6, -3));
-  if(prior <= 0) return recent > 0 ? 'up' : 'flat';
-  const r = recent / prior;
-  return r > 1.15 ? 'up' : r < 0.85 ? 'down' : 'flat';
-}
-
-/* Tiny inline 13-mo Trend cell — a mini diverging bar (no line/SVG at all):
-   Stock received (whole 13-month window, oldest -> newest) diverges left of
-   a centre zero line, Sold diverges right of it. Sold's colour follows
-   trendDir (recent-3-month momentum); Stock stays a fixed blue. Click opens
-   the full period-by-period breakdown in the popup. */
+/* Tiny inline 13-mo Trend cell — a mini fixed-split bar (no line/SVG at
+   all): a small two-tone bar split exactly in half. Whichever of Stock
+   (whole 13-month window total) or Sold is bigger takes the top half; the
+   other takes the bottom. The split position never moves — it's a quick
+   "who's ahead" read, not a proportional chart. Click opens the full
+   period-by-period breakdown in the popup. */
 function trendMiniBar(item){
   const sold = monthlySeries(item), stock = monthlyStockSeries(item);
   const stockTotal = stock.reduce((a, b) => a + b, 0);
   const soldTotal = sold.reduce((a, b) => a + b, 0);
   const clickHint = ' — click for the full 13-month breakdown';
   if(stockTotal === 0 && soldTotal === 0) return '<span class="spark-empty" title="No stock or sales activity' + clickHint + '">—</span>';
-  const maxVal = Math.max(1, stockTotal, soldTotal);
-  const stockPct = (Math.max(0, stockTotal) / maxVal * 100).toFixed(0);
-  const soldPct = (Math.max(0, soldTotal) / maxVal * 100).toFixed(0);
   const denom = stockTotal + soldTotal;
   const sellThrough = denom > 0 ? Math.round((soldTotal / denom) * 100) : null;
-  const dir = trendDir(sold);
+  const saleWins = soldTotal > stockTotal;
+  const topCls = saleWins ? 'mini-vbar-sale' : 'mini-vbar-stock';
+  const botCls = saleWins ? 'mini-vbar-stock' : 'mini-vbar-sale';
   const title = 'Stock ' + stockTotal.toLocaleString('en-US') + '  ·  Sold ' + soldTotal.toLocaleString('en-US') +
     (sellThrough == null ? '' : '  ·  ' + sellThrough + '% sell-through') + ' (13-month total)' + clickHint;
-  return '<span class="mini-drow" title="' + title + '">' +
-    '<span class="mini-drow-half mini-drow-left"><span class="mini-drow-bar mini-drow-stock" style="width:' + stockPct + '%"></span></span>' +
-    '<span class="mini-drow-mid"></span>' +
-    '<span class="mini-drow-half mini-drow-right"><span class="mini-drow-bar mini-dir-' + dir + '" style="width:' + soldPct + '%"></span></span>' +
+  return '<span class="mini-vbar" title="' + title + '">' +
+    '<span class="mini-vbar-half ' + topCls + '"></span>' +
+    '<span class="mini-vbar-mid"></span>' +
+    '<span class="mini-vbar-half ' + botCls + '"></span>' +
     '</span>';
 }
 
@@ -142,11 +129,6 @@ function monthlyStockSeries(item){
     return yr ? (yr.stock[w.m] || 0) : 0;
   });
 }
-function trendDirRate(cur, prev){
-  if(prev <= 0) return cur > 0 ? 'up' : 'flat';
-  const r = cur / prev;
-  return r > 1.15 ? 'up' : r < 0.85 ? 'down' : 'flat';
-}
 const TREND_BUCKET_IDX = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], [12]]; // oldest -> newest
 function trendBars(item){
   const sold = monthlySeries(item), stock = monthlyStockSeries(item);
@@ -154,48 +136,56 @@ function trendBars(item){
     const soldTotal = idxs.reduce((a, i) => a + sold[i], 0);
     const stockTotal = idxs.reduce((a, i) => a + stock[i], 0);
     return {
-      soldTotal, stockTotal, monthCount: idxs.length, soldAvg: soldTotal / idxs.length,
+      soldTotal, stockTotal, monthCount: idxs.length,
       from: MONTH_WINDOW[idxs[0]], to: MONTH_WINDOW[idxs[idxs.length - 1]],
     };
   });
   bars.reverse();   // newest -> oldest, current month first, matching the grid's month order
-  bars.forEach((b, i) => { b.dir = i === bars.length - 1 ? 'none' : trendDirRate(b.soldAvg, bars[i + 1].soldAvg); });
   return bars;
 }
 function buildTrendChart(item){
   const bars = trendBars(item);
-  const maxVal = Math.max(1, ...bars.map(b => Math.max(0, b.stockTotal, b.soldTotal)));
   const bLabel = b => b.monthCount === 1 ? monthColLabel(b.from)
     : b.from.year === b.to.year ? monthColLabel(b.from).slice(0, 3) + '–' + monthColLabel(b.to)
     : monthColLabel(b.from) + '–' + monthColLabel(b.to);
 
-  const head = '<div class="tr-drow tr-drow-head">' +
-    '<span class="tr-drow-label">Period</span>' +
-    '<span class="tr-drow-val tr-drow-val-stock">Stock</span>' +
-    '<span class="tr-drow-track"></span>' +
-    '<span class="tr-drow-val tr-drow-val-sold">Sold</span>' +
-    '<span class="tr-drow-pct">Sell-thru</span>' +
+  const legend = '<div class="tr-legend">' +
+    '<span class="tr-legend-item"><span class="tr-legend-dot tr-legend-dot-stock"></span>Stock</span>' +
+    '<span class="tr-legend-item"><span class="tr-legend-dot tr-legend-dot-sale"></span>Sold</span>' +
     '</div>';
 
-  const rows = bars.map(b => {
-    const stockPct = (Math.max(0, b.stockTotal) / maxVal * 100).toFixed(0);
-    const soldPct = (Math.max(0, b.soldTotal) / maxVal * 100).toFixed(0);
+  const cols = bars.map(b => {
     const denom = b.stockTotal + b.soldTotal;
+    const isEmpty = denom === 0;
     const sellThrough = denom > 0 ? Math.round((b.soldTotal / denom) * 100) : null;
-    return '<div class="tr-drow tr-dir-' + b.dir + '">' +
-      '<span class="tr-drow-label">' + bLabel(b) + '</span>' +
-      '<span class="tr-drow-val tr-drow-val-stock">' + (b.stockTotal === 0 ? '—' : b.stockTotal.toLocaleString('en-US')) + '</span>' +
-      '<span class="tr-drow-track">' +
-        '<span class="tr-drow-half tr-drow-left"><span class="tr-drow-bar tr-drow-stock-bar" style="width:' + stockPct + '%"></span></span>' +
-        '<span class="tr-drow-mid"></span>' +
-        '<span class="tr-drow-half tr-drow-right"><span class="tr-drow-bar tr-drow-sold-bar" style="width:' + soldPct + '%"></span></span>' +
-      '</span>' +
-      '<span class="tr-drow-val tr-drow-val-sold">' + (b.soldTotal === 0 ? '—' : b.soldTotal.toLocaleString('en-US')) + '</span>' +
-      '<span class="tr-drow-pct">' + (sellThrough == null ? '—' : sellThrough + '%') + '</span>' +
+    const saleWins = b.soldTotal > b.stockTotal;
+    const topCls = saleWins ? 'tr-vbar-sale' : 'tr-vbar-stock';
+    const botCls = saleWins ? 'tr-vbar-stock' : 'tr-vbar-sale';
+    const title = bLabel(b) + ': Stock ' + b.stockTotal.toLocaleString('en-US') +
+      '  ·  Sold ' + b.soldTotal.toLocaleString('en-US') +
+      (sellThrough == null ? '' : '  ·  ' + sellThrough + '% sell-through');
+    // No stock or sales at all that period — nothing to compare, so a neutral
+    // empty bar rather than an arbitrary "Stock wins" default.
+    const bar = isEmpty
+      ? '<div class="tr-vbar tr-vbar-empty"></div>'
+      : '<div class="tr-vbar">' +
+          '<span class="tr-vbar-half ' + topCls + '"></span>' +
+          '<span class="tr-vbar-mid"></span>' +
+          '<span class="tr-vbar-half ' + botCls + '"></span>' +
+        '</div>';
+    return '<div class="tr-col-item" title="' + title + '">' +
+        bar +
+        '<div class="tr-col-label">' + bLabel(b) + '</div>' +
+        '<div class="tr-col-vals">' +
+          '<span class="tr-col-stock">' + (b.stockTotal === 0 ? '—' : b.stockTotal.toLocaleString('en-US')) + '</span>' +
+          ' / ' +
+          '<span class="tr-col-sale">' + (b.soldTotal === 0 ? '—' : b.soldTotal.toLocaleString('en-US')) + '</span>' +
+        '</div>' +
+        '<div class="tr-col-pct">' + (sellThrough == null ? '—' : sellThrough + '% sell-thru') + '</div>' +
       '</div>';
   }).join('');
 
-  return '<div class="tr-chart">' + head + rows + '</div>';
+  return '<div class="tr-chart">' + legend + '<div class="tr-cols">' + cols + '</div></div>';
 }
 let trendModalReturn = null;
 function openTrendModal(item){
@@ -317,14 +307,12 @@ const MONTH_WINDOW_LAST_DATA = (function(){
 const SPARK_TIP =
   '13-month trend, ' +
   monthColLabel(MONTH_WINDOW[0]) + ' to ' + monthColLabel(MONTH_WINDOW[MONTH_WINDOW_LAST_DATA]) +
-  ' — a diverging bar: Stock received (blue, left) vs Units sold (right),\n' +
-  'either side of a centre line, plus the sell-through rate (Sold ÷ (Stock + Sold)).\n' +
-  'Sold\'s colour = momentum: the average of the last 3 months vs the 3 months before —\n' +
-  '  up   more than 15% higher   (green)\n' +
-  '  down more than 15% lower    (red)\n' +
-  '  flat within that band       (gold)\n' +
+  ' — a small two-tone bar split exactly in half (blue = Stock, gold = Sold).\n' +
+  'Whichever is bigger over the 13 months takes the top half; the split itself\n' +
+  'never moves, so this is a quick "who\'s ahead" read, not a proportional chart —\n' +
+  'the actual totals and sell-through rate (Sold ÷ (Stock + Sold)) are in the tooltip.\n' +
   'Click for a full breakdown: the current month, then four 3-month periods\n' +
-  'going backwards, each with its own diverging bar and sell-through %.';
+  'going backwards, each with its own bar, totals, and sell-through %.';
 
 /* Hover explainer for the YTD Sold column header. */
 const YTD_TIP =

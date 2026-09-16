@@ -549,54 +549,43 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .wk-note{margin:var(--sp-4) 0 0;font-size:var(--fs-2xs);color:var(--ink-faint);line-height:1.6;}
 
 /* ============================================================
-   13-MONTH TREND — diverging bar chart (trend-cell popup + mini grid cell)
-   Stock diverges left of a centre zero line, Sold diverges right of it, one
-   row per period (current month, then four 3-month periods). No line/SVG
-   anywhere — replaced entirely by these bars. Sold's colour still reflects
-   momentum (up/down/flat vs the period before it); Stock stays a fixed blue.
+   13-MONTH TREND — fixed-split column chart (trend-cell popup + mini grid
+   cell). One vertical bar per period (current month, then four 3-month
+   periods), split by a FIXED midline into an upper and lower half — the
+   split position never moves. Whichever of Stock/Sold is larger that period
+   takes the top half; the loser takes the bottom half. This deliberately
+   doesn't encode magnitude (both halves are always the same size) — it's a
+   quick "who's ahead" read per period, with the real numbers underneath.
    ============================================================ */
 .tr-chart{display:flex;flex-direction:column;}
-.tr-drow{display:flex;align-items:center;gap:var(--sp-2);padding:5px 0;}
-.tr-drow-head{padding-bottom:5px;margin-bottom:2px;border-bottom:1px solid var(--line-strong);}
-.tr-drow-head .tr-drow-label,.tr-drow-head .tr-drow-val,.tr-drow-head .tr-drow-pct{
-  font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:700;
-}
-.tr-drow-label{width:74px;flex:none;font-size:var(--fs-2xs);color:var(--ink-soft);text-align:right;white-space:nowrap;}
-.tr-drow-val{width:46px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:var(--fs-2xs);font-weight:600;color:var(--ink);}
-.tr-drow-val-stock{text-align:right;color:var(--stock);}
-.tr-drow-val-sold{text-align:left;}
-.tr-dir-up .tr-drow-val-sold{color:var(--pos);}
-.tr-dir-down .tr-drow-val-sold{color:var(--neg);}
-.tr-dir-flat .tr-drow-val-sold{color:var(--primary);}
-.tr-dir-none .tr-drow-val-sold{color:var(--ink-faint);}
-.tr-drow-track{flex:1;display:flex;align-items:center;height:15px;}
-.tr-drow-half{flex:1;height:100%;display:flex;}
-.tr-drow-left{justify-content:flex-end;}
-.tr-drow-right{justify-content:flex-start;}
-.tr-drow-mid{width:2px;align-self:stretch;background:var(--line-strong);flex:none;}
-.tr-drow-bar{display:block;height:100%;min-width:2px;transition:width .3s ease;}
-.tr-drow-left .tr-drow-bar{border-radius:3px 0 0 3px;}
-.tr-drow-right .tr-drow-bar{border-radius:0 3px 3px 0;}
-.tr-drow-stock-bar{background:var(--stock);}
-.tr-dir-up .tr-drow-sold-bar{background:var(--pos);}
-.tr-dir-down .tr-drow-sold-bar{background:var(--neg);}
-.tr-dir-flat .tr-drow-sold-bar{background:var(--primary);}
-.tr-dir-none .tr-drow-sold-bar{background:var(--s-300);}
-.tr-drow-pct{width:48px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:var(--fs-2xs);font-weight:600;color:var(--ink-soft);text-align:right;}
+.tr-legend{display:flex;align-items:center;gap:var(--sp-4);margin-bottom:var(--sp-3);font-size:var(--fs-2xs);color:var(--ink-soft);}
+.tr-legend-item{display:flex;align-items:center;gap:6px;font-weight:500;}
+.tr-legend-dot{width:9px;height:9px;border-radius:50%;flex:none;}
+.tr-legend-dot-stock{background:var(--stock);}
+.tr-legend-dot-sale{background:var(--primary);}
+.tr-cols{display:flex;align-items:flex-start;gap:var(--sp-3);}
+.tr-col-item{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;}
+.tr-vbar{width:30px;height:96px;border-radius:var(--r-sm);border:1px solid var(--line-strong);
+  overflow:hidden;display:flex;flex-direction:column;}
+.tr-vbar-half{flex:1;}
+.tr-vbar-mid{height:2px;flex:none;background:var(--panel);}
+.tr-vbar-stock{background:var(--stock);}
+.tr-vbar-sale{background:var(--primary);}
+.tr-vbar-empty{background:var(--s-100);}
+.tr-col-label{font-size:var(--fs-2xs);color:var(--ink-soft);white-space:nowrap;}
+.tr-col-vals{font-family:'IBM Plex Mono',monospace;font-size:var(--fs-2xs);font-weight:600;color:var(--ink);text-align:center;}
+.tr-col-stock{color:var(--stock);}
+.tr-col-sale{color:var(--primary-hover);}
+.tr-col-pct{font-size:9.5px;color:var(--ink-faint);text-align:center;}
 
-/* mini diverging bar in the grid's own 13-mo Trend cell — same idea, one bar,
-   whole-window Stock vs Sold totals instead of a period breakdown. */
-.mini-drow{display:inline-flex;align-items:center;width:64px;height:12px;vertical-align:middle;}
-.mini-drow-half{flex:1;height:100%;display:flex;}
-.mini-drow-left{justify-content:flex-end;}
-.mini-drow-right{justify-content:flex-start;}
-.mini-drow-mid{width:1px;align-self:stretch;background:var(--line-strong);flex:none;}
-.mini-drow-bar{display:block;height:100%;min-width:2px;border-radius:2px;}
-.mini-drow-stock{background:var(--stock);}
-.mini-dir-up{background:var(--pos);}
-.mini-dir-down{background:var(--neg);}
-.mini-dir-flat{background:var(--primary);}
-.mini-dir-none{background:var(--s-300);}
+/* mini fixed-split bar in the grid's own 13-mo Trend cell — same idea, one
+   small bar, whole-window Stock vs Sold totals instead of a period breakdown. */
+.mini-vbar{display:inline-flex;flex-direction:column;width:11px;height:16px;vertical-align:middle;
+  border-radius:2px;border:1px solid var(--line-strong);overflow:hidden;}
+.mini-vbar-half{flex:1;}
+.mini-vbar-mid{height:1px;flex:none;background:var(--panel);}
+.mini-vbar-stock{background:var(--stock);}
+.mini-vbar-sale{background:var(--primary);}
 .foot-note{margin-top:var(--sp-4);font-size:var(--fs-xs);color:var(--ink-faint);border-top:1px dashed var(--line-strong);padding-top:var(--sp-3);line-height:1.6;}
 
 /* ===== All Products grid ===== */
