@@ -397,19 +397,21 @@ function uaeStoreCount(item){
    still part of "everything sitting in/around a store", just not tied to one
    specific store's own bin. Source: Book2.xlsx (Sheet1). */
 const SOH_EXTRA_CODES = ['CLRNC', 'CL-DCSHJ', 'WEBSTR', 'CL-JUMRA', 'CL-MARIN', 'CL-REGUS'];
-/* SOH = the 10 UAE stores' stock, their display-model ("-DM") stock, and the
-   clearance/web/click-and-collect codes above. Replaces the old "SOH = U-SOH"
-   passthrough; WH SOH and Navision Stock are untouched and keep using
-   U-SOH / M-SOH as before. Source: Book2.xlsx (Sheet1). */
-function sohValue(item){
+/* Store stock = the 10 UAE stores' stock, their display-model ("-DM") stock,
+   and the clearance/web/click-and-collect codes above — "everything sitting
+   in or around a store". This used to BE the SOH column; it's now just the
+   base SR Qty builds on (see below), since SOH itself is now WH SOH + SR
+   Qty (see sohValue further down). Source: Book2.xlsx (Sheet1). */
+function storeStockValue(item){
   const b = BRANCH_BY_ITEM[item['Item Code']] || {};
   const stores = UAE_STORES.reduce((sum, code) => sum + (b[code] || 0) + (b[code + '-DM'] || 0), 0);
   const extra = SOH_EXTRA_CODES.reduce((sum, code) => sum + (b[code] || 0), 0);
   return stores + extra;
 }
-/* SR Qty = SOH (above) + Oman's M-Tot Pending Order Qty + M-MOMAN + M-WHOMN.
-   The three Oman fields aren't in BRANCH_BY_ITEM (that's UAE store/warehouse
-   data), so they get their own small map. Source: Book2.xlsx (Sheet1). */
+/* SR Qty = store stock (above) + Oman's M-Tot Pending Order Qty + M-MOMAN +
+   M-WHOMN. The three Oman fields aren't in BRANCH_BY_ITEM (that's UAE
+   store/warehouse data), so they get their own small map. Source:
+   Book2.xlsx (Sheet1). */
 const SR_QTY_OMAN_BY_ITEM = {
   '101313': { pend: 0, moman: 21, whomn: 0 },
   '101453': { pend: 0, moman: 0,  whomn: 0 },
@@ -424,14 +426,22 @@ const SR_QTY_OMAN_BY_ITEM = {
   '103620': { pend: 0, moman: 15, whomn: 0 },
 };
 /* Header badge toggles whether the Oman fields (M-Tot Pending Order Qty,
-   M-MOMAN, M-WHOMN) are folded into SR Qty, or SR Qty is just SOH. */
+   M-MOMAN, M-WHOMN) are folded into SR Qty, or SR Qty is just store stock. */
 let srQtyInclOman = true;
 function srQtyValue(item){
-  const soh = sohValue(item);
-  if(!srQtyInclOman) return soh;
+  const base = storeStockValue(item);
+  if(!srQtyInclOman) return base;
   const r = SR_QTY_OMAN_BY_ITEM[item['Item Code']];
   const extra = r ? r.pend + r.moman + r.whomn : 0;
-  return soh + extra;
+  return base + extra;
+}
+/* SOH = WH SOH (the two UAE warehouses) + SR Qty (store stock, plus Oman
+   when that's toggled in). Since SR Qty's Oman badge changes SR Qty, SOH
+   moves with it too — this is a live formula, not a fixed snapshot, so
+   anything showing SOH needs recomputing whenever that toggle flips (see
+   refreshSohDependents, called from the toggle's click handler). */
+function sohValue(item){
+  return whSohValue(item) + srQtyValue(item);
 }
 
 /* Units sold this calendar year so far — Jan through the current month of
@@ -454,6 +464,17 @@ ITEMS.forEach(it => {
   it['YTD Sold'] = ytdSold(it);
   it['Store Count'] = uaeStoreCount(it);
 });
+/* SOH (and SM, which is derived from it) are cached on the item rather than
+   recomputed on every read — but SOH now moves with the SR Qty Oman toggle,
+   so that cache goes stale the moment the toggle flips. Call this right
+   after flipping srQtyInclOman, before re-rendering anything that shows
+   SOH/SM (the grid, and the Item Lookup metrics band). */
+function refreshSohDependents(){
+  ITEMS.forEach(it => {
+    it['SOH'] = sohValue(it);
+    it['SM'] = monthsOfCover(Number(it['SOH']) || 0, it['AVG']);
+  });
+}
 
 /* Stock held at a given warehouse/branch code (from the Stk Data / branch sheet). */
 function branchQty(item, code){
@@ -1169,7 +1190,8 @@ const COLUMN_LAYOUT = [
       { field:'MRG Factor', label:'Mrg', fmt:'x2' } ] },
   { type:'core', field:'Nav Stock', label:'Navision Stock', sortable:true, stack:true,
     tip:'Navision Stock = Navision U-SOH + M-SOH (UAE stock on hand + Oman market stock).\nCurrently sourced from Book2.xlsx; moves to the live Navision feed later.' },
-  { type:'core', field:'SOH', label:'SOH', sortable:true },
+  { type:'core', field:'SOH', label:'SOH', sortable:true,
+    tip:'SOH = WH SOH + SR Qty (store stock, plus Oman when the SR Qty badge has it toggled in).' },
   { type:'core', field:'__whsoh', label:'WH SOH', sortable:true },
   { type:'core', field:'SR Qty', label:'SR QTY', sortable:true, stack:true },
   { type:'core', field:'PO-Qty', label:'PO Qty', sortable:true },
@@ -1544,13 +1566,20 @@ function buildGridHeader(){
         badge.className = 'sroty-ind';
         badge.textContent = srQtyInclOman ? '+OM' : '-OM';
         badge.title = srQtyInclOman
-          ? 'Oman (M-Tot Pending Order Qty + M-MOMAN + M-WHOMN) is in the total — click to drop it (SOH only)'
+          ? 'Oman (M-Tot Pending Order Qty + M-MOMAN + M-WHOMN) is in the total — click to drop it (store stock only)'
           : 'Oman is excluded — click to add it back';
-        badge.addEventListener('click', e => { e.stopPropagation(); srQtyInclOman = !srQtyInclOman; renderGrid(); });
+        badge.addEventListener('click', e => {
+          e.stopPropagation();
+          srQtyInclOman = !srQtyInclOman;
+          refreshSohDependents();
+          renderGrid();
+          if(selectedItem) renderReport(selectedItem);
+        });
         gth.appendChild(badge);
         gth.title = (srQtyInclOman
-          ? 'SR Qty = SOH + Oman (M-Tot Pending Order Qty + M-MOMAN + M-WHOMN).'
-          : 'SR Qty = SOH only (Oman excluded).')
+          ? 'SR Qty = store stock + Oman (M-Tot Pending Order Qty + M-MOMAN + M-WHOMN).'
+          : 'SR Qty = store stock only (Oman excluded).')
+          + '\nSOH = WH SOH + SR Qty, so it moves with this toggle too.'
           + '\nClick the badge to toggle Oman; click the header to sort.';
       }
       addColResizer(gth);
