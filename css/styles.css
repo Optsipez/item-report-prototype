@@ -391,7 +391,7 @@ button{font-family:inherit;}
 
 /* metrics band */
 .metrics-band{
-  display:grid;grid-template-columns:repeat(4, 1fr);gap:var(--sp-4);align-items:start;
+  display:grid;grid-template-columns:2fr repeat(3, 1fr);gap:var(--sp-4);align-items:start;
   border:none;border-radius:0;background:none;
   margin-bottom:var(--sp-6);overflow:visible;
 }
@@ -408,6 +408,15 @@ button{font-family:inherit;}
 .metric-row{display:flex;justify-content:space-between;align-items:baseline;gap:var(--sp-3);padding:3.5px 0;font-size:var(--fs-base);}
 .metric-row .k{color:var(--ink-soft);}
 .metric-row .v{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:var(--fs-base);color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;}
+/* Pricing carries the extra margin-% / margin-factor figures as a second
+   column next to the original one (not stacked below — the box got wider,
+   see .metrics-band, instead of taller), split by a vertical rule. Nudge
+   values in from each column's own right edge a little so they don't sit
+   flush against it or the divider. */
+.pricing-group .pricing-cols{display:flex;gap:var(--sp-5);}
+.pricing-group .pricing-col{flex:1;min-width:0;}
+.pricing-group .pricing-col-sep{border-left:1px solid var(--line);padding-left:var(--sp-5);}
+.pricing-group .metric-row .v{padding-right:8px;}
 .v.pos{color:var(--pos);}
 .v.neg{color:var(--neg);}
 .v.stock{color:var(--stock);}

@@ -353,6 +353,22 @@ function itemAvg(item){
      SM = SOH    / AVG
      PM = PO Qty / AVG
    If AVG is 0 (can't divide) or the result works out to 0, show "X". */
+/* Margin%  (was/now) = (sell − cost) / sell — margin as a share of the
+   selling price.
+   Margin Fct (was/now) = sell / cost — the existing "Mrg Factor" field is
+   this same ratio at NOW; these are computed fresh here (rather than read
+   off a raw column) so WAS gets the equivalent figure too. */
+function marginPct(sell, cost){
+  if(!sell) return null;
+  return (sell - cost) / sell;
+}
+function marginFactor(sell, cost){
+  if(!cost) return null;
+  return sell / cost;
+}
+function fmtMarginFactor(v){
+  return v == null || !isFinite(v) ? '—' : v.toFixed(2) + 'x';
+}
 function monthsOfCover(qty, avg){
   if(!avg) return 'X';
   const r = Math.round((qty / avg) * 10) / 10;
@@ -1084,6 +1100,14 @@ function renderReport(item){
   document.getElementById('mNow').textContent = fmtMoney(item['Now (Aed)'], 0);
   document.getElementById('mDisct').textContent = fmtPct(item['Disct%']);
   document.getElementById('mMrg').textContent = item['MRG Factor'].toFixed(2) + 'x';
+
+  const cost = Number(item['L-Cost (Aed)']) || 0;
+  const was = Number(item['Was (Aed)']) || 0;
+  const now = Number(item['Now (Aed)']) || 0;
+  document.getElementById('mMrgPctWas').textContent = fmtPct(marginPct(was, cost));
+  document.getElementById('mMrgPctNow').textContent = fmtPct(marginPct(now, cost));
+  document.getElementById('mMrgFctWas').textContent = fmtMarginFactor(marginFactor(was, cost));
+  document.getElementById('mMrgFctNow').textContent = fmtMarginFactor(marginFactor(now, cost));
 
   document.getElementById('mSoh').textContent = fmtInt(item['SOH']);
   document.getElementById('mPoQty').textContent = fmtInt(item['PO-Qty']);
