@@ -599,6 +599,15 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .grid-toolbar .sub{font-size:var(--fs-base);color:var(--ink-soft);}
 .grid-toolbar .toolbar-row{display:flex;align-items:center;flex-wrap:wrap;gap:var(--sp-2) var(--sp-4);margin-top:var(--sp-3);}
 .grid-toolbar .rowcount{font-size:var(--fs-base);color:var(--ink-faint);font-variant-numeric:tabular-nums;}
+.grid-pager{display:flex;align-items:center;gap:var(--sp-2);margin-left:auto;}
+.pager-btn{
+  background:var(--panel);border:1px solid var(--line-strong);border-radius:var(--r-sm);
+  width:28px;height:28px;font-size:15px;font-weight:600;color:var(--ink);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;line-height:1;
+  transition:border-color var(--t-fast),color var(--t-fast),background var(--t-fast),box-shadow var(--t-fast);
+}
+.pager-btn:hover:not(:disabled){border-color:var(--primary-line);color:var(--primary);background:var(--primary-weak);box-shadow:var(--sh-xs);}
+.pager-btn:disabled{opacity:.4;cursor:not-allowed;}
 .grid-actions{display:flex;gap:var(--sp-2);}
 .grid-actions button{
   background:var(--panel);border:1px solid var(--line-strong);border-radius:var(--r-sm);

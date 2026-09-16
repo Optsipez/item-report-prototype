@@ -364,24 +364,10 @@ function monthsOfCover(qty, avg){
   return r === 0 ? 'X' : r.toFixed(1);
 }
 /* Navision Stock — Navision U-SOH + M-SOH (UAE stock on hand + Oman market
-   stock), per item. Read from Book2.xlsx (Sheet1, columns "U-SOH" and "M-SOH") —
-   the newer of the two sample exports, so SOH (data.js, = U-SOH) and WH SOH's
-   M-SOH component both read off this same map rather than the older
-   Navision Report Format.xlsx. Kept as { u, m } so the split stays visible;
-   folds into data.js / the live Navision feed once full ingestion lands. */
-const NAV_STK_BY_ITEM = {
-  '101313': { u: 26,  m: 21 },
-  '101453': { u: 5,   m: 0  },
-  '101459': { u: 2,   m: 0  },
-  '101460': { u: 1,   m: 0  },
-  '103641': { u: 63,  m: 7  },
-  '103613': { u: 173, m: 10 },
-  '103622': { u: 245, m: 12 },
-  '103630': { u: 31,  m: 0  },
-  '103636': { u: 323, m: 4  },
-  '103629': { u: 43,  m: 4  },
-  '103620': { u: 116, m: 15 },
-};
+   stock), per item. Real per-item figures for the full catalog, ingested
+   from "2XL Data 16-Sep-26.xlsx" (Stock Data, columns "U-SOH" and "M-SOH")
+   into NAV_STK_BY_ITEM in data.js — kept as { u, m } there so the split
+   stays visible. */
 function navStockValue(item){
   const r = NAV_STK_BY_ITEM[item['Item Code']];
   return r ? r.u + r.m : 0;
@@ -417,21 +403,9 @@ function storeStockValue(item){
 }
 /* SR Qty = store stock (above) + Oman's M-Tot Pending Order Qty + M-MOMAN +
    M-WHOMN. The three Oman fields aren't in BRANCH_BY_ITEM (that's UAE
-   store/warehouse data), so they get their own small map. Source:
-   Book2.xlsx (Sheet1). */
-const SR_QTY_OMAN_BY_ITEM = {
-  '101313': { pend: 0, moman: 21, whomn: 0 },
-  '101453': { pend: 0, moman: 0,  whomn: 0 },
-  '101459': { pend: 0, moman: 0,  whomn: 0 },
-  '101460': { pend: 0, moman: 0,  whomn: 0 },
-  '103641': { pend: 0, moman: 7,  whomn: 0 },
-  '103613': { pend: 0, moman: 10, whomn: 0 },
-  '103622': { pend: 0, moman: 12, whomn: 0 },
-  '103630': { pend: 0, moman: 0,  whomn: 0 },
-  '103636': { pend: 0, moman: 4,  whomn: 0 },
-  '103629': { pend: 0, moman: 4,  whomn: 0 },
-  '103620': { pend: 0, moman: 15, whomn: 0 },
-};
+   store/warehouse data), so they get their own map — SR_QTY_OMAN_BY_ITEM in
+   data.js, real per-item figures for the full catalog, ingested from
+   "2XL Data 16-Sep-26.xlsx" (Stock Data). */
 /* Header badge toggles whether the Oman fields (M-Tot Pending Order Qty,
    M-MOMAN, M-WHOMN) are folded into SR Qty, or SR Qty is just store stock. */
 let srQtyInclOman = true;
@@ -1036,13 +1010,12 @@ function closeWeekModal(){
   modal.querySelectorAll('[data-wk-close]').forEach(el => el.addEventListener('click', closeWeekModal));
   document.addEventListener('keydown', e => { if(e.key === 'Escape') closeWeekModal(); });
 })();
-/* Real per-branch SOLD figures aren't in any source file yet — Sale/GRN only
-   break sales down by item + month, never by branch, in either workbook
-   (only stock-on-hand is tracked per branch). Placeholder map, empty until
-   the real data lands; once it's keyed by item code the same way as
-   BRANCH_BY_ITEM (e.g. {"103641": {"SAJWH": 12, "REGUS": 3, ...}}), the
-   Sold row below picks it up with no other changes. */
-const BRANCH_SOLD_BY_ITEM = {};
+/* Real per-branch SOLD figures — ingested from "2XL Data 16-Sep-26.xlsx"
+   (the Sales sheets' Store No column), keyed by item code the same way as
+   BRANCH_BY_ITEM (e.g. {"103641": {"SAJWH": 12, "REGUS": 3, ...}}). Defined
+   in data.js; only the 10 UAE retail stores are covered (same scope as
+   BRANCH_BY_ITEM's own "which store" concept), so a store or an item with
+   no branch-level sales just isn't a key here. */
 function buildBranchTable(wrapEl, item){
   const branch = BRANCH_BY_ITEM[item['Item Code']];
   if(!branch){ wrapEl.innerHTML = '<p class="foot-note">No branch-level data found for this item.</p>'; return; }
@@ -1261,6 +1234,22 @@ let collapsedGroups = new Set(['class','attrs','fob','logi']); // sensible defau
    inside each group; turning one on never clears the other. */
 let gridSort = null;  // { field, dir: 'desc' | 'asc' }
 let gridGroup = null; // { field }
+/* Pagination — with the full ingested catalog (11,000+ visible rows), building
+   every row into the DOM at once froze the tab for real users. Only one
+   page's worth of rows is ever built; the rest of the filtered/sorted set
+   just isn't in the DOM until you page to it. Resets to page 0 whenever the
+   underlying filtered/sorted query actually changes (tracked via a cheap
+   signature) — but not when Prev/Next themselves trigger the re-render. */
+const GRID_PAGE_SIZE = 200;
+let gridPage = 0;
+let lastGridQuerySig = null;
+function gridQuerySignature(){
+  const filters = Object.keys(activeFilters).sort().map(k => k + ':' + Array.from(activeFilters[k]).sort().join(',')).join('|');
+  const sort = gridSort ? gridSort.field + gridSort.dir : '';
+  const group = gridGroup ? gridGroup.field : '';
+  const dept = DEPT_STOCK_MIN_GROUPS.map(g => g.inputId + '=' + (deptStockMin[g.inputId] ?? '')).join(',');
+  return [filters, sort, group, dept, srQtyInclOman].join('~~');
+}
 /* Per-field grouping key — how much of the value defines a group. Default is
    the whole value; PUDA Code clusters on its first letter. */
 const GROUP_KEY = {
@@ -1404,6 +1393,16 @@ document.getElementById('clearSortBtn').addEventListener('click', () => {
   gridSort = null;
   gridGroup = null;
   renderGrid();
+});
+document.getElementById('gridPrevBtn').addEventListener('click', () => {
+  gridPage = Math.max(0, gridPage - 1);
+  renderGrid();
+  document.querySelector('.grid-scroll').scrollTop = 0;
+});
+document.getElementById('gridNextBtn').addEventListener('click', () => {
+  gridPage = gridPage + 1;
+  renderGrid();
+  document.querySelector('.grid-scroll').scrollTop = 0;
 });
 
 /* ---- Manual column resizing ---- */
@@ -1804,6 +1803,15 @@ function renderGrid(){
   const oldRowTops = flipGridRows && oldTbody ? captureRowTops(oldTbody, 'tr[data-code]', 'code') : null;
 
   const items = sortGridItems(getFilteredItems());
+
+  const sig = gridQuerySignature();
+  if(sig !== lastGridQuerySig) gridPage = 0;
+  lastGridQuerySig = sig;
+  const totalPages = Math.max(1, Math.ceil(items.length / GRID_PAGE_SIZE));
+  gridPage = Math.max(0, Math.min(gridPage, totalPages - 1));
+  const pageStart = gridPage * GRID_PAGE_SIZE;
+  const pageItems = items.slice(pageStart, pageStart + GRID_PAGE_SIZE);
+
   const cols = visibleColumns();
   const table = document.getElementById('gridTable');
   table.innerHTML = '';
@@ -1812,8 +1820,12 @@ function renderGrid(){
   const thead = buildGridHeader();
   table.appendChild(buildColGroup(cols));
   table.appendChild(thead);
-  table.appendChild(buildGridBody(items, cols));
-  document.getElementById('gridRowCount').textContent = items.length + ' of ' + ITEMS.length + ' items';
+  table.appendChild(buildGridBody(pageItems, cols));
+  const rangeEnd = Math.min(items.length, pageStart + pageItems.length);
+  document.getElementById('gridRowCount').textContent = items.length === 0 ? '0 of ' + ITEMS.length + ' items'
+    : (pageStart + 1) + '–' + rangeEnd + ' of ' + items.length + (items.length !== ITEMS.length ? ' (of ' + ITEMS.length + ')' : '') + ' · page ' + (gridPage + 1) + '/' + totalPages;
+  document.getElementById('gridPrevBtn').disabled = gridPage <= 0;
+  document.getElementById('gridNextBtn').disabled = gridPage >= totalPages - 1;
   document.getElementById('clearSortBtn').hidden = !gridSort && !gridGroup;
   if(oldRowTops) flipRows(table.querySelector('tbody'), 'tr[data-code]', 'code', oldRowTops);
   flipGridRows = false;
