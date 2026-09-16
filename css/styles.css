@@ -608,6 +608,28 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .grid-actions button:hover{border-color:var(--primary-line);color:var(--primary);background:var(--primary-weak);box-shadow:var(--sh-xs);}
 .grid-actions button:active{transform:translateY(1px);box-shadow:none;}
 
+/* Per-department minimum-SOH filters — styled as a compact pill matching the
+   toolbar buttons alongside them (same height/border/radius), with a small
+   captive label + number field rather than a free-text search box. */
+.dept-stock-filter{
+  display:flex;align-items:center;gap:6px;cursor:default;
+  background:var(--panel);border:1px solid var(--line-strong);border-radius:var(--r-sm);
+  padding:6px 10px 6px 12px;transition:border-color var(--t-fast),box-shadow var(--t-fast);
+}
+.dept-stock-filter:focus-within{border-color:var(--primary);box-shadow:var(--ring);}
+.dsf-label{font-size:var(--fs-xs);font-weight:600;color:var(--ink-soft);white-space:nowrap;}
+.dept-stock-filter input{
+  width:34px;border:none;background:transparent;padding:0;
+  font-family:'IBM Plex Mono',monospace;font-size:var(--fs-xs);font-weight:600;
+  color:var(--ink);text-align:center;-moz-appearance:textfield;
+}
+.dept-stock-filter input:focus{outline:none;}
+.dept-stock-filter input::-webkit-outer-spin-button,
+.dept-stock-filter input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+.dept-stock-filter input::placeholder{color:var(--ink-faint);}
+.dept-stock-filter.dsf-active{border-color:var(--primary-line);background:var(--primary-weak);}
+.dept-stock-filter.dsf-active .dsf-label{color:var(--primary-hover);}
+
 .grid-scroll{
   border:1px solid var(--line);border-radius:var(--r-md);background:var(--panel);
   overflow:auto;max-height:calc(100vh - 220px);
@@ -723,6 +745,16 @@ table.grid thead tr.group-row th.core.soh-head:not(.sorted){background:var(--soh
 table.grid tbody tr.row-item td.whsoh-cell{background:var(--soh-bg);color:var(--soh);font-weight:600;}
 table.grid tbody tr.row-item td.whsoh-cell.zero{color:var(--ink-faint);}
 table.grid thead tr.group-row th.core.whsoh-head:not(.sorted){background:var(--soh-bg);color:var(--soh);}
+
+/* Navision Stock — same violet accent as the SR (Store Count) column. */
+table.grid tbody tr.row-item td.navstock-cell{background:var(--sr-bg);color:var(--sr);font-weight:600;}
+table.grid tbody tr.row-item td.navstock-cell.zero{color:var(--ink-faint);}
+table.grid thead tr.group-row th.core.navstock-head:not(.sorted){background:var(--sr-bg);color:var(--sr);}
+
+/* Plan Code — a yellow-brown accent, distinct from the primary gold used for
+   buttons/badges elsewhere. */
+table.grid tbody tr.row-item td.plan-cell{background:var(--i-100);color:var(--i-700);font-weight:600;}
+table.grid thead tr.group-row th.core.plan-head:not(.sorted){background:var(--i-100);color:var(--i-700);}
 
 /* SR Qty — header sorts, and the +OM / −OM badge (its own line, under the
    label) toggles whether Oman's fields are folded into the total. */

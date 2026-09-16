@@ -409,8 +409,10 @@ const SOH_EXTRA_CODES = ['CLRNC', 'CL-DCSHJ', 'WEBSTR', 'CL-JUMRA', 'CL-MARIN', 
    Qty (see sohValue further down). Source: Book2.xlsx (Sheet1). */
 function storeStockValue(item){
   const b = BRANCH_BY_ITEM[item['Item Code']] || {};
-  const stores = UAE_STORES.reduce((sum, code) => sum + (b[code] || 0) + (b[code + '-DM'] || 0), 0);
-  const extra = SOH_EXTRA_CODES.reduce((sum, code) => sum + (b[code] || 0), 0);
+  // Each branch/extra code's own qty is floored at 0 first — a negative reading
+  // at one store/code shouldn't be able to drag down the total from the rest.
+  const stores = UAE_STORES.reduce((sum, code) => sum + Math.max(0, b[code] || 0) + Math.max(0, b[code + '-DM'] || 0), 0);
+  const extra = SOH_EXTRA_CODES.reduce((sum, code) => sum + Math.max(0, b[code] || 0), 0);
   return stores + extra;
 }
 /* SR Qty = store stock (above) + Oman's M-Tot Pending Order Qty + M-MOMAN +
@@ -437,7 +439,7 @@ function srQtyValue(item){
   const base = storeStockValue(item);
   if(!srQtyInclOman) return base;
   const r = SR_QTY_OMAN_BY_ITEM[item['Item Code']];
-  const extra = r ? r.pend + r.moman + r.whomn : 0;
+  const extra = r ? Math.max(0, r.pend) + Math.max(0, r.moman) + Math.max(0, r.whomn) : 0;
   return base + extra;
 }
 /* SOH = WH SOH (the two UAE warehouses) + SR Qty (store stock, plus Oman
@@ -484,7 +486,8 @@ function refreshSohDependents(){
 /* Stock held at a given warehouse/branch code (from the Stk Data / branch sheet). */
 function branchQty(item, code){
   const b = BRANCH_BY_ITEM[item['Item Code']];
-  return b && b[code] ? b[code] : 0;
+  const v = b && b[code] ? b[code] : 0;
+  return Math.max(0, v);   // a negative branch qty (unprocessed transfer, data error, ...) contributes 0, never a deduction
 }
 /* WH SOH — warehouse stock on hand across the two UAE warehouses, Sajja
    (SAJWH) and DC Sharjah (DCSHJ). No toggle, no M-SOH — that's Oman stock. */
@@ -1552,6 +1555,8 @@ function buildGridHeader(){
       gth.dataset.col = entry.field;
       if(entry.field === 'AVG') gth.classList.add('avg-head');
       if(entry.field === 'SOH') gth.classList.add('soh-head');
+      if(entry.field === 'Nav Stock') gth.classList.add('navstock-head');
+      if(entry.field === 'Current Plan Code') gth.classList.add('plan-head');
       if(entry.tip) gth.title = entry.tip;
       if(entry.sortable){
         gth.classList.add('sortable');
@@ -1723,6 +1728,7 @@ function buildGridBody(items, cols){
           if(col.left) td.classList.add('left');
           if(col.field === 'AVG') td.classList.add('avg-cell');
           if(col.field === 'SOH') td.classList.add('soh-cell');
+          if(col.field === 'Current Plan Code') td.classList.add('plan-cell');
           if(col.field === 'Item Code'){
             // Only this cell opens the item — everywhere else in the row stays
             // plain text so values can be selected and copied.
@@ -1754,12 +1760,40 @@ function buildGridBody(items, cols){
   return tbody;
 }
 
+/* Per-department minimum-SOH filters (toolbar, next to Collapse/Expand all).
+   Each box only ever looks at items in its own fixed set of department
+   codes — a row in neither list is never touched by either box. */
+const DEPT_STOCK_MIN_GROUPS = [
+  { inputId: 'minStockFurniture', codes: ['10', '11', '12', '13', '14', '15', '17'] },
+  { inputId: 'minStockAccessory', codes: ['01', '02', '03', '04', '05', '06', '07', '08', '09', '18', '19', '20'] },
+];
+const deptStockMin = {};   // inputId -> number, or absent when that box is empty
+function parseDeptStockMin(raw){
+  const n = Number(raw);
+  return raw === '' || !isFinite(n) ? null : n;
+}
+DEPT_STOCK_MIN_GROUPS.forEach(group => {
+  const el = document.getElementById(group.inputId);
+  if(!el) return;
+  el.addEventListener('input', () => {
+    const n = parseDeptStockMin(el.value);
+    if(n === null) delete deptStockMin[group.inputId]; else deptStockMin[group.inputId] = n;
+    el.closest('.dept-stock-filter').classList.toggle('dsf-active', n !== null);
+    renderGrid();
+  });
+});
+
 function getFilteredItems(){
   return ITEMS.filter(item => {
     for(const key of Object.keys(activeFilters)){
       const selected = activeFilters[key];
       if(selected.size === 0) continue;
       if(!selected.has(filterKey(key, item[FILTER_FIELD_MAP[key]]))) return false;
+    }
+    for(const group of DEPT_STOCK_MIN_GROUPS){
+      const min = deptStockMin[group.inputId];
+      if(min === undefined) continue;
+      if(group.codes.includes(item['Department Code']) && (Number(item['SOH']) || 0) < min) return false;
     }
     return true;
   });
