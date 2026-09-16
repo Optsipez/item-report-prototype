@@ -82,41 +82,40 @@ function trailing13Sales(item, anchorYear, anchorMonth){
   return s;
 }
 
-/* Tiny inline 13-mo Trend cell — a mini fixed-split bar (no line/SVG at
-   all): a small two-tone bar split exactly in half. Whichever of Stock
-   (whole 13-month window total) or Sold is bigger takes the top half; the
-   other takes the bottom. The split position never moves — it's a quick
-   "who's ahead" read, not a proportional chart. Click opens the full
+/* Tiny inline 13-mo Trend cell — a mini proportional fill bar (no line/SVG
+   at all): Stock (gold) fills down from the top, Sold (blue) fills up from
+   the bottom, always meeting exactly at Sold's share of the two (so the bar
+   is always fully coloured — no empty space unless there's truly no data).
+   A fixed white reference line sits at the exact vertical centre and never
+   moves, purely so a glance shows whether Sold's fill has risen past the
+   halfway point (i.e. Sold > Stock) or not. Click opens the full
    period-by-period breakdown in the popup. */
 function trendMiniBar(item){
   const sold = monthlySeries(item), stock = monthlyStockSeries(item);
   const stockTotal = stock.reduce((a, b) => a + b, 0);
   const soldTotal = sold.reduce((a, b) => a + b, 0);
   const clickHint = ' — click for the full 13-month breakdown';
-  if(stockTotal === 0 && soldTotal === 0) return '<span class="spark-empty" title="No stock or sales activity' + clickHint + '">—</span>';
   const denom = stockTotal + soldTotal;
-  const sellThrough = denom > 0 ? Math.round((soldTotal / denom) * 100) : null;
-  const saleWins = soldTotal > stockTotal;
-  const topCls = saleWins ? 'mini-vbar-sale' : 'mini-vbar-stock';
-  const botCls = saleWins ? 'mini-vbar-stock' : 'mini-vbar-sale';
+  if(denom === 0) return '<span class="spark-empty" title="No stock or sales activity' + clickHint + '">—</span>';
+  const sellThrough = Math.round((soldTotal / denom) * 100);
+  const salePct = (soldTotal / denom * 100).toFixed(1);
+  const stockPct = (100 - salePct).toFixed(1);
   const title = 'Stock ' + stockTotal.toLocaleString('en-US') + '  ·  Sold ' + soldTotal.toLocaleString('en-US') +
-    (sellThrough == null ? '' : '  ·  ' + sellThrough + '% sell-through') + ' (13-month total)' + clickHint;
+    '  ·  ' + sellThrough + '% sell-through (13-month total)' + clickHint;
   return '<span class="mini-vbar" title="' + title + '">' +
-    '<span class="mini-vbar-half ' + topCls + '"></span>' +
-    '<span class="mini-vbar-mid"></span>' +
-    '<span class="mini-vbar-half ' + botCls + '"></span>' +
+    '<span class="mini-vbar-fill">' +
+      '<span class="mini-vbar-seg mini-vbar-seg-stock" style="height:' + stockPct + '%"></span>' +
+      '<span class="mini-vbar-seg mini-vbar-seg-sale" style="height:' + salePct + '%"></span>' +
+    '</span>' +
+    '<span class="mini-vbar-refline"></span>' +
     '</span>';
 }
 
-/* 13-month trend popup — stacked bars only now (no overlaid line). Uses all
-   13 months, none dropped: the current month gets its own single-month bar,
-   then four 3-month buckets going backwards. Each bar stacks two segments —
-   Stock (received) on top, Sold on the bottom, in the same warm/cool tint
-   already used for Stock In / Sold in the monthly matrices. Colour
-   (up/down/flat) is judged on Sold, comparing the PER-MONTH AVERAGE against
-   the bucket right before it — a 1-month bar and a 3-month bucket aren't
-   comparable by raw total, so the average puts them on equal footing. The
-   oldest bucket has nothing before it to compare to, so it renders neutral. */
+/* 13-month trend popup — one column per period (current month, then four
+   3-month periods), using all 13 months. Same proportional-fill idea as the
+   mini cell above: each column is always fully coloured, Stock (gold) down
+   from the top and Sold (blue) up from the bottom, meeting at Sold's actual
+   share of the two that period — plus the same fixed white centre line. */
 function monthlySeries(item){
   return MONTH_WINDOW.map(w => {
     const yr = item.years[String(w.year)];
@@ -157,21 +156,22 @@ function buildTrendChart(item){
   const cols = bars.map(b => {
     const denom = b.stockTotal + b.soldTotal;
     const isEmpty = denom === 0;
-    const sellThrough = denom > 0 ? Math.round((b.soldTotal / denom) * 100) : null;
-    const saleWins = b.soldTotal > b.stockTotal;
-    const topCls = saleWins ? 'tr-vbar-sale' : 'tr-vbar-stock';
-    const botCls = saleWins ? 'tr-vbar-stock' : 'tr-vbar-sale';
+    const sellThrough = isEmpty ? null : Math.round((b.soldTotal / denom) * 100);
+    const salePct = isEmpty ? 0 : (b.soldTotal / denom * 100).toFixed(1);
+    const stockPct = isEmpty ? 0 : (100 - salePct).toFixed(1);
     const title = bLabel(b) + ': Stock ' + b.stockTotal.toLocaleString('en-US') +
       '  ·  Sold ' + b.soldTotal.toLocaleString('en-US') +
       (sellThrough == null ? '' : '  ·  ' + sellThrough + '% sell-through');
     // No stock or sales at all that period — nothing to compare, so a neutral
-    // empty bar rather than an arbitrary "Stock wins" default.
+    // empty bar rather than a meaningless 0/0 split.
     const bar = isEmpty
       ? '<div class="tr-vbar tr-vbar-empty"></div>'
       : '<div class="tr-vbar">' +
-          '<span class="tr-vbar-half ' + topCls + '"></span>' +
-          '<span class="tr-vbar-mid"></span>' +
-          '<span class="tr-vbar-half ' + botCls + '"></span>' +
+          '<span class="tr-vbar-fill">' +
+            '<span class="tr-vbar-seg tr-vbar-seg-stock" style="height:' + stockPct + '%"></span>' +
+            '<span class="tr-vbar-seg tr-vbar-seg-sale" style="height:' + salePct + '%"></span>' +
+          '</span>' +
+          '<span class="tr-vbar-refline"></span>' +
         '</div>';
     return '<div class="tr-col-item" title="' + title + '">' +
         bar +
@@ -307,10 +307,11 @@ const MONTH_WINDOW_LAST_DATA = (function(){
 const SPARK_TIP =
   '13-month trend, ' +
   monthColLabel(MONTH_WINDOW[0]) + ' to ' + monthColLabel(MONTH_WINDOW[MONTH_WINDOW_LAST_DATA]) +
-  ' — a small two-tone bar split exactly in half (blue = Stock, gold = Sold).\n' +
-  'Whichever is bigger over the 13 months takes the top half; the split itself\n' +
-  'never moves, so this is a quick "who\'s ahead" read, not a proportional chart —\n' +
-  'the actual totals and sell-through rate (Sold ÷ (Stock + Sold)) are in the tooltip.\n' +
+  ' — a small bar, Stock (gold) filling down from the top and Sold (blue)\n' +
+  'filling up from the bottom, meeting at Sold\'s share of the two — always\n' +
+  'fully coloured, never empty. A fixed white line marks the exact centre:\n' +
+  'when the blue rises past it, Sold has overtaken Stock over the 13 months.\n' +
+  'The actual totals and sell-through rate (Sold ÷ (Stock + Sold)) are in the tooltip.\n' +
   'Click for a full breakdown: the current month, then four 3-month periods\n' +
   'going backwards, each with its own bar, totals, and sell-through %.';
 
