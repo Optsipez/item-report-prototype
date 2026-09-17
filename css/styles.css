@@ -34,12 +34,17 @@
   /* ---- status ---- */
   --pos:#059669; --pos-bg:#ecfdf5;
   --neg:#e11d48; --neg-bg:#fff1f2;
-  --warn:#d97706;
+  --warn:#d97706;   --warn-bg:#fef3e8;
   --stock:#0284c7; --stock-bg:#f0f9ff; --stock-light:#38bdf8;
   --sr:#7c3aed;    --sr-bg:#f5f2fe;
   --soh:#0d9488;   --soh-bg:#f0fdfa;
   --royal:#4169e1; --royal-bg:#eef2fe;
   --trend-up:#0f9d58; --trend-down:#e0483d;
+  /* Row hover — a cool blue-grey, not the brass --primary-weak wash used
+     everywhere else in the UI: that wash reads almost identically to the
+     Stock by Month column's own warm peach background, so a hovered row was
+     nearly invisible there. */
+  --row-hover:#e4eaf3;
 
   /* ---- semantic roles ---- */
   --ink:#0f172a;
@@ -750,13 +755,14 @@ table.grid thead tr.field-row th.grp-stockin{background:var(--stockin-tint-head)
 table.grid thead tr.field-row th.grp-soldby{background:var(--soldby-tint-head);color:var(--ink-soft);}
 table.grid tbody tr.row-item td.grp-stockin{background:var(--stockin-2026);}
 table.grid tbody tr.row-item td.grp-soldby{background:var(--soldby-2026);}
-/* SR (store-display count) — its own violet accent, distinct from AVG's blue;
-   kept narrow since it's just a small count */
-table.grid thead tr.field-row th.grp-sr{background:var(--sr-bg);color:var(--sr);border-bottom-color:var(--sr);text-align:right;}
-table.grid tbody tr.row-item td.grp-sr{background:var(--sr-bg);color:var(--sr);font-weight:600;}
+/* SR (store-display count) — shares WH SOH's amber accent (see below), distinct
+   from AVG's blue and Navision Stock's violet; kept narrow since it's just a
+   small count */
+table.grid thead tr.field-row th.grp-sr{background:var(--warn-bg);color:var(--warn);border-bottom-color:var(--warn);text-align:right;}
+table.grid tbody tr.row-item td.grp-sr{background:var(--warn-bg);color:var(--warn);font-weight:600;}
 table.grid:not(.resizable) th.grp-sr, table.grid:not(.resizable) td.grp-sr,
 table.grid:not(.resizable) th.grp-bar-sr{max-width:44px;}
-table.grid tbody tr.row-item:hover td{background:var(--primary-weak);}
+table.grid tbody tr.row-item:hover td{background:var(--row-hover);}
 /* Only the Item Code cell opens the item — everything else stays plain text
    (default cursor) so values can be click-dragged and copied. Padding is
    tighter here too, so the narrower frozen column still fits a 6-digit code. */
@@ -790,17 +796,18 @@ table.grid tbody tr.row-item td.avg-cell{background:var(--stock-bg);color:var(--
 table.grid tbody tr.row-item td.avg-cell.zero{color:var(--ink-faint);}
 table.grid thead tr.group-row th.core.avg-head:not(.sorted){background:var(--stock-bg);color:var(--stock);}
 
-/* SOH + WH SOH — share one accent (teal) so the two stock-quantity columns read
-   as a matched pair, distinct from AVG's blue and SR's violet. */
+/* SOH — teal accent. */
 table.grid tbody tr.row-item td.soh-cell{background:var(--soh-bg);color:var(--soh);font-weight:600;}
 table.grid tbody tr.row-item td.soh-cell.zero{color:var(--ink-faint);}
 table.grid thead tr.group-row th.core.soh-head:not(.sorted){background:var(--soh-bg);color:var(--soh);}
 
-table.grid tbody tr.row-item td.whsoh-cell{background:var(--soh-bg);color:var(--soh);font-weight:600;}
+/* WH SOH — its own amber accent (was teal, same as SOH — too easy to mix the
+   two up at a glance). Shared with SR Qty above, distinct pair from SOH. */
+table.grid tbody tr.row-item td.whsoh-cell{background:var(--warn-bg);color:var(--warn);font-weight:600;}
 table.grid tbody tr.row-item td.whsoh-cell.zero{color:var(--ink-faint);}
-table.grid thead tr.group-row th.core.whsoh-head:not(.sorted){background:var(--soh-bg);color:var(--soh);}
+table.grid thead tr.group-row th.core.whsoh-head:not(.sorted){background:var(--warn-bg);color:var(--warn);}
 
-/* Navision Stock — same violet accent as the SR (Store Count) column. */
+/* Navision Stock — its own violet accent. */
 table.grid tbody tr.row-item td.navstock-cell{background:var(--sr-bg);color:var(--sr);font-weight:600;}
 table.grid tbody tr.row-item td.navstock-cell.zero{color:var(--ink-faint);}
 table.grid thead tr.group-row th.core.navstock-head:not(.sorted){background:var(--sr-bg);color:var(--sr);}
@@ -885,7 +892,7 @@ table.grid:not(.resizable) .fz-range{max-width:100px;}
 table.grid thead th.fz-itemcode,table.grid thead th.fz-desc,table.grid thead th.fz-vendor,table.grid thead th.fz-range{z-index:4;}
 table.grid tbody td.fz-itemcode,table.grid tbody td.fz-desc,table.grid tbody td.fz-vendor,table.grid tbody td.fz-range{z-index:1;}
 table.grid tbody tr.row-item td.fz-itemcode,table.grid tbody tr.row-item td.fz-desc,table.grid tbody tr.row-item td.fz-vendor,table.grid tbody tr.row-item td.fz-range{background:var(--panel);}
-table.grid tbody tr.row-item:hover td.fz-itemcode,table.grid tbody tr.row-item:hover td.fz-desc,table.grid tbody tr.row-item:hover td.fz-vendor,table.grid tbody tr.row-item:hover td.fz-range{background:var(--primary-weak);}
+table.grid tbody tr.row-item:hover td.fz-itemcode,table.grid tbody tr.row-item:hover td.fz-desc,table.grid tbody tr.row-item:hover td.fz-vendor,table.grid tbody tr.row-item:hover td.fz-range{background:var(--row-hover);}
 /* The strong divider + "there's frozen content" shadow now belongs on the
    LAST frozen column (Range Name) — that's the real edge where the frozen
    block meets the scrolling columns. Made deliberately heavier than a normal
