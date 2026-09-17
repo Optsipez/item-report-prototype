@@ -183,7 +183,11 @@
       <div class="grid-toolbar">
         <div class="grid-title">
           <h1>All Products</h1>
-          <span class="sub">Rows open in Item Lookup on click — try it →</span>
+          <div class="rowcount" id="gridRowCount"></div>
+          <label class="page-jump" title="Jump straight to a page">
+            Go to page
+            <input type="number" id="gridPageJump" min="1" inputmode="numeric" placeholder="#">
+          </label>
         </div>
         <div class="toolbar-row">
           <div class="grid-actions">
@@ -198,11 +202,6 @@
               <input type="number" id="minStockAccessory" placeholder="—" inputmode="numeric">
             </label>
             <button id="clearSortBtn" hidden>Clear sort</button>
-          </div>
-          <div class="grid-pager" id="gridPager">
-            <button id="gridPrevBtn" class="pager-btn" type="button" aria-label="Previous page">‹</button>
-            <div class="rowcount" id="gridRowCount"></div>
-            <button id="gridNextBtn" class="pager-btn" type="button" aria-label="Next page">›</button>
           </div>
         </div>
         <div id="filterChips" class="filter-chips" hidden></div>

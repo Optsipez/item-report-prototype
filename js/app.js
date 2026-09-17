@@ -1248,6 +1248,7 @@ let gridGroup = null; // { field }
    signature) — but not when Prev/Next themselves trigger the re-render. */
 const GRID_PAGE_SIZE = 200;
 let gridPage = 0;
+let gridTotalPages = 1;   // kept in sync by renderGrid; used to clamp the "Go to page" input
 let lastGridQuerySig = null;
 function gridQuerySignature(){
   const filters = Object.keys(activeFilters).sort().map(k => k + ':' + Array.from(activeFilters[k]).sort().join(',')).join('|');
@@ -1400,15 +1401,24 @@ document.getElementById('clearSortBtn').addEventListener('click', () => {
   gridGroup = null;
   renderGrid();
 });
-document.getElementById('gridPrevBtn').addEventListener('click', () => {
-  gridPage = Math.max(0, gridPage - 1);
+/* "Go to page" — the only way to change pages now (no more Prev/Next
+   arrows). Enter or blur jumps; the typed number is clamped to whatever the
+   current filtered/sorted set's page range actually is. */
+function jumpToPage(){
+  const el = document.getElementById('gridPageJump');
+  const n = parseInt(el.value, 10);
+  if(!isFinite(n)){ el.value = ''; return; }
+  gridPage = Math.max(0, Math.min(n - 1, gridTotalPages - 1));
   renderGrid();
   document.querySelector('.grid-scroll').scrollTop = 0;
+  el.value = '';
+  el.blur();
+}
+document.getElementById('gridPageJump').addEventListener('keydown', e => {
+  if(e.key === 'Enter') jumpToPage();
 });
-document.getElementById('gridNextBtn').addEventListener('click', () => {
-  gridPage = gridPage + 1;
-  renderGrid();
-  document.querySelector('.grid-scroll').scrollTop = 0;
+document.getElementById('gridPageJump').addEventListener('blur', () => {
+  if(document.getElementById('gridPageJump').value !== '') jumpToPage();
 });
 
 /* ---- Manual column resizing ---- */
@@ -1850,10 +1860,12 @@ function renderGrid(){
   table.appendChild(thead);
   table.appendChild(buildGridBody(pageItems, cols));
   const rangeEnd = Math.min(items.length, pageStart + pageItems.length);
+  gridTotalPages = totalPages;
   document.getElementById('gridRowCount').textContent = items.length === 0 ? '0 of ' + ITEMS.length + ' items'
-    : (pageStart + 1) + '–' + rangeEnd + ' of ' + items.length + (items.length !== ITEMS.length ? ' (of ' + ITEMS.length + ')' : '') + ' · page ' + (gridPage + 1) + '/' + totalPages;
-  document.getElementById('gridPrevBtn').disabled = gridPage <= 0;
-  document.getElementById('gridNextBtn').disabled = gridPage >= totalPages - 1;
+    : (pageStart + 1) + '–' + rangeEnd + ' of ' + items.length + (items.length !== ITEMS.length ? ' (of ' + ITEMS.length + ')' : '');
+  const jumpEl = document.getElementById('gridPageJump');
+  jumpEl.max = String(totalPages);
+  jumpEl.placeholder = (gridPage + 1) + '/' + totalPages;
   document.getElementById('clearSortBtn').hidden = !gridSort && !gridGroup;
   if(oldRowTops) flipRows(table.querySelector('tbody'), 'tr[data-code]', 'code', oldRowTops);
   flipGridRows = false;
