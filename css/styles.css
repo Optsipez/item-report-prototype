@@ -97,7 +97,7 @@
   --sh-md:0 6px 16px -4px rgba(15,23,42,.10), 0 2px 6px -2px rgba(15,23,42,.06);
   --sh-lg:0 18px 40px -12px rgba(15,23,42,.18), 0 6px 14px -6px rgba(15,23,42,.08);
   --sh-head:0 8px 12px -8px rgba(15,23,42,.22);
-  --sh-col:12px 0 14px -10px rgba(15,23,42,.16);
+  --sh-col:16px 0 18px -8px rgba(15,23,42,.32);
   --ring:0 0 0 3px rgba(163,120,29,.28);
 
   /* ---- type ---- */
@@ -869,8 +869,12 @@ table.grid tbody tr.row-item td.fz-itemcode,table.grid tbody tr.row-item td.fz-d
 table.grid tbody tr.row-item:hover td.fz-itemcode,table.grid tbody tr.row-item:hover td.fz-desc,table.grid tbody tr.row-item:hover td.fz-vendor,table.grid tbody tr.row-item:hover td.fz-range{background:var(--primary-weak);}
 /* The strong divider + "there's frozen content" shadow now belongs on the
    LAST frozen column (Range Name) — that's the real edge where the frozen
-   block meets the scrolling columns. */
-table.grid tbody td.fz-range{border-right:1px solid var(--line-strong);}
+   block meets the scrolling columns. Made deliberately heavier than a normal
+   group divider: a wide non-frozen column (PUDA Desc etc.) slides past this
+   exact edge mid-scroll, showing just its trailing text with no border of
+   its own — without a strong line here that reads as a stray text fragment
+   rather than "more content is scrolling behind this edge". */
+table.grid tbody td.fz-range,table.grid thead th.fz-range{border-right:2px solid var(--s-400);}
 
 /* Manual column resizing */
 .col-resizer{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;z-index:7;}
