@@ -1338,10 +1338,28 @@ function cycleGroup(field){
   renderGrid();
   flashHeader('#gridTable thead [data-col="' + field + '"]');
 }
+/* Standing default order — Range Name, then Vendor Code, then PUDA Code —
+   active from page load with nothing clicked, exactly like a real sort/group
+   would be. The moment the user picks any column sort or group this steps
+   aside for that; clearing it (gridSort/gridGroup both back to null, e.g.
+   via Clear Sort) brings this straight back. Never shown as "active" on any
+   column header — it's a background default, not a user selection. */
+function defaultSortedItems(items){
+  // lowercased so e.g. "Aaji" and "ALVAA" interleave alphabetically instead
+  // of all-caps range names clustering separately from mixed-case ones.
+  const key = it => [String(it['Range Name'] || '').toLowerCase(), String(it['Vendor Code'] || '').toLowerCase(), String(it['PUDA Code'] || '').toLowerCase()];
+  return items.slice().sort((a, b) => {
+    const ka = key(a), kb = key(b);
+    for(let i = 0; i < ka.length; i++){
+      if(ka[i] !== kb[i]) return ka[i] < kb[i] ? -1 : 1;
+    }
+    return 0;
+  });
+}
 function sortGridItems(items){
   const g = gridGroup;
   const s = gridSort;
-  if(!g && !s) return items;
+  if(!g && !s) return defaultSortedItems(items);
   const arr = items.slice();
   const origIdx = new Map(arr.map((it, i) => [it, i]));
   const groupVal = it => groupKeyFor(g.field, it[g.field]);
