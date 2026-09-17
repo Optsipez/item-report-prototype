@@ -180,14 +180,17 @@ button{font-family:inherit;}
 /* ===== Layout ===== */
 .layout{
   position:relative;display:grid;
-  /* plain 1fr (not minmax(0,…)): a wide grid overflows and the whole PAGE
-     scrolls sideways — intentional. syncTopbarWidth() stretches .topbar to
-     match so no blank page shows above the grid when scrolled right. */
-  grid-template-columns:300px 1fr;
+  /* minmax(0,1fr), not plain 1fr: a grid item's default min-width is auto
+     (its content size), which would let a wide grid blow out .main past the
+     track and force the whole PAGE to scroll sideways instead of .grid-scroll
+     itself. That breaks position:sticky frozen columns, which only stick
+     relative to whichever ancestor actually scrolls — so .main must stay
+     clipped to the track and let .grid-scroll do the horizontal scrolling. */
+  grid-template-columns:300px minmax(0,1fr);
   min-height:calc(100vh - 56px);
   transition:grid-template-columns var(--t-med);
 }
-.layout.filters-collapsed{grid-template-columns:0 1fr;}
+.layout.filters-collapsed{grid-template-columns:0 minmax(0,1fr);}
 .layout.filters-collapsed .rail{
   min-width:0;width:0;padding-left:0;padding-right:0;border-right:none;overflow:hidden;
 }
@@ -353,7 +356,7 @@ button{font-family:inherit;}
 .filter-opt.disabled input[type=checkbox]{background:var(--s-100);border-color:var(--line);cursor:not-allowed;}
 
 /* ===== Main ===== */
-.main{padding:var(--sp-6) var(--sp-7) var(--sp-8);}
+.main{padding:var(--sp-6) var(--sp-7) var(--sp-8);min-width:0;}
 .main.flush{padding:var(--sp-6) var(--sp-7) var(--sp-7);}
 .view{display:none;}
 .view.active{display:block;}
@@ -844,13 +847,27 @@ table.grid tfoot td{
   position:sticky;bottom:0;background:var(--sunken);border-top:2px solid var(--line-strong);font-weight:700;
 }
 
-/* Frozen left column */
-.fz-itemcode{position:sticky;left:0;width:78px;overflow:hidden;text-overflow:ellipsis;}
+/* Frozen left columns — Item Code, Description, Vendor Code, Range Name stay
+   put while the rest of the row scrolls under them, so they're always
+   readable next to whatever monthly column you've scrolled over to. Each one
+   pins to a fixed width so their `left` offsets stack up predictably. */
+.fz-itemcode,.fz-desc,.fz-vendor,.fz-range{position:sticky;overflow:hidden;text-overflow:ellipsis;}
+.fz-itemcode{left:0;width:78px;min-width:78px;}
+.fz-desc{left:78px;width:200px;min-width:200px;}
+.fz-vendor{left:278px;width:80px;min-width:80px;}
+.fz-range{left:358px;width:100px;min-width:100px;}
 table.grid:not(.resizable) .fz-itemcode{max-width:78px;}
-table.grid thead th.fz-itemcode{z-index:4;}
-table.grid tbody td.fz-itemcode{z-index:1;border-right:1px solid var(--line-strong);}
-table.grid tbody tr.row-item td.fz-itemcode{background:var(--panel);}
-table.grid tbody tr.row-item:hover td.fz-itemcode{background:var(--primary-weak);}
+table.grid:not(.resizable) .fz-desc{max-width:200px;}
+table.grid:not(.resizable) .fz-vendor{max-width:80px;}
+table.grid:not(.resizable) .fz-range{max-width:100px;}
+table.grid thead th.fz-itemcode,table.grid thead th.fz-desc,table.grid thead th.fz-vendor,table.grid thead th.fz-range{z-index:4;}
+table.grid tbody td.fz-itemcode,table.grid tbody td.fz-desc,table.grid tbody td.fz-vendor,table.grid tbody td.fz-range{z-index:1;}
+table.grid tbody tr.row-item td.fz-itemcode,table.grid tbody tr.row-item td.fz-desc,table.grid tbody tr.row-item td.fz-vendor,table.grid tbody tr.row-item td.fz-range{background:var(--panel);}
+table.grid tbody tr.row-item:hover td.fz-itemcode,table.grid tbody tr.row-item:hover td.fz-desc,table.grid tbody tr.row-item:hover td.fz-vendor,table.grid tbody tr.row-item:hover td.fz-range{background:var(--primary-weak);}
+/* The strong divider + "there's frozen content" shadow now belongs on the
+   LAST frozen column (Range Name) — that's the real edge where the frozen
+   block meets the scrolling columns. */
+table.grid tbody td.fz-range{border-right:1px solid var(--line-strong);}
 
 /* Manual column resizing */
 .col-resizer{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;z-index:7;}
@@ -867,7 +884,8 @@ table.grid thead tr.field-row th.group-end, table.grid tbody td.group-end{border
 
 /* "Resume here" — the row you drilled into, marked when you press Back */
 table.grid tbody tr.row-item.row-resume td{background:var(--primary-weak);}
-table.grid tbody tr.row-resume td.fz-itemcode{background:var(--primary-weak);box-shadow:inset 3px 0 0 var(--primary);}
+table.grid tbody tr.row-resume td.fz-itemcode,table.grid tbody tr.row-resume td.fz-desc,table.grid tbody tr.row-resume td.fz-vendor,table.grid tbody tr.row-resume td.fz-range{background:var(--primary-weak);}
+table.grid tbody tr.row-resume td.fz-itemcode{box-shadow:inset 3px 0 0 var(--primary);}
 table.grid tbody tr.row-item.row-resume td.item-code{color:var(--primary-hover);}
 table.grid tbody tr.row-resume td{animation:resumeFlash 1.5s ease 1;}
 @keyframes resumeFlash{0%{background:var(--i-300);}18%{background:var(--i-200);}100%{background:var(--primary-weak);}}
@@ -879,12 +897,12 @@ table.grid thead tr.group-row th.collapsed{box-shadow:none;transition:box-shadow
 .grid-scroll.scrolled-y table.grid thead tr.field-row th,
 .grid-scroll.scrolled-y table.grid thead tr.group-row th.core,
 .grid-scroll.scrolled-y table.grid thead tr.group-row th.collapsed{box-shadow:var(--sh-head);}
-table.grid thead th.fz-itemcode{box-shadow:none;transition:box-shadow var(--t-med);}
-table.grid tbody td.fz-itemcode{box-shadow:none;transition:box-shadow var(--t-med);}
-.grid-scroll.scrolled-x table.grid tbody td.fz-itemcode{box-shadow:var(--sh-col);}
-.grid-scroll.scrolled-x table.grid thead th.fz-itemcode{box-shadow:var(--sh-col);}
-.grid-scroll.scrolled-x.scrolled-y table.grid thead th.fz-itemcode{box-shadow:var(--sh-col),var(--sh-head);}
-.grid-scroll.scrolled-y:not(.scrolled-x) table.grid thead th.fz-itemcode{box-shadow:var(--sh-head);}
+table.grid thead th.fz-range{box-shadow:none;transition:box-shadow var(--t-med);}
+table.grid tbody td.fz-range{box-shadow:none;transition:box-shadow var(--t-med);}
+.grid-scroll.scrolled-x table.grid tbody td.fz-range{box-shadow:var(--sh-col);}
+.grid-scroll.scrolled-x table.grid thead th.fz-range{box-shadow:var(--sh-col);}
+.grid-scroll.scrolled-x.scrolled-y table.grid thead th.fz-range{box-shadow:var(--sh-col),var(--sh-head);}
+.grid-scroll.scrolled-y:not(.scrolled-x) table.grid thead th.fz-range{box-shadow:var(--sh-head);}
 
 /* Scrollbars */
 ::-webkit-scrollbar{width:12px;height:12px;}

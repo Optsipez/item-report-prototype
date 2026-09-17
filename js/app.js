@@ -1160,9 +1160,9 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 // which is collapsible — then the monthly time series at the far right.
 const COLUMN_LAYOUT = [
   { type:'core', field:'Item Code', label:'Item Code', cls:'item-code mono', fz:'fz-itemcode', stack:true },
-  { type:'core', field:'Description', label:'Description', left:true },
-  { type:'core', field:'Vendor Code', label:'Vendor Code' },
-  { type:'core', field:'Range Name', label:'Range Name' },
+  { type:'core', field:'Description', label:'Description', left:true, fz:'fz-desc' },
+  { type:'core', field:'Vendor Code', label:'Vendor Code', fz:'fz-vendor' },
+  { type:'core', field:'Range Name', label:'Range Name', fz:'fz-range' },
   { type:'group', key:'class', title:'Classification', short:'Class', cols:[
       { field:'Catg Code', label:'Catg Code' },
       { field:'Category', label:'Category' },
