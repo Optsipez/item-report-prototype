@@ -1229,14 +1229,27 @@ const COLUMN_LAYOUT = [
   // itself stays oldest -> newest internally since the trend sparkline / YTD
   // math depend on that order. field:'__sold_'+i still points at the right
   // MONTH_WINDOW entry regardless of the display order below.
+  // Each 13-month strip splits into its own recent 9 months (default open)
+  // and its oldest 4 months (default collapsed, own toggle) — right now
+  // that's Sep–Dec of last year, but it's just "the last 4 of the window",
+  // so it keeps meaning the same thing as MONTH_WINDOW rolls forward.
   { type:'group', key:'soldby', title:'Sold by Month', short:'Sold',
-    cols: MONTH_WINDOW.map((w, i) => ({ field:'__sold_'+i, label: monthColLabel(w) })).reverse() },
+    cols: MONTH_WINDOW.map((w, i) => ({ field:'__sold_'+i, label: monthColLabel(w) })).reverse().slice(0, 9) },
+  { type:'group', key:'soldby-old', title:'Sold by Month — Older', short:'Sold (Older)',
+    cols: MONTH_WINDOW.map((w, i) => ({ field:'__sold_'+i, label: monthColLabel(w) })).reverse().slice(9) },
   { type:'group', key:'stockin', title:'Stock In by Month', short:'Stock In',
-    cols: MONTH_WINDOW.map((w, i) => ({ field:'__stock_'+i, label: monthColLabel(w) })).reverse() },
+    cols: MONTH_WINDOW.map((w, i) => ({ field:'__stock_'+i, label: monthColLabel(w) })).reverse().slice(0, 9) },
+  { type:'group', key:'stockin-old', title:'Stock In by Month — Older', short:'Stock In (Older)',
+    cols: MONTH_WINDOW.map((w, i) => ({ field:'__stock_'+i, label: monthColLabel(w) })).reverse().slice(9) },
 ];
 
 const ALL_GROUP_KEYS = COLUMN_LAYOUT.filter(e => e.type === 'group').map(e => e.key);
-let collapsedGroups = new Set(['class','attrs','fob','logi']); // sensible default: keep the essentials visible first
+// Sensible default: keep the essentials visible first. soldby-old/stockin-old
+// (the oldest 4 of the 13 months) start collapsed on every fresh load —
+// this is a plain module-level default, not tied to how the page was
+// reached, so it applies the same whether that's a first visit, a shared
+// link, or a reload.
+let collapsedGroups = new Set(['class','attrs','fob','logi','soldby-old','stockin-old']);
 
 /* Grid ordering has two independent layers that stack:
    - GROUP (categorical): click Plan / PUDA Code to cluster rows that share a
@@ -1793,7 +1806,7 @@ function buildGridBody(items, cols){
       if(col.type === 'collapsed'){
         td.textContent = '';
         td.classList.add('collapsed-cell');
-        if(col.key === 'soldby') makeWeeklyCell(td, item);
+        if(col.key === 'soldby' || col.key === 'soldby-old') makeWeeklyCell(td, item);
       } else if(col.type === 'core'){
         if(col.field === '__spark'){
           td.classList.add('spark-cell', 'left', 'wk-cell');
@@ -1850,7 +1863,7 @@ function buildGridBody(items, cols){
             if(num === 0) td.classList.add('zero');
             if(num < 0) td.classList.add('neg');
           }
-          if(col.group === 'soldby'){
+          if(col.group === 'soldby' || col.group === 'soldby-old'){
             const w = MONTH_WINDOW[+col.field.slice(7)];
             makeWeeklyCell(td, item, w ? { year: w.year, month: w.m } : undefined);
           }
