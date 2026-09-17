@@ -128,6 +128,11 @@ function monthlyStockSeries(item){
     return yr ? (yr.stock[w.m] || 0) : 0;
   });
 }
+/* Total Received Qty — stock received (GRN) summed over the same rolling
+   13-month window as the 13-mo Trend column, not a fixed calendar year. */
+function totalReceivedQty(item){
+  return monthlyStockSeries(item).reduce((a, b) => a + b, 0);
+}
 const TREND_BUCKET_IDX = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], [12]]; // oldest -> newest
 function trendBars(item){
   const sold = monthlySeries(item), stock = monthlyStockSeries(item);
@@ -1209,7 +1214,8 @@ const COLUMN_LAYOUT = [
   // Kept out of the collapsible group so it stays visible when Receipts & Sales
   // is collapsed.
   { type:'core', field:'YTD Sold', label:'YTD Sold', sortable:true, tip: YTD_TIP },
-  { type:'core', field:'Last Sold Qty', label:'Last Sold Qty', sortable:true },
+  { type:'core', field:'__totalRcvd', label:'Total Received Qty', sortable:true, stack:true,
+    tip:'Total Received Qty = stock received (GRN), summed over the same rolling 13-month window as the 13-mo Trend column.' },
   // Displayed current month first, then backwards (newest -> oldest); MONTH_WINDOW
   // itself stays oldest -> newest internally since the trend sparkline / YTD
   // math depend on that order. field:'__sold_'+i still points at the right
@@ -1228,7 +1234,7 @@ let collapsedGroups = new Set(['class','attrs','fob','logi']); // sensible defau
      value, groups running A→Z. Click again to clear. A thin rule divides one
      group from the next. PUDA Code groups by its leading letter only (all
      A… together, then all F…); Plan groups by the whole code.
-   - SORT (directional): click SOH / PO Qty / AVG / Last Sold Qty to cycle
+   - SORT (directional): click SOH / PO Qty / AVG / Total Received Qty to cycle
      none → high→low → low→high → none.
    With both on, the group is primary and the directional sort orders rows
    inside each group; turning one on never clears the other. */
@@ -1338,7 +1344,7 @@ function sortGridItems(items){
   const arr = items.slice();
   const origIdx = new Map(arr.map((it, i) => [it, i]));
   const groupVal = it => groupKeyFor(g.field, it[g.field]);
-  const sortVal = it => s.field === '__whsoh' ? whSohValue(it) : s.field === 'SR Qty' ? srQtyValue(it) : (Number(it[s.field]) || 0);
+  const sortVal = it => s.field === '__whsoh' ? whSohValue(it) : s.field === 'SR Qty' ? srQtyValue(it) : s.field === '__totalRcvd' ? totalReceivedQty(it) : (Number(it[s.field]) || 0);
   const mul = s && s.dir === 'asc' ? 1 : -1;
   arr.sort((a, b) => {
     if(g){
@@ -1713,6 +1719,8 @@ function buildGridBody(items, cols){
         } else if(col.field === '__whsoh'){
           td.classList.add('whsoh-cell');
           td.textContent = fmtInt(whSohValue(item));
+        } else if(col.field === '__totalRcvd'){
+          td.textContent = fmtInt(totalReceivedQty(item));
         } else if(col.field === 'SR Qty'){
           td.classList.add('srqty-cell');
           td.textContent = fmtInt(srQtyValue(item));
