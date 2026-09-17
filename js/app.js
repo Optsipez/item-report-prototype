@@ -1420,6 +1420,17 @@ document.getElementById('gridPageJump').addEventListener('keydown', e => {
 document.getElementById('gridPageJump').addEventListener('blur', () => {
   if(document.getElementById('gridPageJump').value !== '') jumpToPage();
 });
+/* Shared by the visible Prev/Next buttons, the Left/Right arrow-key
+   shortcut, and anything else that just wants to step one page. */
+function stepGridPage(dir){
+  const next = gridPage + dir;
+  if(next < 0 || next > gridTotalPages - 1) return;
+  gridPage = next;
+  renderGrid();
+  document.querySelector('.grid-scroll').scrollTop = 0;
+}
+document.getElementById('gridPrevBtn').addEventListener('click', () => stepGridPage(-1));
+document.getElementById('gridNextBtn').addEventListener('click', () => stepGridPage(1));
 /* Left/Right arrow keys also step a page at a time — only while the grid
    itself is the active view, and never while typing in an input/textarea
    (so normal text-cursor movement in the filter search boxes, the page-jump
@@ -1429,12 +1440,7 @@ document.addEventListener('keydown', e => {
   const tag = document.activeElement && document.activeElement.tagName;
   if(tag === 'INPUT' || tag === 'TEXTAREA') return;
   if(!document.getElementById('viewAll').classList.contains('active')) return;
-  const dir = e.key === 'ArrowLeft' ? -1 : 1;
-  const next = gridPage + dir;
-  if(next < 0 || next > gridTotalPages - 1) return;
-  gridPage = next;
-  renderGrid();
-  document.querySelector('.grid-scroll').scrollTop = 0;
+  stepGridPage(e.key === 'ArrowLeft' ? -1 : 1);
 });
 
 /* ---- Manual column resizing ---- */
@@ -1882,6 +1888,8 @@ function renderGrid(){
   const jumpEl = document.getElementById('gridPageJump');
   jumpEl.max = String(totalPages);
   jumpEl.placeholder = (gridPage + 1) + '/' + totalPages;
+  document.getElementById('gridPrevBtn').disabled = gridPage <= 0;
+  document.getElementById('gridNextBtn').disabled = gridPage >= totalPages - 1;
   document.getElementById('clearSortBtn').hidden = !gridSort && !gridGroup;
   if(oldRowTops) flipRows(table.querySelector('tbody'), 'tr[data-code]', 'code', oldRowTops);
   flipGridRows = false;

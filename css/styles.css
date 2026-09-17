@@ -599,6 +599,17 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .grid-toolbar .sub{font-size:var(--fs-base);color:var(--ink-soft);}
 .grid-toolbar .toolbar-row{display:flex;align-items:center;flex-wrap:wrap;gap:var(--sp-2) var(--sp-4);margin-top:var(--sp-3);}
 .grid-toolbar .rowcount{font-size:var(--fs-base);color:var(--ink-faint);font-variant-numeric:tabular-nums;}
+/* Visible Prev/Next, next to the H1 — a clickable counterpart to the
+   Left/Right arrow-key shortcut, so that shortcut has something on screen
+   pointing at it rather than being invisible. */
+.pager-btn{
+  background:var(--panel);border:1px solid var(--line-strong);border-radius:var(--r-sm);
+  width:24px;height:24px;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;line-height:1;flex:none;
+  transition:border-color var(--t-fast),color var(--t-fast),background var(--t-fast),box-shadow var(--t-fast);
+}
+.pager-btn:hover:not(:disabled){border-color:var(--primary-line);color:var(--primary);background:var(--primary-weak);box-shadow:var(--sh-xs);}
+.pager-btn:disabled{opacity:.35;cursor:not-allowed;}
 /* "Go to page" — sits right next to the row count, next to the H1. */
 .page-jump{
   display:flex;align-items:center;gap:6px;font-size:var(--fs-xs);font-weight:600;color:var(--ink-soft);
