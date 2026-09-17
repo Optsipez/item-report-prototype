@@ -1160,6 +1160,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 // which is collapsible — then the monthly time series at the far right.
 const COLUMN_LAYOUT = [
   { type:'core', field:'Item Code', label:'Item Code', cls:'item-code mono', fz:'fz-itemcode', stack:true },
+  { type:'core', field:'Description', label:'Description', left:true },
   { type:'core', field:'Vendor Code', label:'Vendor Code' },
   { type:'group', key:'range', title:'Range', short:'Range', cols:[
       { field:'Range Name', label:'Range Name' } ] },
@@ -1196,7 +1197,6 @@ const COLUMN_LAYOUT = [
       { field:'Store Count', label:'SR',
         tip:'SR display — how many of the ' + UAE_STORES.length + ' UAE stores currently hold stock of this item.' } ] },
   { type:'core', field:'__spark', label:'13-mo Trend', tip: SPARK_TIP },
-  { type:'core', field:'Description', label:'Description', left:true },
   { type:'group', key:'attrs', title:'Attributes', short:'Attrs', cols:[
       { field:'Item Color Name', label:'Color' },
       { field:'Lifestyle', label:'Lifestyle', fmt:'lifestyle' },
