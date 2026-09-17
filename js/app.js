@@ -1969,13 +1969,14 @@ function renderGrid(){
   }
   syncStickyHeader();
   syncTopbarWidth();
+  syncFrozenColumns();
   // On the very first render web fonts may still be loading; the rotated
   // collapsed-group labels change height once they swap in, which throws the
   // measurement below off until the next re-render. Re-measure after paint and
   // once fonts settle so the two header rows always sit flush.
-  requestAnimationFrame(() => { syncStickyHeader(); syncTopbarWidth(); });
+  requestAnimationFrame(() => { syncStickyHeader(); syncTopbarWidth(); syncFrozenColumns(); });
   if(document.fonts && document.fonts.ready){
-    document.fonts.ready.then(() => requestAnimationFrame(() => { syncStickyHeader(); syncTopbarWidth(); }));
+    document.fonts.ready.then(() => requestAnimationFrame(() => { syncStickyHeader(); syncTopbarWidth(); syncFrozenColumns(); }));
   }
 }
 
@@ -1992,6 +1993,22 @@ function syncTopbarWidth(){
   topbar.style.width = need > de.clientWidth ? need + 'px' : '';
 }
 window.addEventListener('resize', syncTopbarWidth);
+
+/* Frozen columns (Item Code/Description/Vendor Code/Range Name) sit inside
+   .grid-scroll, but a wide grid scrolls the whole PAGE horizontally, not
+   .grid-scroll itself — so position:sticky has nothing of its own to stick
+   against. Shift them right by hand to match the page's scroll instead. */
+function syncFrozenColumns(){
+  const x = window.scrollX || document.documentElement.scrollLeft || 0;
+  const t = x > 0 ? 'translateX(' + x + 'px)' : '';
+  document.querySelectorAll('.fz-itemcode,.fz-desc,.fz-vendor,.fz-range').forEach(el => {
+    el.style.transform = t;
+  });
+  const gs = document.querySelector('.grid-scroll');
+  if(gs) gs.classList.toggle('scrolled-x', x > 1);
+}
+window.addEventListener('scroll', syncFrozenColumns, { passive: true });
+window.addEventListener('resize', syncFrozenColumns);
 
 // The second header row's sticky offset must equal the first row's actual
 // rendered height (it varies with how tall the rotated collapsed labels are) —
@@ -2272,15 +2289,15 @@ if(selectedItem) renderReport(selectedItem);
 renderFilterBlocks();
 renderFilterChips();
 
-/* Grid scroll → shadow the sticky header / frozen column only when scrolled */
+/* Grid scroll → shadow the sticky header only when scrolled vertically.
+   (Horizontal scroll shadow is driven separately by syncFrozenColumns(),
+   since horizontal scrolling happens on the page, not .grid-scroll.) */
 (function(){
   const gs = document.querySelector('.grid-scroll');
   if(!gs) return;
-  const onScroll = () => {
+  gs.addEventListener('scroll', () => {
     gs.classList.toggle('scrolled-y', gs.scrollTop > 1);
-    gs.classList.toggle('scrolled-x', gs.scrollLeft > 1);
-  };
-  gs.addEventListener('scroll', onScroll, { passive: true });
+  }, { passive: true });
 })();
 
 /* Restore whatever the URL points at (All Products by default) */

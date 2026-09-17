@@ -180,17 +180,14 @@ button{font-family:inherit;}
 /* ===== Layout ===== */
 .layout{
   position:relative;display:grid;
-  /* minmax(0,1fr), not plain 1fr: a grid item's default min-width is auto
-     (its content size), which would let a wide grid blow out .main past the
-     track and force the whole PAGE to scroll sideways instead of .grid-scroll
-     itself. That breaks position:sticky frozen columns, which only stick
-     relative to whichever ancestor actually scrolls — so .main must stay
-     clipped to the track and let .grid-scroll do the horizontal scrolling. */
-  grid-template-columns:300px minmax(0,1fr);
+  /* plain 1fr (not minmax(0,…)): a wide grid overflows and the whole PAGE
+     scrolls sideways — intentional. syncTopbarWidth() stretches .topbar to
+     match so no blank page shows above the grid when scrolled right. */
+  grid-template-columns:300px 1fr;
   min-height:calc(100vh - 56px);
   transition:grid-template-columns var(--t-med);
 }
-.layout.filters-collapsed{grid-template-columns:0 minmax(0,1fr);}
+.layout.filters-collapsed{grid-template-columns:0 1fr;}
 .layout.filters-collapsed .rail{
   min-width:0;width:0;padding-left:0;padding-right:0;border-right:none;overflow:hidden;
 }
@@ -356,7 +353,7 @@ button{font-family:inherit;}
 .filter-opt.disabled input[type=checkbox]{background:var(--s-100);border-color:var(--line);cursor:not-allowed;}
 
 /* ===== Main ===== */
-.main{padding:var(--sp-6) var(--sp-7) var(--sp-8);min-width:0;}
+.main{padding:var(--sp-6) var(--sp-7) var(--sp-8);}
 .main.flush{padding:var(--sp-6) var(--sp-7) var(--sp-7);}
 .view{display:none;}
 .view.active{display:block;}
@@ -849,13 +846,19 @@ table.grid tfoot td{
 
 /* Frozen left columns — Item Code, Description, Vendor Code, Range Name stay
    put while the rest of the row scrolls under them, so they're always
-   readable next to whatever monthly column you've scrolled over to. Each one
-   pins to a fixed width so their `left` offsets stack up predictably. */
-.fz-itemcode,.fz-desc,.fz-vendor,.fz-range{position:sticky;overflow:hidden;text-overflow:ellipsis;}
-.fz-itemcode{left:0;width:78px;min-width:78px;}
-.fz-desc{left:78px;width:200px;min-width:200px;}
-.fz-vendor{left:278px;width:80px;min-width:80px;}
-.fz-range{left:358px;width:100px;min-width:100px;}
+   readable next to whatever monthly column you've scrolled over to.
+   position:sticky can't do this on its own: .grid-scroll only really scrolls
+   vertically (a wide grid pushes the whole PAGE into horizontal scroll
+   instead, by design — see the .layout comment above), so sticky's "left"
+   would be relative to a horizontal scrollport that never moves. Instead
+   these stay put in normal table flow (fixed widths so they're contiguous)
+   and syncFrozenColumns() (js/app.js) nudges them right by hand to match
+   however far the page itself has scrolled. */
+.fz-itemcode,.fz-desc,.fz-vendor,.fz-range{position:relative;overflow:hidden;text-overflow:ellipsis;}
+.fz-itemcode{width:78px;min-width:78px;}
+.fz-desc{width:200px;min-width:200px;}
+.fz-vendor{width:80px;min-width:80px;}
+.fz-range{width:100px;min-width:100px;}
 table.grid:not(.resizable) .fz-itemcode{max-width:78px;}
 table.grid:not(.resizable) .fz-desc{max-width:200px;}
 table.grid:not(.resizable) .fz-vendor{max-width:80px;}
