@@ -755,11 +755,10 @@ table.grid thead tr.field-row th.grp-stockin{background:var(--stockin-tint-head)
 table.grid thead tr.field-row th.grp-soldby{background:var(--soldby-tint-head);color:var(--ink-soft);}
 table.grid tbody tr.row-item td.grp-stockin{background:var(--stockin-2026);}
 table.grid tbody tr.row-item td.grp-soldby{background:var(--soldby-2026);}
-/* SR (store-display count) — shares WH SOH's amber accent (see below), distinct
-   from AVG's blue and Navision Stock's violet; kept narrow since it's just a
-   small count */
-table.grid thead tr.field-row th.grp-sr{background:var(--warn-bg);color:var(--warn);border-bottom-color:var(--warn);text-align:right;}
-table.grid tbody tr.row-item td.grp-sr{background:var(--warn-bg);color:var(--warn);font-weight:600;}
+/* SR (store-display count) — its own violet accent, distinct from AVG's blue;
+   kept narrow since it's just a small count */
+table.grid thead tr.field-row th.grp-sr{background:var(--sr-bg);color:var(--sr);border-bottom-color:var(--sr);text-align:right;}
+table.grid tbody tr.row-item td.grp-sr{background:var(--sr-bg);color:var(--sr);font-weight:600;}
 table.grid:not(.resizable) th.grp-sr, table.grid:not(.resizable) td.grp-sr,
 table.grid:not(.resizable) th.grp-bar-sr{max-width:44px;}
 table.grid tbody tr.row-item:hover td{background:var(--row-hover);}
@@ -802,12 +801,19 @@ table.grid tbody tr.row-item td.soh-cell.zero{color:var(--ink-faint);}
 table.grid thead tr.group-row th.core.soh-head:not(.sorted){background:var(--soh-bg);color:var(--soh);}
 
 /* WH SOH — its own amber accent (was teal, same as SOH — too easy to mix the
-   two up at a glance). Shared with SR Qty above, distinct pair from SOH. */
+   two up at a glance). Shared with SR Qty below, distinct pair from SOH. */
 table.grid tbody tr.row-item td.whsoh-cell{background:var(--warn-bg);color:var(--warn);font-weight:600;}
 table.grid tbody tr.row-item td.whsoh-cell.zero{color:var(--ink-faint);}
 table.grid thead tr.group-row th.core.whsoh-head:not(.sorted){background:var(--warn-bg);color:var(--warn);}
 
-/* Navision Stock — its own violet accent. */
+/* SR Qty — shares WH SOH's amber accent above. (Not to be confused with the
+   separate "SR" / Store Count column further right, which keeps its own
+   violet.) */
+table.grid tbody tr.row-item td.srqty-cell{background:var(--warn-bg);color:var(--warn);font-weight:600;}
+table.grid tbody tr.row-item td.srqty-cell.zero{color:var(--ink-faint);}
+table.grid thead tr.group-row th.core.sroty-head:not(.sorted){background:var(--warn-bg);color:var(--warn);}
+
+/* Navision Stock — same violet accent as the SR (Store Count) column. */
 table.grid tbody tr.row-item td.navstock-cell{background:var(--sr-bg);color:var(--sr);font-weight:600;}
 table.grid tbody tr.row-item td.navstock-cell.zero{color:var(--ink-faint);}
 table.grid thead tr.group-row th.core.navstock-head:not(.sorted){background:var(--sr-bg);color:var(--sr);}

@@ -2274,6 +2274,14 @@ function updateFilterAvailability(){
 document.getElementById('clearFiltersBtn').addEventListener('click', () => {
   Object.keys(activeFilters).forEach(k => activeFilters[k].clear());
   document.querySelectorAll('.filter-opt input').forEach(cb => { cb.checked = false; cb.closest('.filter-opt').classList.remove('checked'); });
+  // Also clear whatever's typed into each filter's own search box (Vendor
+  // Code, PUDA Desc, etc.) and re-show whatever rows that search had hidden —
+  // otherwise "Clear all" resets the checkboxes but leaves the option list
+  // still narrowed down to a stale search term.
+  document.querySelectorAll('.filter-search').forEach(input => {
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+  });
   updateFilterCounts();
   updateFilterAvailability();
   renderFilterChips();
