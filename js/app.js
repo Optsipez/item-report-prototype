@@ -1347,7 +1347,14 @@ function cycleGroup(field){
 function defaultSortedItems(items){
   // lowercased so e.g. "Aaji" and "ALVAA" interleave alphabetically instead
   // of all-caps range names clustering separately from mixed-case ones.
-  const key = it => [String(it['Range Name'] || '').toLowerCase(), String(it['Vendor Code'] || '').toLowerCase(), String(it['PUDA Code'] || '').toLowerCase()];
+  // PUDA Code sorts by its last 3 digits (e.g. "A03096" -> "096"), not the
+  // whole code — every real PUDA Code is a letter + 3 digits + that 3-digit
+  // suffix, and the suffix is what actually distinguishes them.
+  const key = it => [
+    String(it['Range Name'] || '').toLowerCase(),
+    String(it['Vendor Code'] || '').toLowerCase(),
+    String(it['PUDA Code'] || '').toLowerCase().slice(-3),
+  ];
   return items.slice().sort((a, b) => {
     const ka = key(a), kb = key(b);
     for(let i = 0; i < ka.length; i++){
