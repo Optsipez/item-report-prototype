@@ -1162,8 +1162,7 @@ const COLUMN_LAYOUT = [
   { type:'core', field:'Item Code', label:'Item Code', cls:'item-code mono', fz:'fz-itemcode', stack:true },
   { type:'core', field:'Description', label:'Description', left:true },
   { type:'core', field:'Vendor Code', label:'Vendor Code' },
-  { type:'group', key:'range', title:'Range', short:'Range', cols:[
-      { field:'Range Name', label:'Range Name' } ] },
+  { type:'core', field:'Range Name', label:'Range Name' },
   { type:'group', key:'class', title:'Classification', short:'Class', cols:[
       { field:'Catg Code', label:'Catg Code' },
       { field:'Category', label:'Category' },
