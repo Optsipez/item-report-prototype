@@ -725,7 +725,13 @@ table.grid tbody td.left{text-align:left;}
 table.grid tbody td.mono{font-family:'IBM Plex Mono',monospace;}
 table.grid tbody tr.row-item td{background:var(--panel);border-bottom-color:var(--line);}
 table.grid tbody tr.row-item td.item-code{font-weight:600;color:var(--ink);}
-/* month blocks — one 13-month strip per item */
+/* month blocks — one 13-month strip per item. Tighter side padding than the
+   grid's normal 14px — these hold short numbers (or "Sep"/"'26" stacked), so
+   the default padding was mostly wasted space across 26 columns at once. */
+table.grid thead tr.field-row th.grp-stockin,
+table.grid thead tr.field-row th.grp-soldby,
+table.grid tbody tr.row-item td.grp-stockin,
+table.grid tbody tr.row-item td.grp-soldby{padding-left:6px;padding-right:6px;}
 table.grid thead tr.field-row th.grp-stockin{background:var(--stockin-tint-head);color:var(--ink-soft);}
 table.grid thead tr.field-row th.grp-soldby{background:var(--soldby-tint-head);color:var(--ink-soft);}
 table.grid tbody tr.row-item td.grp-stockin{background:var(--stockin-2026);}
