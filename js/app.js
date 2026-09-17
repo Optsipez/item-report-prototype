@@ -1858,6 +1858,36 @@ function deptStockMinForItem(item){
   return group ? deptStockMin[group.inputId] : undefined;
 }
 
+/* Splits the (already filtered/sorted) item list into pages, WITHOUT ever
+   letting a run of consecutive same-Vendor-Code rows straddle a page break —
+   applies to whatever order is currently showing, sorted/grouped or not.
+   A page is normally `pageSize` rows. If that cutoff would land inside a
+   vendor run, the break instead moves back to where that run started, so
+   the whole run defers to the next page (this page ends short). The one
+   exception: a run that starts right at the top of a page and is itself
+   longer than `pageSize` can't be deferred any further — that page just
+   grows to fit the whole run instead of splitting it. */
+function computeGridPages(items, pageSize){
+  const pages = [];
+  let start = 0;
+  while(start < items.length){
+    let end = Math.min(start + pageSize, items.length);
+    if(end < items.length && items[end]['Vendor Code'] === items[end - 1]['Vendor Code']){
+      const vendor = items[end]['Vendor Code'];
+      let runStart = end - 1;
+      while(runStart > start && items[runStart - 1]['Vendor Code'] === vendor) runStart--;
+      if(runStart > start){
+        end = runStart;                 // defer the whole run to the next page
+      } else {
+        while(end < items.length && items[end]['Vendor Code'] === vendor) end++;  // oversized run — let this page grow
+      }
+    }
+    pages.push({ start, end });
+    start = end;
+  }
+  return pages.length ? pages : [{ start: 0, end: 0 }];
+}
+
 function renderGrid(){
   const oldTbody = document.querySelector('#gridTable tbody');
   const oldRowTops = flipGridRows && oldTbody ? captureRowTops(oldTbody, 'tr[data-code]', 'code') : null;
@@ -1867,10 +1897,11 @@ function renderGrid(){
   const sig = gridQuerySignature();
   if(sig !== lastGridQuerySig) gridPage = 0;
   lastGridQuerySig = sig;
-  const totalPages = Math.max(1, Math.ceil(items.length / GRID_PAGE_SIZE));
+  const pages = computeGridPages(items, GRID_PAGE_SIZE);
+  const totalPages = pages.length;
   gridPage = Math.max(0, Math.min(gridPage, totalPages - 1));
-  const pageStart = gridPage * GRID_PAGE_SIZE;
-  const pageItems = items.slice(pageStart, pageStart + GRID_PAGE_SIZE);
+  const { start: pageStart, end: pageEnd } = pages[gridPage];
+  const pageItems = items.slice(pageStart, pageEnd);
 
   const cols = visibleColumns();
   const table = document.getElementById('gridTable');
