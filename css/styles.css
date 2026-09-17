@@ -38,6 +38,7 @@
   --stock:#0284c7; --stock-bg:#f0f9ff; --stock-light:#38bdf8;
   --sr:#7c3aed;    --sr-bg:#f5f2fe;
   --soh:#0d9488;   --soh-bg:#f0fdfa;
+  --royal:#4169e1; --royal-bg:#eef2fe;
   --trend-up:#0f9d58; --trend-down:#e0483d;
 
   /* ---- semantic roles ---- */
@@ -773,6 +774,12 @@ table.grid td.neg{color:var(--neg);}
    below what was typed, shows as this red "0" instead of its real number,
    distinct from a genuinely-empty month's plain grey dash (.zero above). */
 table.grid td.below-min{color:var(--neg);background:var(--neg-bg);font-weight:700;}
+
+/* Pricing group accents — L-Cost and Now get their own light tinted
+   background + text color so they stand out from the plain Was column
+   between them. */
+table.grid tbody tr.row-item td.cell-lcost{color:var(--neg);background:var(--neg-bg);}
+table.grid tbody tr.row-item td.cell-now{color:var(--royal);background:var(--royal-bg);}
 
 /* AVG column — its own cool accent so the demand figure reads apart from the
    plain counts (SOH / PO Qty). zero/neg still win where they apply.

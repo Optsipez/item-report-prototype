@@ -1850,6 +1850,8 @@ function buildGridBody(items, cols){
           }
         } else {
           td.textContent = fmtCell(item[col.field], col.fmt);
+          if(col.field === 'L-Cost (Aed)') td.classList.add('cell-lcost');
+          else if(col.field === 'Now (Aed)') td.classList.add('cell-now');
         }
       }
       tr.appendChild(td);
