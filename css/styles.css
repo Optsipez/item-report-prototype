@@ -869,6 +869,10 @@ table.grid thead tr.group-row th.core.sroty-head.sorted .sroty-ind{color:var(--o
 /* 13-mo Trend cell — no line/SVG here any more, see .mini-drow above */
 table.grid td.spark-cell{padding-top:3px;padding-bottom:3px;vertical-align:middle;}
 .spark-empty{color:var(--ink-faint);}
+/* Quick color-key line under the "13-mo Trend" header title — tinted blue
+   itself, so it doubles as a little swatch for what it's saying. */
+.spark-head-cap{display:block;font-size:9px;font-weight:500;letter-spacing:0;
+  text-transform:none;color:var(--stock);margin-top:2px;}
 
 /* months-of-cover: value + health bar */
 table.grid td.cover-cell{padding-top:6px;padding-bottom:6px;}

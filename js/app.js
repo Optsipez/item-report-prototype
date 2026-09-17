@@ -1637,7 +1637,17 @@ function buildGridHeader(){
       const gth = document.createElement('th');
       gth.className = 'core' + (entry.fz ? ' ' + entry.fz : '');
       gth.rowSpan = 2;
-      if(entry.stack){
+      if(entry.field === '__spark'){
+        // Quick visible legend right under the title — the tooltip explains
+        // the full gold/blue split, but this saves a hover just to learn
+        // which color is which.
+        gth.appendChild(document.createTextNode(entry.label));
+        gth.appendChild(document.createElement('br'));
+        const cap = document.createElement('span');
+        cap.className = 'spark-head-cap';
+        cap.textContent = 'Sell-through is blue';
+        gth.appendChild(cap);
+      } else if(entry.stack){
         // force one word per line (e.g. ITEM / CODE) so the column can be narrow
         entry.label.split(' ').forEach((word, i) => {
           if(i) gth.appendChild(document.createElement('br'));
