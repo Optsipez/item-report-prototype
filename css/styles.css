@@ -210,14 +210,17 @@ button{font-family:inherit;}
 /* ===== Left rail =====
    Bounded to the viewport height (not stretched by a tall grid, per
    align-self:start) and laid out as a flex column so an active panel's
-   content can flex-fill exactly that height — no position:sticky here, so
-   the rail-toggle's existing positioning is untouched. */
+   content can flex-fill exactly that height. position:sticky;top:56px keeps
+   it in view while a tall grid (rows no longer clipped internally — see
+   .grid-scroll) scrolls the page down past it; it still scrolls away
+   horizontally as before (no `left` set), that part is unchanged. */
 .rail{
   background:var(--panel);
   border-right:1px solid var(--line);
   padding:var(--sp-4) var(--sp-5) var(--sp-5);
   height:calc(100vh - 56px);
   align-self:start;
+  position:sticky;top:56px;
   display:flex;flex-direction:column;
   overflow-y:auto;
 }
@@ -655,8 +658,15 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .dept-stock-filter.dsf-active .dsf-label{color:var(--primary-hover);}
 
 .grid-scroll{
+  /* No overflow/max-height here (used to clip+scroll rows internally) — the
+     grid's own rows now scroll with the page, same as its columns already
+     did. Needed so native position:sticky (frozen header + frozen columns)
+     has an unobstructed path up to the real page scroll: any overflow:auto
+     ancestor in between becomes ITS sticky elements' reference frame instead
+     of the viewport, and — since this box never actually needed to clip
+     content itself — that reference frame would never move, so sticky
+     would silently do nothing. */
   border:1px solid var(--line);border-radius:var(--r-md);background:var(--panel);
-  overflow:auto;max-height:calc(100vh - 220px);
   width:fit-content;max-width:100%;
   box-shadow:var(--sh-md);
 }
@@ -669,7 +679,10 @@ table.grid thead th{
   font-weight:600;color:var(--ink-soft);text-align:right;
 }
 table.grid thead tr.group-row th{
-  top:0;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.06em;
+  /* 56px, not 0: the dark .topbar is ALSO position:sticky;top:0 and sits
+     above everything, now that this row sticks to the real page (see
+     .grid-scroll) instead of its own clipped box. */
+  top:56px;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.06em;
   color:#cbd5e1;background:var(--s-800);border-color:rgba(255,255,255,.08);
   text-align:left;cursor:pointer;user-select:none;transition:background var(--t-fast),color var(--t-fast);
 }
@@ -846,19 +859,18 @@ table.grid tfoot td{
 
 /* Frozen left columns — Item Code, Description, Vendor Code, Range Name stay
    put while the rest of the row scrolls under them, so they're always
-   readable next to whatever monthly column you've scrolled over to.
-   position:sticky can't do this on its own: .grid-scroll only really scrolls
-   vertically (a wide grid pushes the whole PAGE into horizontal scroll
-   instead, by design — see the .layout comment above), so sticky's "left"
-   would be relative to a horizontal scrollport that never moves. Instead
-   these stay put in normal table flow (fixed widths so they're contiguous)
-   and syncFrozenColumns() (js/app.js) nudges them right by hand to match
-   however far the page itself has scrolled. */
-.fz-itemcode,.fz-desc,.fz-vendor,.fz-range{position:relative;overflow:hidden;text-overflow:ellipsis;}
-.fz-itemcode{width:78px;min-width:78px;}
-.fz-desc{width:200px;min-width:200px;}
-.fz-vendor{width:80px;min-width:80px;}
-.fz-range{width:100px;min-width:100px;}
+   readable next to whatever monthly column you've scrolled over to. Plain
+   native position:sticky works for this now that .grid-scroll no longer
+   clips/scrolls anything itself (see .grid-scroll) — sticky reaches all the
+   way up to the real page scroll, same as .topbar-nav does. left offsets
+   stack cumulatively (each = sum of the previous columns' widths); min-width
+   matching width keeps table auto-layout from shrinking a column below it
+   when its content is short, which would leave a gap between columns. */
+.fz-itemcode,.fz-desc,.fz-vendor,.fz-range{position:sticky;overflow:hidden;text-overflow:ellipsis;}
+.fz-itemcode{left:0;width:78px;min-width:78px;}
+.fz-desc{left:78px;width:200px;min-width:200px;}
+.fz-vendor{left:278px;width:80px;min-width:80px;}
+.fz-range{left:358px;width:100px;min-width:100px;}
 table.grid:not(.resizable) .fz-itemcode{max-width:78px;}
 table.grid:not(.resizable) .fz-desc{max-width:200px;}
 table.grid:not(.resizable) .fz-vendor{max-width:80px;}

@@ -574,9 +574,13 @@ function flashResumeRow(code){
   rows.forEach(r => r.classList.add('row-resume'));
   requestAnimationFrame(() => {
     const head = gs.querySelector('thead');
-    const headH = head ? head.getBoundingClientRect().height : 0;
-    const delta = rows[0].getBoundingClientRect().top - gs.getBoundingClientRect().top - headH - 16;
-    gs.scrollTop = Math.max(0, gs.scrollTop + delta);
+    // The header's own rendered bottom edge is the row's "ideal top", whether
+    // the header is currently stuck (page scrolled past it) or still in its
+    // normal flow position — no need to know which, or guess the topbar's
+    // height, just measure where it actually is right now.
+    const idealTop = (head ? head.getBoundingClientRect().bottom : 0) + 16;
+    const delta = rows[0].getBoundingClientRect().top - idealTop;
+    window.scrollTo({ top: Math.max(0, window.scrollY + delta), left: window.scrollX });
   });
 }
 
@@ -1425,6 +1429,16 @@ document.getElementById('clearSortBtn').addEventListener('click', () => {
   gridGroup = null;
   renderGrid();
 });
+/* Scroll the page (vertically only) so the grid's top edge is back in view —
+   used whenever changing pages should return you to row 1 of the new page.
+   .grid-scroll has no scroll position of its own to reset (rows scroll with
+   the page now, see .grid-scroll in styles.css). */
+function scrollGridIntoView(){
+  const gs = document.querySelector('.grid-scroll');
+  if(!gs) return;
+  const top = gs.getBoundingClientRect().top;
+  if(top < 56) window.scrollTo({ top: Math.max(0, window.scrollY + top - 76), left: window.scrollX });
+}
 /* "Go to page" — the only way to change pages now (no more Prev/Next
    arrows). Enter or blur jumps; the typed number is clamped to whatever the
    current filtered/sorted set's page range actually is. */
@@ -1434,7 +1448,7 @@ function jumpToPage(){
   if(!isFinite(n)){ el.value = ''; return; }
   gridPage = Math.max(0, Math.min(n - 1, gridTotalPages - 1));
   renderGrid();
-  document.querySelector('.grid-scroll').scrollTop = 0;
+  scrollGridIntoView();
   el.value = '';
   el.blur();
 }
@@ -1451,7 +1465,7 @@ function stepGridPage(dir){
   if(next < 0 || next > gridTotalPages - 1) return;
   gridPage = next;
   renderGrid();
-  document.querySelector('.grid-scroll').scrollTop = 0;
+  scrollGridIntoView();
 }
 document.getElementById('gridPrevBtn').addEventListener('click', () => stepGridPage(-1));
 document.getElementById('gridNextBtn').addEventListener('click', () => stepGridPage(1));
@@ -1969,14 +1983,13 @@ function renderGrid(){
   }
   syncStickyHeader();
   syncTopbarWidth();
-  syncFrozenColumns();
   // On the very first render web fonts may still be loading; the rotated
   // collapsed-group labels change height once they swap in, which throws the
   // measurement below off until the next re-render. Re-measure after paint and
   // once fonts settle so the two header rows always sit flush.
-  requestAnimationFrame(() => { syncStickyHeader(); syncTopbarWidth(); syncFrozenColumns(); });
+  requestAnimationFrame(() => { syncStickyHeader(); syncTopbarWidth(); });
   if(document.fonts && document.fonts.ready){
-    document.fonts.ready.then(() => requestAnimationFrame(() => { syncStickyHeader(); syncTopbarWidth(); syncFrozenColumns(); }));
+    document.fonts.ready.then(() => requestAnimationFrame(() => { syncStickyHeader(); syncTopbarWidth(); }));
   }
 }
 
@@ -1994,25 +2007,11 @@ function syncTopbarWidth(){
 }
 window.addEventListener('resize', syncTopbarWidth);
 
-/* Frozen columns (Item Code/Description/Vendor Code/Range Name) sit inside
-   .grid-scroll, but a wide grid scrolls the whole PAGE horizontally, not
-   .grid-scroll itself — so position:sticky has nothing of its own to stick
-   against. Shift them right by hand to match the page's scroll instead. */
-function syncFrozenColumns(){
-  const x = window.scrollX || document.documentElement.scrollLeft || 0;
-  const t = x > 0 ? 'translateX(' + x + 'px)' : '';
-  document.querySelectorAll('.fz-itemcode,.fz-desc,.fz-vendor,.fz-range').forEach(el => {
-    el.style.transform = t;
-  });
-  const gs = document.querySelector('.grid-scroll');
-  if(gs) gs.classList.toggle('scrolled-x', x > 1);
-}
-window.addEventListener('scroll', syncFrozenColumns, { passive: true });
-window.addEventListener('resize', syncFrozenColumns);
 
 // The second header row's sticky offset must equal the first row's actual
 // rendered height (it varies with how tall the rotated collapsed labels are) —
-// measure it after layout instead of guessing a fixed number.
+// measure it after layout instead of guessing a fixed number. +56 for the
+// dark .topbar, which both header rows now stick underneath (see .grid-scroll).
 function syncStickyHeader(){
   const thead = document.querySelector('#gridTable thead');
   if(!thead) return;
@@ -2020,7 +2019,7 @@ function syncStickyHeader(){
   const fieldRow = thead.querySelector('tr.field-row');
   if(!groupRow || !fieldRow) return;
   const h = groupRow.getBoundingClientRect().height;
-  fieldRow.querySelectorAll('th').forEach(th => { th.style.top = h + 'px'; });
+  fieldRow.querySelectorAll('th').forEach(th => { th.style.top = (56 + h) + 'px'; });
 }
 window.addEventListener('resize', syncStickyHeader);
 
@@ -2289,15 +2288,16 @@ if(selectedItem) renderReport(selectedItem);
 renderFilterBlocks();
 renderFilterChips();
 
-/* Grid scroll → shadow the sticky header only when scrolled vertically.
-   (Horizontal scroll shadow is driven separately by syncFrozenColumns(),
-   since horizontal scrolling happens on the page, not .grid-scroll.) */
+/* Shadow the sticky header/frozen columns once scrolled — both axes scroll
+   on the page itself now (see .grid-scroll), not inside .grid-scroll. */
 (function(){
   const gs = document.querySelector('.grid-scroll');
   if(!gs) return;
-  gs.addEventListener('scroll', () => {
-    gs.classList.toggle('scrolled-y', gs.scrollTop > 1);
-  }, { passive: true });
+  const onScroll = () => {
+    gs.classList.toggle('scrolled-y', window.scrollY > 1);
+    gs.classList.toggle('scrolled-x', window.scrollX > 1);
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
 })();
 
 /* Restore whatever the URL points at (All Products by default) */
