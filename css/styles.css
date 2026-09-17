@@ -735,6 +735,10 @@ table.grid tbody tr.row-item td.item-code::after{
 table.grid tbody tr.row-item td.item-code:hover::after{opacity:1;transform:translateY(-50%) translateX(0);}
 table.grid td.zero{color:var(--ink-faint);}
 table.grid td.neg{color:var(--neg);}
+/* Furniture/Accessory minimum-stock flag — a month that had SOME stock, just
+   below what was typed, shows as this red "0" instead of its real number,
+   distinct from a genuinely-empty month's plain grey dash (.zero above). */
+table.grid td.below-min{color:var(--neg);background:var(--neg-bg);font-weight:700;}
 
 /* AVG column — its own cool accent so the demand figure reads apart from the
    plain counts (SOH / PO Qty). zero/neg still win where they apply.

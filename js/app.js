@@ -1749,9 +1749,21 @@ function buildGridBody(items, cols){
         if(isMonthly){
           const raw = cellValueForItem(item, col.field);
           const num = raw === null || raw === undefined ? 0 : raw;
-          td.textContent = num === 0 ? '—' : num;
-          if(num === 0) td.classList.add('zero');
-          if(num < 0) td.classList.add('neg');
+          // Furniture/Accessory boxes: a month that DID have stock, just less
+          // than what was typed, displays as a red "0" — flagged as
+          // below-minimum rather than genuinely empty (which stays a plain
+          // dash, unrelated "zero" styling, untouched).
+          const min = col.field.startsWith('__stock_') ? deptStockMinForItem(item) : undefined;
+          const belowMin = min !== undefined && num > 0 && num < min;
+          if(belowMin){
+            td.textContent = '0';
+            td.classList.add('below-min');
+            td.title = 'Actual stock received: ' + num + ' — below the minimum of ' + min;
+          } else {
+            td.textContent = num === 0 ? '—' : num;
+            if(num === 0) td.classList.add('zero');
+            if(num < 0) td.classList.add('neg');
+          }
           if(col.group === 'soldby'){
             const w = MONTH_WINDOW[+col.field.slice(7)];
             makeWeeklyCell(td, item, w ? { year: w.year, month: w.m } : undefined);
@@ -1767,9 +1779,12 @@ function buildGridBody(items, cols){
   return tbody;
 }
 
-/* Per-department minimum-SOH filters (toolbar, next to Collapse/Expand all).
+/* Per-department minimum-stock filters (toolbar, next to Collapse/Expand all).
    Each box only ever looks at items in its own fixed set of department
-   codes — a row in neither list is never touched by either box. */
+   codes — a row in neither list is never touched by either box. Checked
+   against "Stock by month" (same rolling 13-month window as the 13-mo Trend
+   column and Total Received Qty), not the total SOH: if ANY of those 13
+   monthly values is below what's typed, the item is hidden. */
 const DEPT_STOCK_MIN_GROUPS = [
   { inputId: 'minStockFurniture', codes: ['10', '11', '12', '13', '14', '15', '17'] },
   { inputId: 'minStockAccessory', codes: ['01', '02', '03', '04', '05', '06', '07', '08', '09', '18', '19', '20'] },
@@ -1790,6 +1805,9 @@ DEPT_STOCK_MIN_GROUPS.forEach(group => {
   });
 });
 
+/* The Furniture/Accessory boxes no longer remove rows at all — see
+   applyDeptStockMin below, which instead zeroes out and reddens the specific
+   below-threshold month cells in the grid's own Stock by Month columns. */
 function getFilteredItems(){
   return ITEMS.filter(item => {
     for(const key of Object.keys(activeFilters)){
@@ -1797,13 +1815,15 @@ function getFilteredItems(){
       if(selected.size === 0) continue;
       if(!selected.has(filterKey(key, item[FILTER_FIELD_MAP[key]]))) return false;
     }
-    for(const group of DEPT_STOCK_MIN_GROUPS){
-      const min = deptStockMin[group.inputId];
-      if(min === undefined) continue;
-      if(group.codes.includes(item['Department Code']) && (Number(item['SOH']) || 0) < min) return false;
-    }
     return true;
   });
+}
+/* Is this item's Department Code covered by one of the Furniture/Accessory
+   boxes, and does that box currently have a number typed in? Returns the
+   threshold to check against, or undefined if neither applies. */
+function deptStockMinForItem(item){
+  const group = DEPT_STOCK_MIN_GROUPS.find(g => g.codes.includes(item['Department Code']));
+  return group ? deptStockMin[group.inputId] : undefined;
 }
 
 function renderGrid(){
