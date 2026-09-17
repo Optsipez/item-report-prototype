@@ -417,8 +417,9 @@ function storeStockValue(item){
    store/warehouse data), so they get their own map — SR_QTY_OMAN_BY_ITEM in
    data.js, real per-item figures for the full catalog, ingested from
    "2XL Data 16-Sep-26.xlsx" (Stock Data). */
-/* Header badge toggles whether the Oman fields (M-Tot Pending Order Qty,
-   M-MOMAN, M-WHOMN) are folded into SR Qty, or SR Qty is just store stock. */
+/* The Oman toggle bar (syncOmanToggle(), above the grid header) controls
+   whether the Oman fields (M-Tot Pending Order Qty, M-MOMAN, M-WHOMN) are
+   folded into SR Qty, or SR Qty is just store stock. */
 let srQtyInclOman = true;
 function srQtyValue(item){
   const base = storeStockValue(item);
@@ -1680,29 +1681,16 @@ function buildGridHeader(){
         gth.title = 'Warehouse stock = SAJWH (Sajja) + DCSHJ (DC Sharjah), the two UAE warehouses.\nClick the header to sort.';
       }
       if(entry.field === 'SR Qty'){
-        // header click sorts (via the sortable path above); the +OM / −OM
-        // badge toggles whether Oman's fields are folded into the total.
+        // header click still sorts; the Oman include/exclude toggle now
+        // lives in its own bar right above the header (syncOmanToggle()),
+        // not crammed into this column's title.
         gth.classList.add('sroty-head');
         gth.classList.toggle('incl-om', srQtyInclOman);
-        const badge = document.createElement('span');
-        badge.className = 'sroty-ind';
-        badge.textContent = srQtyInclOman ? '+OM' : '-OM';
-        badge.title = srQtyInclOman
-          ? 'Oman (M-Tot Pending Order Qty + M-MOMAN + M-WHOMN) is in the total — click to drop it (store stock only)'
-          : 'Oman is excluded — click to add it back';
-        badge.addEventListener('click', e => {
-          e.stopPropagation();
-          srQtyInclOman = !srQtyInclOman;
-          refreshSohDependents();
-          renderGrid();
-          if(selectedItem) renderReport(selectedItem);
-        });
-        gth.appendChild(badge);
         gth.title = (srQtyInclOman
           ? 'SR Qty = store stock + Oman (M-Tot Pending Order Qty + M-MOMAN + M-WHOMN).'
           : 'SR Qty = store stock only (Oman excluded).')
           + '\nSOH = WH SOH + SR Qty, so it moves with this toggle too.'
-          + '\nClick the badge to toggle Oman; click the header to sort.';
+          + '\nClick the header to sort.';
       }
       addColResizer(gth);
       groupRow.appendChild(gth);
@@ -2012,6 +2000,7 @@ function renderGrid(){
     table.classList.add('resizable');
     applyColWidths(table);
   }
+  syncOmanToggle();
   syncStickyHeader();
   syncTopbarWidth();
   // On the very first render web fonts may still be loading; the rotated
@@ -2038,6 +2027,27 @@ function syncTopbarWidth(){
 }
 window.addEventListener('resize', syncTopbarWidth);
 
+/* Prominent Oman include/exclude toggle, sitting in its own bar right above
+   the grid's column headers (moved out of the cramped SR Qty header title,
+   where it was a tiny "+OM"/"−OM" badge easy to miss). Refreshed here rather
+   than rebuilt inside buildGridHeader() since it's a static element outside
+   the table, not part of what gets torn down and redrawn each render. */
+function syncOmanToggle(){
+  const btn = document.getElementById('omanToggleBtn');
+  if(!btn) return;
+  btn.classList.toggle('incl-om', srQtyInclOman);
+  btn.textContent = srQtyInclOman ? 'Oman: Included' : 'Oman: Excluded';
+  btn.title = (srQtyInclOman
+    ? 'Oman (M-Tot Pending Order Qty + M-MOMAN + M-WHOMN) is folded into SR Qty — click to drop it (store stock only).'
+    : 'Oman is excluded from SR Qty — click to add it back.')
+    + '\nSOH = WH SOH + SR Qty, so it moves with this toggle too.';
+}
+document.getElementById('omanToggleBtn').addEventListener('click', () => {
+  srQtyInclOman = !srQtyInclOman;
+  refreshSohDependents();
+  renderGrid();
+  if(selectedItem) renderReport(selectedItem);
+});
 
 // The second header row's sticky offset must equal the first row's actual
 // rendered height (it varies with how tall the rotated collapsed labels are) —
