@@ -102,12 +102,16 @@ function trendMiniBar(item){
   const stockPct = (100 - salePct).toFixed(1);
   const title = 'Stock ' + stockTotal.toLocaleString('en-US') + '  ·  Sold ' + soldTotal.toLocaleString('en-US') +
     '  ·  ' + sellThrough + '% sell-through (13-month total)' + clickHint;
+  // A number you can actually read at a glance, plus the stacked bar as a
+  // secondary visual cue — collapsed to just a thin two-colour block (no
+  // label) it was unreadable; the split alone doesn't say what it's a split
+  // OF without a number attached.
   return '<span class="mini-vbar" title="' + title + '">' +
-    '<span class="mini-vbar-fill">' +
-      '<span class="mini-vbar-seg mini-vbar-seg-stock" style="height:' + stockPct + '%"></span>' +
-      '<span class="mini-vbar-seg mini-vbar-seg-sale" style="height:' + salePct + '%"></span>' +
+    '<span class="mini-vbar-pct">' + sellThrough + '%</span>' +
+    '<span class="mini-vbar-track">' +
+      '<span class="mini-vbar-seg mini-vbar-seg-stock" style="width:' + stockPct + '%"></span>' +
+      '<span class="mini-vbar-seg mini-vbar-seg-sale" style="width:' + salePct + '%"></span>' +
     '</span>' +
-    '<span class="mini-vbar-refline"></span>' +
     '</span>';
 }
 
