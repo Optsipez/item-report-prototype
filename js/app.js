@@ -1687,7 +1687,17 @@ function buildGridHeader(){
       groupRow.appendChild(gth);
       entry.cols.forEach((c, i) => {
         const fth = document.createElement('th');
-        fth.textContent = c.label;
+        // Month columns ("Sep'26") stack onto two lines — the month, then the
+        // year — so each column only needs to be as wide as "Sep" rather than
+        // the whole "Sep'26", letting the Stock/Sold by Month strips shrink.
+        const monthSplit = c.label.indexOf("'");
+        if(monthSplit >= 0){
+          fth.appendChild(document.createTextNode(c.label.slice(0, monthSplit)));
+          fth.appendChild(document.createElement('br'));
+          fth.appendChild(document.createTextNode(c.label.slice(monthSplit)));
+        } else {
+          fth.textContent = c.label;
+        }
         fth.classList.add('grp-' + entry.key);
         if(i === 0) fth.classList.add('group-start');
         fth.dataset.col = c.field;
