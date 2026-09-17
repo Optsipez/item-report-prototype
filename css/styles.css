@@ -568,26 +568,46 @@ table.grid tbody tr.row-item td.wk-cell:hover{
    fill rises past it, Sold has overtaken Stock that period.
    ============================================================ */
 .tr-chart{display:flex;flex-direction:column;}
-.tr-legend{display:flex;align-items:center;gap:var(--sp-4);margin-bottom:var(--sp-3);font-size:var(--fs-2xs);color:var(--ink-soft);}
+.tr-legend{display:flex;align-items:center;gap:var(--sp-4);margin-bottom:var(--sp-4);font-size:var(--fs-2xs);color:var(--ink-soft);}
 .tr-legend-item{display:flex;align-items:center;gap:6px;font-weight:500;}
 .tr-legend-dot{width:9px;height:9px;border-radius:50%;flex:none;}
 .tr-legend-dot-stock{background:var(--primary);}
 .tr-legend-dot-sale{background:var(--stock);}
-.tr-cols{display:flex;align-items:flex-start;gap:var(--sp-3);}
-.tr-col-item{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;}
-.tr-vbar{width:30px;height:96px;border-radius:var(--r-sm);border:1px solid var(--line-strong);
-  overflow:hidden;position:relative;}
+.tr-cols{display:flex;align-items:flex-start;gap:var(--sp-4);}
+.tr-col-item{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:var(--sp-3) var(--sp-2) var(--sp-2);border-radius:var(--r-md);
+  transition:background var(--t-fast),transform var(--t-fast);}
+.tr-col-item:hover{background:var(--s-100);}
+.tr-col-item:hover .tr-vbar{transform:translateY(-2px);box-shadow:var(--sh-sm);}
+/* Gradients (not flat fills) matching the weekly-sold popup's bars, so the
+   two month-level charts in this app read as one family. */
+.tr-vbar{width:34px;height:112px;border-radius:var(--r-md);border:1px solid var(--line-strong);
+  overflow:hidden;position:relative;transition:transform var(--t-fast),box-shadow var(--t-fast);}
 .tr-vbar-fill{position:absolute;inset:0;display:flex;flex-direction:column;}
 .tr-vbar-seg{display:block;width:100%;transition:height .3s ease;}
-.tr-vbar-seg-stock{background:var(--primary);}
-.tr-vbar-seg-sale{background:var(--stock);}
+.tr-vbar-seg-stock{background:linear-gradient(180deg,var(--i-400),var(--i-600));}
+.tr-vbar-seg-sale{background:linear-gradient(0deg,var(--stock-light),var(--stock));}
 .tr-vbar-empty{background:var(--s-100);}
-.tr-vbar-refline{position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;background:var(--panel);pointer-events:none;}
-.tr-col-label{font-size:var(--fs-2xs);color:var(--ink-soft);white-space:nowrap;}
-.tr-col-vals{font-family:'IBM Plex Mono',monospace;font-size:var(--fs-2xs);font-weight:600;color:var(--ink);text-align:center;}
+/* The 50%-mark reference line needs to read against EITHER gold or blue
+   behind it — a plain line in one flat color washes out against whichever
+   fill is close to it in lightness, so this is white with a soft dark edge
+   on both sides instead. */
+.tr-vbar-refline{
+  position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;
+  background:#fff;box-shadow:0 -1px 0 rgba(15,23,42,.18),0 1px 0 rgba(15,23,42,.18);
+  pointer-events:none;
+}
+.tr-col-label{font-size:var(--fs-2xs);color:var(--ink-soft);font-weight:600;white-space:nowrap;}
+.tr-col-vals{font-family:'IBM Plex Mono',monospace;font-size:var(--fs-2xs);font-weight:600;color:var(--ink-soft);text-align:center;}
 .tr-col-stock{color:var(--primary-hover);}
 .tr-col-sale{color:var(--stock);}
-.tr-col-pct{font-size:9.5px;color:var(--ink-faint);text-align:center;}
+/* The actual takeaway for each period — the % is bumped up to read as the
+   headline number, its "sell-thru" label stays small; the raw stock/sold
+   counts above are just backup detail. */
+.tr-col-pct{text-align:center;}
+.tr-col-pct-num{font-family:'IBM Plex Mono',monospace;font-size:var(--fs-sm);font-weight:700;
+  color:var(--ink);font-variant-numeric:tabular-nums;}
+.tr-col-pct-lbl{font-size:9.5px;color:var(--ink-faint);}
 
 /* Mini proportional bar in the grid's own 13-mo Trend cell — whole-window
    Stock vs Sold totals as a sell-through %, same number+track layout as the

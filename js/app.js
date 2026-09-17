@@ -190,7 +190,9 @@ function buildTrendChart(item){
           ' / ' +
           '<span class="tr-col-sale">' + (b.soldTotal === 0 ? '—' : b.soldTotal.toLocaleString('en-US')) + '</span>' +
         '</div>' +
-        '<div class="tr-col-pct">' + (sellThrough == null ? '—' : sellThrough + '% sell-thru') + '</div>' +
+        '<div class="tr-col-pct">' + (sellThrough == null
+          ? '—'
+          : '<span class="tr-col-pct-num">' + sellThrough + '%</span><span class="tr-col-pct-lbl"> sell-thru</span>') + '</div>' +
       '</div>';
   }).join('');
 
