@@ -635,6 +635,26 @@ function fmtPct(n){
   if(n === undefined || n === null) return '—';
   return (n*100).toFixed(1) + '%';
 }
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// Lrcv Date is ingested as "DD-MM-YYYY" (e.g. "19-06-2024") — reformat to
+// "DD-MMM-YY" (e.g. "19-Jun-24").
+function fmtLrcvDate(v){
+  if(!v) return '—';
+  const m = String(v).match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if(!m) return v;
+  const mon = MONTH_ABBR[Number(m[2]) - 1];
+  return mon ? m[1] + '-' + mon + '-' + m[3].slice(-2) : v;
+}
+// Last Sold Date is ingested as "Month YYYY" (e.g. "September 2024") — no
+// day-of-month exists in the source data, so this reformats to "MMM-YY"
+// (e.g. "Sep-24") rather than a full DD-MMM-YY.
+function fmtLastSoldDate(v){
+  if(!v) return '—';
+  const m = String(v).match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if(!m) return v;
+  const idx = MONTH_ABBR.findIndex(a => m[1].toLowerCase().startsWith(a.toLowerCase()));
+  return idx < 0 ? v : MONTH_ABBR[idx] + '-' + m[2].slice(-2);
+}
 function colorToHex(name){
   const map = {'gold':'#C6A24A','white':'#F2F1EC','silver':'#C7CBCF','antique gold':'#9C7A3B','white/gold':'#E8DFC0'};
   return map[(name||'').toLowerCase()] || '#cbd5e1';
@@ -1108,8 +1128,8 @@ function renderReport(item){
   document.getElementById('mSoh').textContent = fmtInt(item['SOH']);
   document.getElementById('mPoQty').textContent = fmtInt(item['PO-Qty']);
   document.getElementById('mLrcvQty').textContent = fmtInt(item['Lrcv Qty']);
-  document.getElementById('mLrcvDate').textContent = item['Lrcv Date'];
-  document.getElementById('mLastSold').textContent = item['Last Sold Date'] + ' (' + item['Last Sold Qty'] + ')';
+  document.getElementById('mLrcvDate').textContent = fmtLrcvDate(item['Lrcv Date']);
+  document.getElementById('mLastSold').textContent = fmtLastSoldDate(item['Last Sold Date']) + ' (' + item['Last Sold Qty'] + ')';
 
   document.getElementById('mFirstFob').textContent = fmtMoney(item['First FOB']);
   document.getElementById('mPrevFob').textContent = fmtMoney(item['Previous FOB Cost']);
@@ -1233,9 +1253,9 @@ const COLUMN_LAYOUT = [
       { field:'Previous FOB Cost', label:'Prev FOB', fmt:'money2' },
       { field:'Latest FOB Cost', label:'Latest FOB', fmt:'money2' } ] },
   { type:'group', key:'logi', title:'Receipts &amp; Sales', short:'Rcv/Sold', cols:[
-      { field:'Lrcv Date', label:'Lrcv Date' },
+      { field:'Lrcv Date', label:'Lrcv Date', fmt:'lrcvDate' },
       { field:'Lrcv Qty', label:'Lrcv Qty' },
-      { field:'Last Sold Date', label:'Last Sold Date' } ] },
+      { field:'Last Sold Date', label:'Last Sold Date', fmt:'lastSoldDate' } ] },
   // Kept out of the collapsible group so it stays visible when Receipts & Sales
   // is collapsed.
   { type:'core', field:'YTD Sold', label:'YTD Sold', sortable:true, tip: YTD_TIP },
@@ -1431,6 +1451,8 @@ function fmtCell(v, fmt){
   if(fmt === 'pct') return fmtPct(v);
   if(fmt === 'x2') return Number(v).toFixed(2) + 'x';
   if(fmt === 'lifestyle') return lifestyleLabel(v);
+  if(fmt === 'lrcvDate') return fmtLrcvDate(v);
+  if(fmt === 'lastSoldDate') return fmtLastSoldDate(v);
   return v;
 }
 
