@@ -359,8 +359,15 @@ button{font-family:inherit;}
 
 /* ===== Main =====
    margin-left reserves the space .rail (position:fixed, see .rail) used to
-   claim via a grid track. */
-.main{padding:var(--sp-6) var(--sp-7) var(--sp-8);margin-left:300px;}
+   claim via a grid track.
+   Left padding is 22px, not the usual --sp-7 (32px) — with the full 32px,
+   the grid's frozen columns sit 10px right of where their own sticky `left`
+   locks them (see .fz-itemcode), so the first ~10px of scrolling closed
+   that gap before they engaged. Mathematically smooth, but 10 screen pixels
+   closing in a single scroll tick reads as a sudden snap. 22px puts Item
+   Code's resting position exactly at its locked position, so there's
+   nothing left to close — it's effectively already "stuck" at rest. */
+.main{padding:var(--sp-6) var(--sp-7) var(--sp-8) 22px;margin-left:300px;}
 .main.flush{padding:var(--sp-6) var(--sp-7) var(--sp-7);}
 .view{display:none;}
 .view.active{display:block;}
