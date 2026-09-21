@@ -198,9 +198,12 @@ button{font-family:inherit;}
   min-width:0;width:0;padding-left:0;padding-right:0;border-right:none;overflow:hidden;
 }
 
-/* Rail collapse handle */
+/* Rail collapse handle — position:fixed (not absolute) so it stays put at
+   the rail's edge regardless of scroll, now that the rail itself is pinned
+   both ways (see .rail); absolute was relative to .layout, a plain
+   document-flow ancestor, so it used to scroll away instead of following. */
 .rail-toggle{
-  position:absolute;top:112px;left:300px;
+  position:fixed;top:168px;left:300px;z-index:6;
   width:24px;height:48px;margin-left:-1px;
   display:none;align-items:center;justify-content:center;padding:0;
   background:var(--panel);color:var(--ink-soft);
@@ -218,15 +221,22 @@ button{font-family:inherit;}
    align-self:start) and laid out as a flex column so an active panel's
    content can flex-fill exactly that height. position:sticky;top:56px keeps
    it in view while a tall grid (rows no longer clipped internally — see
-   .grid-scroll) scrolls the page down past it; it still scrolls away
-   horizontally as before (no `left` set), that part is unchanged. */
+   .grid-scroll) scrolls the page down past it.
+   left:0 pins it horizontally too — without this, a wide grid scrolling the
+   page sideways (by design, see .layout) made the rail scroll away, and
+   right as it vanished the frozen grid columns would engage and "jump" into
+   place, both happening within the same scroll motion. Now the rail simply
+   never leaves, so there's nothing to jump: see .fz-itemcode etc., whose own
+   sticky `left` was shifted to start right after the rail instead of at the
+   true viewport edge, so the two pinned blocks sit flush with no gap or
+   overlap between them. */
 .rail{
   background:var(--panel);
   border-right:1px solid var(--line);
   padding:var(--sp-4) var(--sp-5) var(--sp-5);
   height:calc(100vh - 56px);
   align-self:start;
-  position:sticky;top:56px;
+  position:sticky;top:56px;left:0;z-index:5;
   display:flex;flex-direction:column;
   overflow-y:auto;
 }
@@ -912,15 +922,23 @@ table.grid tfoot td{
    readable next to whatever monthly column you've scrolled over to. Plain
    native position:sticky works for this now that .grid-scroll no longer
    clips/scrolls anything itself (see .grid-scroll) — sticky reaches all the
-   way up to the real page scroll, same as .topbar-nav does. left offsets
-   stack cumulatively (each = sum of the previous columns' widths); min-width
-   matching width keeps table auto-layout from shrinking a column below it
-   when its content is short, which would leave a gap between columns. */
+   way up to the real page scroll, same as .topbar-nav does.
+   left offsets start at 333px, not 0 — that's the rail's own 300px plus this
+   table's natural ~33px of padding/border before Item Code, i.e. exactly
+   where Item Code already sits with no scroll at all. Since the rail is ALSO
+   pinned at left:0 (see .rail), starting these at 0 too would make the two
+   pinned blocks overlap; starting exactly at Item Code's natural position
+   means it's effectively "stuck" from the very first pixel of scroll, so
+   there's no visible engagement moment to jump at all. Each subsequent
+   offset stacks the previous columns' widths on top of that same 333.
+   min-width matching width keeps table auto-layout from shrinking a column
+   below it when its content is short, which would leave a gap between
+   columns. */
 .fz-itemcode,.fz-desc,.fz-vendor,.fz-range{position:sticky;overflow:hidden;text-overflow:ellipsis;}
-.fz-itemcode{left:0;width:78px;min-width:78px;}
-.fz-desc{left:78px;width:200px;min-width:200px;}
-.fz-vendor{left:278px;width:80px;min-width:80px;}
-.fz-range{left:358px;width:100px;min-width:100px;}
+.fz-itemcode{left:333px;width:78px;min-width:78px;}
+.fz-desc{left:411px;width:200px;min-width:200px;}
+.fz-vendor{left:611px;width:80px;min-width:80px;}
+.fz-range{left:691px;width:100px;min-width:100px;}
 table.grid:not(.resizable) .fz-itemcode{max-width:78px;}
 table.grid:not(.resizable) .fz-desc{max-width:200px;}
 table.grid:not(.resizable) .fz-vendor{max-width:80px;}
