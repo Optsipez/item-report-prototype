@@ -2029,16 +2029,29 @@ function renderGrid(){
 }
 
 /* When a wide grid pushes the page into horizontal scroll, stretch the dark
-   top bar to the full scroll width so scrolling right never exposes blank
-   page above the grid. Release the bar's own width first, then measure the
-   page, so a stale wide bar can't hold the measurement open. */
+   top bar (and the now-sticky .grid-toolbar right below it — see there) so
+   each one's right edge reaches the document's actual right edge. Without
+   this, scrolling right exposes blank page above the grid, or (for the
+   toolbar specifically, once rows scroll vertically underneath it) real
+   grid content showing through beside a title/button row nowhere near as
+   wide as the columns.
+   .topbar starts flush at the document's left edge, so its needed width is
+   just the document's scrollWidth — .grid-toolbar doesn't (it's offset by
+   the rail's width plus its own margin), so its needed width is measured
+   from wherever it actually starts, not from the document's edge, or it
+   would overshoot and keep growing the page wider on every call.
+   Each bar's own width is released before measuring, so a stale wide bar
+   can't hold the measurement open. */
 function syncTopbarWidth(){
-  const topbar = document.querySelector('.topbar');
-  if(!topbar) return;
-  topbar.style.width = '';
   const de = document.documentElement;
-  const need = de.scrollWidth;                    // forced reflow — pure content width
-  topbar.style.width = need > de.clientWidth ? need + 'px' : '';
+  const bars = [document.querySelector('.topbar'), document.querySelector('.grid-toolbar')].filter(Boolean);
+  bars.forEach(bar => { bar.style.width = ''; });
+  const scrollWidth = de.scrollWidth;                 // forced reflow — pure content width
+  bars.forEach(bar => {
+    const left = bar.getBoundingClientRect().left + window.scrollX;
+    const need = scrollWidth - left;
+    bar.style.width = need > de.clientWidth - left ? need + 'px' : '';
+  });
 }
 window.addEventListener('resize', syncTopbarWidth);
 
@@ -2066,18 +2079,24 @@ document.getElementById('omanToggleBtn').addEventListener('click', () => {
   if(selectedItem) renderReport(selectedItem);
 });
 
-// The second header row's sticky offset must equal the first row's actual
-// rendered height (it varies with how tall the rotated collapsed labels are) —
-// measure it after layout instead of guessing a fixed number. +56 for the
-// dark .topbar, which both header rows now stick underneath (see .grid-scroll).
+// Both header rows' sticky offsets must clear whatever's ALSO stuck above
+// them: the dark .topbar (56px, fixed) and, now, .grid-toolbar
+// (title/pagination/buttons — see there), whose height varies with content
+// (filter chips showing, buttons wrapping to a second row on a narrow
+// screen, ...) so it's measured rather than guessed. Same idea for the
+// field-row's own offset on top of that — it varies with how tall the
+// rotated collapsed labels in the group-row are.
 function syncStickyHeader(){
   const thead = document.querySelector('#gridTable thead');
   if(!thead) return;
   const groupRow = thead.querySelector('tr.group-row');
   const fieldRow = thead.querySelector('tr.field-row');
   if(!groupRow || !fieldRow) return;
+  const toolbar = document.querySelector('.grid-toolbar');
+  const base = 56 + (toolbar ? toolbar.getBoundingClientRect().height : 0);
+  groupRow.querySelectorAll('th').forEach(th => { th.style.top = base + 'px'; });
   const h = groupRow.getBoundingClientRect().height;
-  fieldRow.querySelectorAll('th').forEach(th => { th.style.top = (56 + h) + 'px'; });
+  fieldRow.querySelectorAll('th').forEach(th => { th.style.top = (base + h) + 'px'; });
 }
 window.addEventListener('resize', syncStickyHeader);
 

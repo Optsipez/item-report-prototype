@@ -656,8 +656,18 @@ table.grid tbody tr.row-item td.wk-cell:hover{
    table needs to sit flush against the rail for the frozen columns (see
    .fz-itemcode), but the title/toolbar buttons above it don't, and were
    reading as cramped right against the rail's edge with no breathing room
-   of their own. */
-.grid-toolbar{margin-bottom:var(--sp-2);margin-left:14px;}
+   of their own.
+   position:sticky;top:56px pins the title/pagination/toolbar buttons below
+   the dark top bar while scrolling down through rows, same as the grid's
+   own header (table.grid thead th) already does — background:var(--canvas)
+   (the page's own background) keeps rows from showing through once it's
+   stuck over them. The grid header's own sticky offsets shift down to
+   clear this bar's height — see syncStickyHeader() in app.js, which now
+   measures .grid-toolbar too instead of assuming it isn't there. */
+.grid-toolbar{
+  margin-bottom:var(--sp-2);margin-left:14px;
+  position:sticky;top:56px;z-index:8;background:var(--canvas);
+}
 .grid-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:var(--sp-1) var(--sp-3);}
 .grid-toolbar h1{font-size:var(--fs-xl);margin:0;font-weight:600;letter-spacing:-.015em;}
 .grid-toolbar .sub{font-size:var(--fs-base);color:var(--ink-soft);}
@@ -746,9 +756,13 @@ table.grid thead th{
   font-weight:600;color:var(--ink-soft);text-align:right;
 }
 table.grid thead tr.group-row th{
-  /* 56px, not 0: the dark .topbar is ALSO position:sticky;top:0 and sits
-     above everything, now that this row sticks to the real page (see
-     .grid-scroll) instead of its own clipped box. */
+  /* 56px here is just a fallback for before JS has run once — the dark
+     .topbar is ALSO position:sticky;top:0 and sits above everything, now
+     that this row sticks to the real page (see .grid-scroll) instead of
+     its own clipped box, and .grid-toolbar (title/pagination/buttons) is
+     ALSO now sticky right below the top bar (see there), so the real value
+     is topbar height + toolbar height, set inline by syncStickyHeader() in
+     app.js once it can measure the toolbar's actual rendered height. */
   top:56px;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.06em;
   color:#cbd5e1;background:var(--s-800);border-color:rgba(255,255,255,.08);
   text-align:left;cursor:pointer;user-select:none;transition:background var(--t-fast),color var(--t-fast);
