@@ -676,7 +676,7 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .grid-toolbar{
   position:fixed;top:56px;left:var(--rail-w);right:0;
   z-index:8;background:var(--canvas);
-  padding-left:13px;padding-bottom:var(--sp-2);
+  padding-left:var(--sp-6);padding-bottom:var(--sp-2);
 }
 .grid-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:var(--sp-1) var(--sp-3);}
 .grid-toolbar h1{font-size:var(--fs-xl);margin:0;font-weight:600;letter-spacing:-.015em;}
