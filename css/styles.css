@@ -148,11 +148,18 @@ button{font-family:inherit;}
   background:var(--s-900);
   color:var(--ink-invert);
   display:flex;align-items:center;
-  height:56px;padding:0 var(--sp-6);gap:var(--sp-6);
+  height:56px;padding:0 0 0 var(--sp-6);gap:var(--sp-6);
   border-bottom:1px solid rgba(255,255,255,.06);
   position:sticky;top:0;z-index:40;
   /* width is stretched to the page's scroll width by syncTopbarWidth() when a
-     wide grid overflows, so the dark strip covers the full scroll extent */
+     wide grid overflows, so the dark strip covers the full scroll extent.
+     No right padding here on purpose — .env below carries that inset on its
+     own sticky offset instead. A right padding here would eat into this
+     bar's own (JS-stretched, scrollWidth-matching) box from the inside, and
+     since that box's width IS the page's scrollWidth once stretched, the
+     padding would have nowhere to "come from" except past the true max
+     scroll position — so .env would run out of room and visibly snap left
+     right as you hit the end of a horizontal scroll. */
 }
 /* brand + view switch stay pinned to the viewport's left edge while a wide
    grid (and the rest of the bar) scrolls past underneath */
@@ -182,8 +189,11 @@ button{font-family:inherit;}
 .viewswitch button.active{color:#fff;background:rgba(255,255,255,.10);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);}
 .topbar .spacer{flex:1;}
 .topbar .env{
-  /* stays pinned to the viewport's right edge as a wide bar scrolls past */
-  position:sticky;right:0;z-index:1;
+  /* stays pinned to the viewport's right edge as a wide bar scrolls past —
+     right:var(--sp-6), not 0 plus padding on .topbar, so the inset comes
+     from this element's own sticky offset instead of the container's box
+     (see the comment on .topbar for why that matters at max scroll). */
+  position:sticky;right:var(--sp-6);z-index:1;
   font-size:var(--fs-xs);font-weight:500;letter-spacing:.01em;
   background:rgba(255,255,255,.05);padding:5px 11px;border-radius:var(--r-pill);
   color:#8b98ac;border:1px solid rgba(255,255,255,.08);
@@ -672,9 +682,14 @@ table.grid tbody tr.row-item td.wk-cell:hover{
    Since this pulls the bar out of normal flow, .grid-scroll below it needs
    its own top margin reserved to match — see syncStickyHeader() in app.js,
    which measures this bar's rendered height and sets both that margin and
-   the grid header's own sticky offsets from it. */
+   the grid header's own sticky offsets from it.
+   top:80px, not 56px (the topbar's own height) — flush against the dark
+   topbar read as no breathing room at all. The 80 = 56 + 24 (--sp-6) has
+   to stay in sync with the "80" used for `base` in syncStickyHeader() in
+   app.js, since that's what positions the grid's own header right below
+   this bar. */
 .grid-toolbar{
-  position:fixed;top:56px;left:var(--rail-w);right:0;
+  position:fixed;top:80px;left:var(--rail-w);right:0;
   z-index:8;background:var(--canvas);
   padding-left:var(--sp-6);padding-bottom:var(--sp-2);
 }
@@ -766,14 +781,15 @@ table.grid thead th{
   font-weight:600;color:var(--ink-soft);text-align:right;
 }
 table.grid thead tr.group-row th{
-  /* 56px here is just a fallback for before JS has run once — the dark
+  /* 80px here is just a fallback for before JS has run once — the dark
      .topbar is ALSO position:sticky;top:0 and sits above everything, now
      that this row sticks to the real page (see .grid-scroll) instead of
      its own clipped box, and .grid-toolbar (title/pagination/buttons) is
-     ALSO now sticky right below the top bar (see there), so the real value
-     is topbar height + toolbar height, set inline by syncStickyHeader() in
-     app.js once it can measure the toolbar's actual rendered height. */
-  top:56px;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.06em;
+     ALSO now fixed right below the top bar with its own gap (see there,
+     top:80px), so the real value is 80 + toolbar height, set inline by
+     syncStickyHeader() in app.js once it can measure the toolbar's actual
+     rendered height. */
+  top:80px;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.06em;
   color:#cbd5e1;background:var(--s-800);border-color:rgba(255,255,255,.08);
   text-align:left;cursor:pointer;user-select:none;transition:background var(--t-fast),color var(--t-fast);
 }
