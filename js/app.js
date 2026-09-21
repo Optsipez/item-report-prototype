@@ -1216,8 +1216,8 @@ const COLUMN_LAYOUT = [
   { type:'core', field:'SR Qty', label:'SR QTY', sortable:true, stack:true },
   { type:'core', field:'PO-Qty', label:'PO Qty', sortable:true },
   { type:'core', field:'AVG', label:'AVG', sortable:true },
-  { type:'core', field:'SM', label:'SM' },
-  { type:'core', field:'PM', label:'PM' },
+  { type:'core', field:'SM', label:'SM', sortable:true },
+  { type:'core', field:'PM', label:'PM', sortable:true },
   { type:'group', key:'sr', title:'SR', short:'SR', cols:[
       { field:'Store Count', label:'SR',
         tip:'SR display — how many of the ' + UAE_STORES.length + ' UAE stores currently hold stock of this item.' } ] },
