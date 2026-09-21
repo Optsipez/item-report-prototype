@@ -183,19 +183,24 @@ button{font-family:inherit;}
   color:#8b98ac;border:1px solid rgba(255,255,255,.08);
 }
 
-/* ===== Layout ===== */
+/* ===== Layout =====
+   Not display:grid any more. A wide grid still overflows and the whole PAGE
+   scrolls sideways — intentional, see .fz-itemcode — but .rail being a grid
+   item meant its position:sticky was constrained to .layout's OWN box as
+   its containing block, and .layout itself never actually grows to match
+   .main's overflow (only .main's content visually paints past it; the
+   ancestor chain's box widths stay capped at the viewport). Past that point
+   sticky had nowhere left to "stick" within and the rail fell back into
+   normal flow, scrolling away entirely — same failure mode .rail-toggle
+   already avoided by using position:fixed. .rail now does the same: it's
+   fixed at left:0, .main gets margin-left instead of a grid track to
+   reserve the same space, and both transition together on collapse. */
 .layout{
-  position:relative;display:grid;
-  /* plain 1fr (not minmax(0,…)): a wide grid overflows and the whole PAGE
-     scrolls sideways — intentional. syncTopbarWidth() stretches .topbar to
-     match so no blank page shows above the grid when scrolled right. */
-  grid-template-columns:300px 1fr;
+  position:relative;
   min-height:calc(100vh - 56px);
-  transition:grid-template-columns var(--t-med);
 }
-.layout.filters-collapsed{grid-template-columns:0 1fr;}
 .layout.filters-collapsed .rail{
-  min-width:0;width:0;padding-left:0;padding-right:0;border-right:none;overflow:hidden;
+  width:0;min-width:0;padding-left:0;padding-right:0;border-right:none;overflow:hidden;
 }
 
 /* Rail collapse handle — position:fixed (not absolute) so it stays put at
@@ -217,28 +222,26 @@ button{font-family:inherit;}
 .layout.filters-collapsed .rail-toggle{left:0;}
 
 /* ===== Left rail =====
-   Bounded to the viewport height (not stretched by a tall grid, per
-   align-self:start) and laid out as a flex column so an active panel's
-   content can flex-fill exactly that height. position:sticky;top:56px keeps
-   it in view while a tall grid (rows no longer clipped internally — see
-   .grid-scroll) scrolls the page down past it.
-   left:0 pins it horizontally too — without this, a wide grid scrolling the
-   page sideways (by design, see .layout) made the rail scroll away, and
-   right as it vanished the frozen grid columns would engage and "jump" into
-   place, both happening within the same scroll motion. Now the rail simply
-   never leaves, so there's nothing to jump: see .fz-itemcode etc., whose own
-   sticky `left` was shifted to start right after the rail instead of at the
-   true viewport edge, so the two pinned blocks sit flush with no gap or
-   overlap between them. */
+   position:fixed (see .layout for why sticky doesn't hold up here) keeps it
+   permanently in view, both axes, regardless of scroll: it never leaves, so
+   there's nothing for the frozen grid columns to jump into place against
+   once it does. .main gets margin-left:300px in its place, so it still
+   starts exactly where it used to. .fz-itemcode etc.'s own sticky `left` is
+   shifted to start right after the rail (and its collapse handle,
+   .rail-toggle) instead of at the true viewport edge, so the two pinned
+   blocks sit flush with no gap for scrolled content to show through and no
+   overlap. width transitions on collapse instead of a grid track — see
+   .layout.filters-collapsed. */
 .rail{
+  position:fixed;top:56px;left:0;z-index:5;
+  width:300px;
   background:var(--panel);
   border-right:1px solid var(--line);
   padding:var(--sp-4) var(--sp-5) var(--sp-5);
   height:calc(100vh - 56px);
-  align-self:start;
-  position:sticky;top:56px;left:0;z-index:5;
   display:flex;flex-direction:column;
   overflow-y:auto;
+  transition:width var(--t-med);
 }
 .rail h2{
   font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.08em;
@@ -371,9 +374,13 @@ button{font-family:inherit;}
 .filter-opt.disabled .lbl{color:var(--ink-faint);}
 .filter-opt.disabled input[type=checkbox]{background:var(--s-100);border-color:var(--line);cursor:not-allowed;}
 
-/* ===== Main ===== */
-.main{padding:var(--sp-6) var(--sp-7) var(--sp-8);}
+/* ===== Main =====
+   margin-left reserves the space .rail (now position:fixed, see .rail)
+   used to claim via a grid track. Transitions together with .rail's own
+   width change on collapse. */
+.main{padding:var(--sp-6) var(--sp-7) var(--sp-8);margin-left:300px;transition:margin-left var(--t-med);}
 .main.flush{padding:var(--sp-6) var(--sp-7) var(--sp-7);}
+.layout.filters-collapsed .main{margin-left:0;}
 .view{display:none;}
 .view.active{display:block;}
 
@@ -923,22 +930,27 @@ table.grid tfoot td{
    native position:sticky works for this now that .grid-scroll no longer
    clips/scrolls anything itself (see .grid-scroll) — sticky reaches all the
    way up to the real page scroll, same as .topbar-nav does.
-   left offsets start at 333px, not 0 — that's the rail's own 300px plus this
-   table's natural ~33px of padding/border before Item Code, i.e. exactly
-   where Item Code already sits with no scroll at all. Since the rail is ALSO
-   pinned at left:0 (see .rail), starting these at 0 too would make the two
-   pinned blocks overlap; starting exactly at Item Code's natural position
-   means it's effectively "stuck" from the very first pixel of scroll, so
-   there's no visible engagement moment to jump at all. Each subsequent
-   offset stacks the previous columns' widths on top of that same 333.
-   min-width matching width keeps table auto-layout from shrinking a column
-   below it when its content is short, which would leave a gap between
-   columns. */
+   left offsets start at 323px — the exact right edge of .rail-toggle (the
+   sidebar's collapse handle, itself position:fixed at left:299px, 24px
+   wide), NOT Item Code's own natural resting position (333px). Using 333
+   here was a bug: sticky only holds an element AT its threshold once
+   scrolling would otherwise push it past that point, so it locked Item Code
+   333px from the viewport edge and left the 10px between the toggle handle
+   (ending at 323) and Item Code (starting at 333) permanently uncovered —
+   at any scroll position, whatever real column happened to land in that
+   screen sliver showed through, since nothing was ever painted there.
+   323 closes that hole completely: the rail (0–300) and its toggle handle
+   (299–323) together cover everything up to exactly where Item Code takes
+   over, with no seam anywhere for scrolled content to leak through. Each
+   subsequent offset stacks the previous columns' widths on top of that same
+   323. min-width matching width keeps table auto-layout from shrinking a
+   column below it when its content is short, which would leave a gap
+   between columns. */
 .fz-itemcode,.fz-desc,.fz-vendor,.fz-range{position:sticky;overflow:hidden;text-overflow:ellipsis;}
-.fz-itemcode{left:333px;width:78px;min-width:78px;}
-.fz-desc{left:411px;width:200px;min-width:200px;}
-.fz-vendor{left:611px;width:80px;min-width:80px;}
-.fz-range{left:691px;width:100px;min-width:100px;}
+.fz-itemcode{left:323px;width:78px;min-width:78px;}
+.fz-desc{left:401px;width:200px;min-width:200px;}
+.fz-vendor{left:601px;width:80px;min-width:80px;}
+.fz-range{left:681px;width:100px;min-width:100px;}
 table.grid:not(.resizable) .fz-itemcode{max-width:78px;}
 table.grid:not(.resizable) .fz-desc{max-width:200px;}
 table.grid:not(.resizable) .fz-vendor{max-width:80px;}
