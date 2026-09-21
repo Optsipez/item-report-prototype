@@ -853,19 +853,14 @@ table.grid thead tr.group-row th.core.navstock-head:not(.sorted){background:var(
 table.grid tbody tr.row-item td.plan-cell{background:var(--i-100);color:var(--i-700);font-weight:600;}
 table.grid thead tr.group-row th.core.plan-head:not(.sorted){background:var(--i-100);color:var(--i-700);}
 
-/* Oman include/exclude toggle — used to be a tiny "+OM"/"−OM" badge crammed
-   into the SR Qty header, easy to miss. Now its own bar sitting right above
-   the grid's column headers: a full-size button, big enough to actually
-   read, with the header's title tooltip still explaining what it does. */
-.oman-bar{padding:8px 10px;border-bottom:1px solid var(--line);background:var(--panel);}
-.oman-toggle{
-  font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;letter-spacing:-.01em;
-  padding:8px 16px;border-radius:var(--r-md);cursor:pointer;
-  border:1px solid var(--line-strong);background:var(--s-100);color:var(--ink-soft);
-  transition:background var(--t-fast),color var(--t-fast),border-color var(--t-fast);
-}
+/* Oman include/exclude toggle — the same compact +OM/−OM button as before
+   (used to be a tiny badge crammed into the SR Qty header), now a normal
+   .grid-actions button so it matches Collapse/Expand all etc., nudged right
+   with margin-left so it sits roughly above the SR QTY column. A fixed
+   offset, not a live-tracking one — see the comment on syncOmanToggle() in
+   app.js for why. */
+.oman-toggle{margin-left:877px;font-family:'IBM Plex Mono',monospace;}
 .oman-toggle.incl-om{background:var(--primary-weak);color:var(--primary-hover);border-color:var(--primary-line);}
-.oman-toggle:hover{border-color:var(--primary-line);box-shadow:var(--sh-xs);}
 
 /* 13-mo Trend cell — no line/SVG here any more, see .mini-drow above */
 table.grid td.spark-cell{padding-top:3px;padding-bottom:3px;vertical-align:middle;}

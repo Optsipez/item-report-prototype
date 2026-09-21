@@ -2027,19 +2027,21 @@ function syncTopbarWidth(){
 }
 window.addEventListener('resize', syncTopbarWidth);
 
-/* Prominent Oman include/exclude toggle, sitting in its own bar right above
-   the grid's column headers (moved out of the cramped SR Qty header title,
-   where it was a tiny "+OM"/"−OM" badge easy to miss). Refreshed here rather
-   than rebuilt inside buildGridHeader() since it's a static element outside
-   the table, not part of what gets torn down and redrawn each render. */
+/* Oman include/exclude toggle — same compact +OM/−OM button as before, but
+   moved out of the cramped SR Qty header title and into the toolbar row
+   alongside Collapse/Expand all etc. (styled to match them), nudged over via
+   CSS to sit roughly above SR QTY. A fixed position, not a live-tracking
+   one — it won't follow the column if you scroll right or resize columns.
+   Refreshed here rather than rebuilt inside buildGridHeader() since it's a
+   static element outside the table, not torn down and redrawn each render. */
 function syncOmanToggle(){
   const btn = document.getElementById('omanToggleBtn');
   if(!btn) return;
   btn.classList.toggle('incl-om', srQtyInclOman);
-  btn.textContent = srQtyInclOman ? 'Oman: Included' : 'Oman: Excluded';
-  btn.title = (srQtyInclOman
-    ? 'Oman (M-Tot Pending Order Qty + M-MOMAN + M-WHOMN) is folded into SR Qty — click to drop it (store stock only).'
-    : 'Oman is excluded from SR Qty — click to add it back.')
+  btn.textContent = srQtyInclOman ? '+OM' : '−OM';
+  btn.title = 'SR Qty ' + (srQtyInclOman
+    ? 'includes Oman (M-Tot Pending Order Qty + M-MOMAN + M-WHOMN) — click to drop it (store stock only).'
+    : 'excludes Oman — click to add it back.')
     + '\nSOH = WH SOH + SR Qty, so it moves with this toggle too.';
 }
 document.getElementById('omanToggleBtn').addEventListener('click', () => {
