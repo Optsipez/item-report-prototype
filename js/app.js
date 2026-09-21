@@ -2102,7 +2102,19 @@ function syncStickyHeader(){
   // flow — .grid-scroll needs that space reserved by hand or the table
   // would render right underneath it.
   const gridScroll = document.querySelector('.grid-scroll');
-  if(gridScroll) gridScroll.style.marginTop = toolbarH + 'px';
+  const toolbarBottom = toolbar ? toolbar.getBoundingClientRect().bottom : 56;
+  if(gridScroll){
+    // toolbarH alone isn't the right margin — .grid-scroll still flows
+    // normally below .main's own top padding, so without correcting for
+    // that, it rests ~24px lower than the (fixed, screen-anchored) toolbar's
+    // bottom edge, and that gap visibly snaps shut the moment scrolling
+    // begins. Measure the real gap instead of assuming it away: zero the
+    // margin, see where .grid-scroll actually lands, then add back exactly
+    // enough to make it flush with the toolbar.
+    gridScroll.style.marginTop = '0px';
+    const naturalDocTop = gridScroll.getBoundingClientRect().top + window.scrollY;
+    gridScroll.style.marginTop = Math.max(0, toolbarBottom - naturalDocTop) + 'px';
+  }
   const base = 56 + toolbarH;
   groupRow.querySelectorAll('th').forEach(th => { th.style.top = base + 'px'; });
   const h = groupRow.getBoundingClientRect().height;
