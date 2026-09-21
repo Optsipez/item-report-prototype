@@ -1376,7 +1376,7 @@ function cycleGroup(field){
   renderGrid();
   flashHeader('#gridTable thead [data-col="' + field + '"]');
 }
-/* Standing default order — Range Name, then Vendor Code, then PUDA Code —
+/* Standing default order — Vendor Code, then Range Name, then PUDA Code —
    active from page load with nothing clicked, exactly like a real sort/group
    would be. The moment the user picks any column sort or group this steps
    aside for that; clearing it (gridSort/gridGroup both back to null, e.g.
@@ -1389,8 +1389,8 @@ function defaultSortedItems(items){
   // whole code — every real PUDA Code is a letter + 3 digits + that 3-digit
   // suffix, and the suffix is what actually distinguishes them.
   const key = it => [
-    String(it['Range Name'] || '').toLowerCase(),
     String(it['Vendor Code'] || '').toLowerCase(),
+    String(it['Range Name'] || '').toLowerCase(),
     String(it['PUDA Code'] || '').toLowerCase().slice(-3),
   ];
   return items.slice().sort((a, b) => {
