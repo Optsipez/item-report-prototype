@@ -1238,6 +1238,9 @@ const COLUMN_LAYOUT = [
   { type:'core', field:'AVG', label:'AVG', sortable:true },
   { type:'core', field:'SM', label:'SM', sortable:true },
   { type:'core', field:'PM', label:'PM', sortable:true },
+  { type:'core', field:'YTD Sold', label:'YTD Sold', sortable:true, tip: YTD_TIP },
+  { type:'core', field:'__totalRcvd', label:'Total Received Qty', sortable:true, stack:true,
+    tip:'Total Received Qty = stock received (GRN), summed over the same rolling 13-month window as the 13-mo Trend column.' },
   { type:'group', key:'sr', title:'SR', short:'SR', cols:[
       { field:'Store Count', label:'SR',
         tip:'SR display — how many of the ' + UAE_STORES.length + ' UAE stores currently hold stock of this item.' } ] },
@@ -1256,11 +1259,6 @@ const COLUMN_LAYOUT = [
       { field:'Lrcv Date', label:'Lrcv Date', fmt:'lrcvDate' },
       { field:'Lrcv Qty', label:'Lrcv Qty' },
       { field:'Last Sold Date', label:'Last Sold Date', fmt:'lastSoldDate' } ] },
-  // Kept out of the collapsible group so it stays visible when Receipts & Sales
-  // is collapsed.
-  { type:'core', field:'YTD Sold', label:'YTD Sold', sortable:true, tip: YTD_TIP },
-  { type:'core', field:'__totalRcvd', label:'Total Received Qty', sortable:true, stack:true,
-    tip:'Total Received Qty = stock received (GRN), summed over the same rolling 13-month window as the 13-mo Trend column.' },
   // Displayed current month first, then backwards (newest -> oldest); MONTH_WINDOW
   // itself stays oldest -> newest internally since the trend sparkline / YTD
   // math depend on that order. field:'__sold_'+i still points at the right
