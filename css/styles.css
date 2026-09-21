@@ -4,6 +4,12 @@
    original sheet is preserved. Only the look changes.
    ============================================================ */
 :root{
+  /* The filter rail's current width — drag .rail-resizer to change it (see
+     beginRailResize() in app.js). Everything downstream of the rail's right
+     edge (.main's margin, the frozen grid columns' sticky offsets) reads
+     from this one value instead of its own hardcoded pixel number, so a
+     resize keeps all of them in sync automatically. */
+  --rail-w:323px;
   /* ---- slate neutrals ---- */
   --s-0:#ffffff;
   --s-25:#fbfcfd;
@@ -210,15 +216,18 @@ button{font-family:inherit;}
    there's nothing for the frozen grid columns to jump into place against
    once it does. .main gets margin-left to match in its place, so it still
    starts exactly where it used to.
-   width is 323px, not the 300px the filter panel actually needs — the extra
-   23px is dead space that used to sit between the rail and Item Code
-   (matching .fz-itemcode's own left offset, see there) with nothing opaque
-   covering it. Padding on the right (--sp-5) already gives the actual
-   filter content room to breathe, so that dead space just reads as a
-   slightly wider margin, not a layout change. */
+   width is --rail-w (323px default), not the 300px the filter panel
+   actually needs — the extra 23px is dead space that used to sit between
+   the rail and Item Code (matching .fz-itemcode's own left offset, see
+   there) with nothing opaque covering it. Padding on the right (--sp-5)
+   already gives the actual filter content room to breathe, so that dead
+   space just reads as a slightly wider margin, not a layout change.
+   No collapse toggle any more (removed — it read as a jog in an otherwise
+   straight edge), so .rail-resizer is the only way to reclaim some of that
+   width now; see beginRailResize() in app.js. */
 .rail{
   position:fixed;top:56px;left:0;z-index:5;
-  width:323px;
+  width:var(--rail-w);
   background:var(--panel);
   border-right:1px solid var(--line);
   padding:var(--sp-4) var(--sp-5) var(--sp-5);
@@ -226,6 +235,12 @@ button{font-family:inherit;}
   display:flex;flex-direction:column;
   overflow-y:auto;
 }
+.rail-resizer{
+  position:fixed;top:56px;left:var(--rail-w);z-index:6;
+  width:8px;margin-left:-4px;height:calc(100vh - 56px);
+  cursor:col-resize;
+}
+.rail-resizer:hover, .rail-resizer.dragging{box-shadow:inset -2px 0 0 var(--primary);}
 .rail h2{
   font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.08em;
   color:var(--ink-faint);margin:0 0 var(--sp-3);font-weight:600;
@@ -358,8 +373,10 @@ button{font-family:inherit;}
 .filter-opt.disabled input[type=checkbox]{background:var(--s-100);border-color:var(--line);cursor:not-allowed;}
 
 /* ===== Main =====
-   margin-left reserves the space .rail (position:fixed, see .rail) used to
-   claim via a grid track.
+   margin-left reserves the space .rail (position:fixed, see .rail) claims,
+   tied to the same --rail-w variable so resizing the rail keeps them
+   matched (23px less than --rail-w, same relationship .fz-itemcode's own
+   offset uses — see there).
    Left padding is 22px, not the usual --sp-7 (32px) — with the full 32px,
    the grid's frozen columns sit 10px right of where their own sticky `left`
    locks them (see .fz-itemcode), so the first ~10px of scrolling closed
@@ -367,7 +384,7 @@ button{font-family:inherit;}
    closing in a single scroll tick reads as a sudden snap. 22px puts Item
    Code's resting position exactly at its locked position, so there's
    nothing left to close — it's effectively already "stuck" at rest. */
-.main{padding:var(--sp-6) var(--sp-7) var(--sp-8) 22px;margin-left:300px;}
+.main{padding:var(--sp-6) var(--sp-7) var(--sp-8) 22px;margin-left:calc(var(--rail-w) - 23px);}
 .main.flush{padding:var(--sp-6) var(--sp-7) var(--sp-7);}
 .view{display:none;}
 .view.active{display:block;}
@@ -924,25 +941,24 @@ table.grid tfoot td{
    native position:sticky works for this now that .grid-scroll no longer
    clips/scrolls anything itself (see .grid-scroll) — sticky reaches all the
    way up to the real page scroll, same as .topbar-nav does.
-   left offsets start at 323px, matching .rail's own width exactly (see
-   .rail) — not Item Code's own natural resting position (333px). Using 333
-   here was a bug: sticky only holds an element AT its threshold once
-   scrolling would otherwise push it past that point, so it locked Item Code
-   333px from the viewport edge and left the 10px between the rail (ending
-   at 323) and Item Code (starting at 333) permanently uncovered — at any
-   scroll position, whatever real column happened to land in that screen
-   sliver showed through, since nothing was ever painted there. 323 closes
-   that hole completely: the rail covers everything up to exactly where
-   Item Code takes over, with no seam anywhere for scrolled content to leak
-   through. Each subsequent offset stacks the previous columns' widths on
-   top of that same 323. min-width matching width keeps table auto-layout
-   from shrinking a column below it when its content is short, which would
-   leave a gap between columns. */
+   left offsets match --rail-w exactly (see :root and .rail — resizing the
+   rail updates this and these move with it), not Item Code's own natural
+   resting position (which used to be 10px further right). Locking to a
+   smaller threshold than the natural position was a bug the first time
+   round: sticky only holds an element AT its threshold once scrolling would
+   otherwise push it past that point, so a too-large threshold leaves the
+   gap between the rail and Item Code permanently uncovered — at any scroll
+   position, whatever real column happened to land in that screen sliver
+   shows through, since nothing is ever painted there. Matching --rail-w
+   exactly closes that hole completely. Each subsequent offset stacks the
+   previous columns' widths on top of that same value. min-width matching
+   width keeps table auto-layout from shrinking a column below it when its
+   content is short, which would leave a gap between columns. */
 .fz-itemcode,.fz-desc,.fz-vendor,.fz-range{position:sticky;overflow:hidden;text-overflow:ellipsis;}
-.fz-itemcode{left:323px;width:78px;min-width:78px;}
-.fz-desc{left:401px;width:200px;min-width:200px;}
-.fz-vendor{left:601px;width:80px;min-width:80px;}
-.fz-range{left:681px;width:100px;min-width:100px;}
+.fz-itemcode{left:var(--rail-w);width:78px;min-width:78px;}
+.fz-desc{left:calc(var(--rail-w) + 78px);width:200px;min-width:200px;}
+.fz-vendor{left:calc(var(--rail-w) + 278px);width:80px;min-width:80px;}
+.fz-range{left:calc(var(--rail-w) + 358px);width:100px;min-width:100px;}
 table.grid:not(.resizable) .fz-itemcode{max-width:78px;}
 table.grid:not(.resizable) .fz-desc{max-width:200px;}
 table.grid:not(.resizable) .fz-vendor{max-width:80px;}

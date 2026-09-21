@@ -503,6 +503,45 @@ function setView(view){
   if(typeof syncTopbarWidth === 'function') syncTopbarWidth();
 }
 
+/* Drag-to-resize the filter rail — the only way to reclaim screen width
+   from it now that it can't be collapsed (a collapse toggle used to do
+   that, but it broke the rail's otherwise-straight edge into a "handle"
+   sticking out at one spot, which read as a jog while scrolling).
+   --rail-w is the single source of truth every dependent measurement reads
+   from (.main's margin, the frozen grid columns' sticky offsets — see
+   :root and .rail in styles.css), so changing it here is all that's needed
+   to keep the whole layout in sync during the drag. */
+(function(){
+  const resizer = document.getElementById('railResizer');
+  if(!resizer) return;
+  const MIN_W = 220, MAX_W = 520;
+  function currentRailW(){
+    const v = getComputedStyle(document.documentElement).getPropertyValue('--rail-w').trim();
+    return parseFloat(v) || 323;
+  }
+  resizer.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = currentRailW();
+    resizer.classList.add('dragging');
+    document.body.classList.add('col-resizing');
+    function move(ev){
+      const w = Math.max(MIN_W, Math.min(MAX_W, startW + (ev.clientX - startX)));
+      document.documentElement.style.setProperty('--rail-w', w + 'px');
+    }
+    function done(){
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', done);
+      resizer.classList.remove('dragging');
+      document.body.classList.remove('col-resizing');
+      syncStickyHeader();
+      syncTopbarWidth();
+    }
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', done);
+  });
+})();
+
 /* ============================================================
    HISTORY-AWARE NAVIGATION
    ------------------------------------------------------------
