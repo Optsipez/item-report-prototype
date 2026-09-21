@@ -912,7 +912,7 @@ table.grid thead tr.group-row th.core.plan-head:not(.sorted){background:var(--i-
    with margin-left so it sits roughly above the SR QTY column. A fixed
    offset, not a live-tracking one — see the comment on syncOmanToggle() in
    app.js for why. */
-.oman-toggle{margin-left:877px;font-family:'IBM Plex Mono',monospace;}
+.oman-toggle{margin-left:863px;font-family:'IBM Plex Mono',monospace;}
 .oman-toggle.incl-om{background:var(--primary-weak);color:var(--primary-hover);border-color:var(--primary-line);}
 
 /* 13-mo Trend cell — no line/SVG here any more, see .mini-drow above */
