@@ -652,21 +652,27 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .foot-note{margin-top:var(--sp-4);font-size:var(--fs-xs);color:var(--ink-faint);border-top:1px dashed var(--line-strong);padding-top:var(--sp-3);line-height:1.6;}
 
 /* ===== All Products grid ===== */
-/* margin-left here, not on .grid-scroll (the sibling right below it) — the
-   table needs to sit flush against the rail for the frozen columns (see
-   .fz-itemcode), but the title/toolbar buttons above it don't, and were
-   reading as cramped right against the rail's edge with no breathing room
-   of their own.
-   position:sticky;top:56px pins the title/pagination/toolbar buttons below
-   the dark top bar while scrolling down through rows, same as the grid's
-   own header (table.grid thead th) already does — background:var(--canvas)
-   (the page's own background) keeps rows from showing through once it's
-   stuck over them. The grid header's own sticky offsets shift down to
-   clear this bar's height — see syncStickyHeader() in app.js, which now
-   measures .grid-toolbar too instead of assuming it isn't there. */
+/* position:fixed (not sticky) — the toolbar needs to stay put through BOTH
+   scroll axes: down through rows (like the grid's own header) AND right
+   through columns (so the title/pagination/action buttons, incl. the Oman
+   toggle, are still on screen once you've scrolled past the frozen columns).
+   A sticky element only ever holds within its own box's width, and this
+   box's natural width doesn't stretch to the page's full (overflowing)
+   scroll range — same underlying issue .rail hit before it switched to
+   fixed too. left is --rail-w plus the 13px .main padding-left/margin
+   quirk contributes (measured, not derived — see the rail-w comment in
+   :root for why this needs to stay a real px value the JS resize handler
+   can't easily fold in); right:0 lets the browser size the width instead
+   of the old JS stretch-to-scrollWidth hack (removed from syncTopbarWidth()
+   in app.js, no longer needed here now that fixed+left+right self-sizes).
+   Since this pulls the bar out of normal flow, .grid-scroll below it needs
+   its own top margin reserved to match — see syncStickyHeader() in app.js,
+   which measures this bar's rendered height and sets both that margin and
+   the grid header's own sticky offsets from it. */
 .grid-toolbar{
-  margin-bottom:var(--sp-2);margin-left:14px;
-  position:sticky;top:56px;z-index:8;background:var(--canvas);
+  position:fixed;top:56px;left:calc(var(--rail-w) + 13px);right:0;
+  z-index:8;background:var(--canvas);
+  padding-bottom:var(--sp-2);
 }
 .grid-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:var(--sp-1) var(--sp-3);}
 .grid-toolbar h1{font-size:var(--fs-xl);margin:0;font-weight:600;letter-spacing:-.015em;}
@@ -908,11 +914,11 @@ table.grid thead tr.group-row th.core.plan-head:not(.sorted){background:var(--i-
 
 /* Oman include/exclude toggle — the same compact +OM/−OM button as before
    (used to be a tiny badge crammed into the SR Qty header), now a normal
-   .grid-actions button so it matches Collapse/Expand all etc., nudged right
-   with margin-left so it sits roughly above the SR QTY column. A fixed
-   offset, not a live-tracking one — see the comment on syncOmanToggle() in
-   app.js for why. */
-.oman-toggle{margin-left:863px;font-family:'IBM Plex Mono',monospace;}
+   .grid-actions button so it matches Collapse/Expand all etc., sitting
+   right after the Furniture/Accessory stock filters in source order — no
+   manual offset needed, the flex row's own gap spaces it like every other
+   button here. */
+.oman-toggle{font-family:'IBM Plex Mono',monospace;}
 .oman-toggle.incl-om{background:var(--primary-weak);color:var(--primary-hover);border-color:var(--primary-line);}
 
 /* 13-mo Trend cell — no line/SVG here any more, see .mini-drow above */

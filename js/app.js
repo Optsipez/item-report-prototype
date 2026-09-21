@@ -2044,7 +2044,10 @@ function renderGrid(){
    can't hold the measurement open. */
 function syncTopbarWidth(){
   const de = document.documentElement;
-  const bars = [document.querySelector('.topbar'), document.querySelector('.grid-toolbar')].filter(Boolean);
+  // .grid-toolbar isn't in this list — it's position:fixed with left+right
+  // set, so the browser sizes it without help. Only .topbar (sticky, not
+  // fixed) still needs its width stretched by hand.
+  const bars = [document.querySelector('.topbar')].filter(Boolean);
   bars.forEach(bar => { bar.style.width = ''; });
   const scrollWidth = de.scrollWidth;                 // forced reflow — pure content width
   bars.forEach(bar => {
@@ -2093,7 +2096,14 @@ function syncStickyHeader(){
   const fieldRow = thead.querySelector('tr.field-row');
   if(!groupRow || !fieldRow) return;
   const toolbar = document.querySelector('.grid-toolbar');
-  const base = 56 + (toolbar ? toolbar.getBoundingClientRect().height : 0);
+  const toolbarH = toolbar ? toolbar.getBoundingClientRect().height : 0;
+  // .grid-toolbar is position:fixed (pinned through horizontal scroll too,
+  // not just vertical), so it no longer holds its own space in the page
+  // flow — .grid-scroll needs that space reserved by hand or the table
+  // would render right underneath it.
+  const gridScroll = document.querySelector('.grid-scroll');
+  if(gridScroll) gridScroll.style.marginTop = toolbarH + 'px';
+  const base = 56 + toolbarH;
   groupRow.querySelectorAll('th').forEach(th => { th.style.top = base + 'px'; });
   const h = groupRow.getBoundingClientRect().height;
   fieldRow.querySelectorAll('th').forEach(th => { th.style.top = (base + h) + 'px'; });
