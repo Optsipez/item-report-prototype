@@ -229,7 +229,13 @@ button{font-family:inherit;}
   position:fixed;top:56px;left:0;z-index:5;
   width:var(--rail-w);
   background:var(--panel);
-  border-right:1px solid var(--line);
+  /* Stronger than a normal 1px hairline (var(--line)) — with the rail
+     permanently pinned next to the table, this edge is the one boundary
+     you're looking at constantly, so it needs to read clearly as "sidebar
+     ends here, table starts here" rather than blend in. Same treatment as
+     the frozen columns' own right edge (.fz-range). */
+  border-right:2px solid var(--s-400);
+  box-shadow:2px 0 8px -4px rgba(15,23,42,.12);
   padding:var(--sp-4) var(--sp-5) var(--sp-5);
   height:calc(100vh - 56px);
   display:flex;flex-direction:column;
@@ -646,7 +652,12 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .foot-note{margin-top:var(--sp-4);font-size:var(--fs-xs);color:var(--ink-faint);border-top:1px dashed var(--line-strong);padding-top:var(--sp-3);line-height:1.6;}
 
 /* ===== All Products grid ===== */
-.grid-toolbar{margin-bottom:var(--sp-2);}
+/* margin-left here, not on .grid-scroll (the sibling right below it) — the
+   table needs to sit flush against the rail for the frozen columns (see
+   .fz-itemcode), but the title/toolbar buttons above it don't, and were
+   reading as cramped right against the rail's edge with no breathing room
+   of their own. */
+.grid-toolbar{margin-bottom:var(--sp-2);margin-left:14px;}
 .grid-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:var(--sp-1) var(--sp-3);}
 .grid-toolbar h1{font-size:var(--fs-xl);margin:0;font-weight:600;letter-spacing:-.015em;}
 .grid-toolbar .sub{font-size:var(--fs-base);color:var(--ink-soft);}
