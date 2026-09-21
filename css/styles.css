@@ -206,9 +206,15 @@ button{font-family:inherit;}
 /* Rail collapse handle — position:fixed (not absolute) so it stays put at
    the rail's edge regardless of scroll, now that the rail itself is pinned
    both ways (see .rail); absolute was relative to .layout, a plain
-   document-flow ancestor, so it used to scroll away instead of following. */
+   document-flow ancestor, so it used to scroll away instead of following.
+   left:323px, not 300 (.rail's own width) — this handle is only 48px tall,
+   nowhere near covering every row, so it can't be what seals the gap
+   between the rail and the frozen grid columns for rows outside that band.
+   .rail itself is 323px wide now (see .rail) specifically to cover that gap
+   for its FULL height; the handle just needs to sit flush with that new
+   edge, matching where it visually was before. */
 .rail-toggle{
-  position:fixed;top:168px;left:300px;z-index:6;
+  position:fixed;top:168px;left:323px;z-index:6;
   width:24px;height:48px;margin-left:-1px;
   display:none;align-items:center;justify-content:center;padding:0;
   background:var(--panel);color:var(--ink-soft);
@@ -225,16 +231,20 @@ button{font-family:inherit;}
    position:fixed (see .layout for why sticky doesn't hold up here) keeps it
    permanently in view, both axes, regardless of scroll: it never leaves, so
    there's nothing for the frozen grid columns to jump into place against
-   once it does. .main gets margin-left:300px in its place, so it still
-   starts exactly where it used to. .fz-itemcode etc.'s own sticky `left` is
-   shifted to start right after the rail (and its collapse handle,
-   .rail-toggle) instead of at the true viewport edge, so the two pinned
-   blocks sit flush with no gap for scrolled content to show through and no
-   overlap. width transitions on collapse instead of a grid track — see
-   .layout.filters-collapsed. */
+   once it does. .main gets margin-left to match in its place, so it still
+   starts exactly where it used to.
+   width is 323px, not the 300px the filter panel actually needs — the extra
+   23px is dead space that used to sit between the rail and Item Code
+   (matching .fz-itemcode's own left offset, see there) with nothing opaque
+   covering it for most of its height. The collapse handle (.rail-toggle)
+   only plugged that gap at its own 48px-tall position; every other row had
+   nothing stopping scrolled-past columns from showing through it. Padding
+   on the right (--sp-5) already gives the actual filter content room to
+   breathe, so that dead space just reads as a slightly wider margin, not a
+   layout change. */
 .rail{
   position:fixed;top:56px;left:0;z-index:5;
-  width:300px;
+  width:323px;
   background:var(--panel);
   border-right:1px solid var(--line);
   padding:var(--sp-4) var(--sp-5) var(--sp-5);
