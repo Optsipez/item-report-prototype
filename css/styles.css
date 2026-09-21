@@ -659,20 +659,24 @@ table.grid tbody tr.row-item td.wk-cell:hover{
    A sticky element only ever holds within its own box's width, and this
    box's natural width doesn't stretch to the page's full (overflowing)
    scroll range — same underlying issue .rail hit before it switched to
-   fixed too. left is --rail-w plus the 13px .main padding-left/margin
-   quirk contributes (measured, not derived — see the rail-w comment in
-   :root for why this needs to stay a real px value the JS resize handler
-   can't easily fold in); right:0 lets the browser size the width instead
-   of the old JS stretch-to-scrollWidth hack (removed from syncTopbarWidth()
-   in app.js, no longer needed here now that fixed+left+right self-sizes).
+   fixed too. left is exactly --rail-w, flush against the rail/frozen-column
+   edge with no box-level offset — the box needs to reach all the way there
+   so its own background covers that strip once the table scrolls up behind
+   it (a left offset here previously left a bare sliver between the rail and
+   the box with nothing painted over it, so the table showed through as it
+   scrolled past). The "buttons moved right" look instead comes from
+   padding-left on the box, which shifts its content without opening that
+   gap back up. right:0 lets the browser size the width instead of the old
+   JS stretch-to-scrollWidth hack (removed from syncTopbarWidth() in app.js,
+   no longer needed here now that fixed+left+right self-sizes).
    Since this pulls the bar out of normal flow, .grid-scroll below it needs
    its own top margin reserved to match — see syncStickyHeader() in app.js,
    which measures this bar's rendered height and sets both that margin and
    the grid header's own sticky offsets from it. */
 .grid-toolbar{
-  position:fixed;top:56px;left:calc(var(--rail-w) + 13px);right:0;
+  position:fixed;top:56px;left:var(--rail-w);right:0;
   z-index:8;background:var(--canvas);
-  padding-bottom:var(--sp-2);
+  padding-left:13px;padding-bottom:var(--sp-2);
 }
 .grid-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:var(--sp-1) var(--sp-3);}
 .grid-toolbar h1{font-size:var(--fs-xl);margin:0;font-weight:600;letter-spacing:-.015em;}
