@@ -1048,6 +1048,17 @@ table.grid tbody tr.row-item.row-resume td.item-code{color:var(--primary-hover);
 table.grid tbody tr.row-resume td{animation:resumeFlash 1.5s ease 1;}
 @keyframes resumeFlash{0%{background:var(--i-300);}18%{background:var(--i-200);}100%{background:var(--primary-weak);}}
 
+/* Keyboard-navigable row selection — single-click an Item Code cell (or
+   arrow up/down once a row is selected) moves this highlight, Excel-style.
+   Same look as "resume here" above but no flash (this changes on every
+   arrow press, so animating it every time would be distracting) and a
+   separate class, since the two track different things and can both be
+   active on different rows at once. */
+table.grid tbody tr.row-item.row-selected td{background:var(--primary-weak);}
+table.grid tbody tr.row-selected td.fz-itemcode,table.grid tbody tr.row-selected td.fz-desc,table.grid tbody tr.row-selected td.fz-vendor,table.grid tbody tr.row-selected td.fz-range{background:var(--primary-weak);}
+table.grid tbody tr.row-selected td.fz-itemcode{box-shadow:inset 3px 0 0 var(--primary);}
+table.grid tbody tr.row-item.row-selected td.item-code{color:var(--primary-hover);}
+
 /* Scroll-aware elevation — header + frozen column only cast a shadow once scrolled */
 table.grid thead tr.field-row th,
 table.grid thead tr.group-row th.core,

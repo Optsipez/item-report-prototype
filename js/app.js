@@ -1298,6 +1298,58 @@ let collapsedGroups = new Set(['class','attrs','fob','logi','soldby-old','stocki
    inside each group; turning one on never clears the other. */
 let gridSort = null;  // { field, dir: 'desc' | 'asc' }
 let gridGroup = null; // { field }
+/* Single-click an Item Code cell to select that row, Excel-style — arrow
+   up/down then moves the highlight between rows (crossing page boundaries
+   too) without leaving the page. Double-click still opens the item in Item
+   Lookup — see the Item Code cell's own click/dblclick handlers below. */
+let selectedRowCode = null;
+function selectGridRow(code, opts){
+  selectedRowCode = code;
+  let selectedTr = null;
+  document.querySelectorAll('#gridTable tbody tr.row-item').forEach(tr => {
+    const match = tr.dataset.code === String(code);
+    tr.classList.toggle('row-selected', match);
+    if(match) selectedTr = tr;
+  });
+  if(opts && opts.scroll && selectedTr) selectedTr.scrollIntoView({ block: 'nearest' });
+}
+function moveGridRowSelection(dir){
+  const rows = Array.from(document.querySelectorAll('#gridTable tbody tr.row-item'));
+  const idx = rows.findIndex(tr => tr.dataset.code === String(selectedRowCode));
+  if(idx < 0) return;
+  const nextIdx = idx + dir;
+  if(nextIdx >= 0 && nextIdx < rows.length){
+    selectGridRow(rows[nextIdx].dataset.code, { scroll: true });
+    return;
+  }
+  // Off the edge of the current page — step to the adjacent page and land on
+  // its first/last row, so holding the arrow key keeps moving through the
+  // full sorted list instead of stopping dead at an arbitrary page boundary.
+  if(nextIdx < 0 && gridPage > 0){
+    gridPage -= 1;
+    renderGrid();
+    const last = document.querySelector('#gridTable tbody tr.row-item:last-child');
+    if(last) selectGridRow(last.dataset.code, { scroll: true });
+  } else if(nextIdx >= rows.length && gridPage < gridTotalPages - 1){
+    gridPage += 1;
+    renderGrid();
+    const first = document.querySelector('#gridTable tbody tr.row-item:first-child');
+    if(first) selectGridRow(first.dataset.code, { scroll: true });
+  }
+}
+// Guarded the same way as the Left/Right page-step shortcut below: only
+// while the grid view is active and the user isn't typing somewhere, and
+// only once a row is actually selected (otherwise the keys still just
+// scroll the page normally).
+document.addEventListener('keydown', e => {
+  if(e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+  if(!selectedRowCode) return;
+  const tag = document.activeElement && document.activeElement.tagName;
+  if(tag === 'INPUT' || tag === 'TEXTAREA') return;
+  if(!document.getElementById('viewAll').classList.contains('active')) return;
+  e.preventDefault();
+  moveGridRowSelection(e.key === 'ArrowDown' ? 1 : -1);
+});
 /* Pagination — with the full ingested catalog (11,000+ visible rows), building
    every row into the DOM at once froze the tab for real users. Only one
    page's worth of rows is ever built; the rest of the filtered/sorted set
@@ -1871,10 +1923,13 @@ function buildGridBody(items, cols){
           if(col.field === 'SOH') td.classList.add('soh-cell');
           if(col.field === 'Current Plan Code') td.classList.add('plan-cell');
           if(col.field === 'Item Code'){
-            // Only this cell opens the item — everywhere else in the row stays
-            // plain text so values can be selected and copied.
-            td.title = 'Open ' + item['Item Code'] + ' in Item Lookup';
-            td.addEventListener('click', e => { e.stopPropagation(); resumeCode = item['Item Code']; openItem(item); });
+            // Only this cell has these handlers — everywhere else in the row
+            // stays plain text so values can be selected and copied.
+            // Single click selects the row (Excel-style, arrow keys then move
+            // it); double-click still opens the item in Item Lookup.
+            td.title = 'Click to select this row (↑/↓ to move) — double-click to open in Item Lookup';
+            td.addEventListener('click', e => { e.stopPropagation(); selectGridRow(item['Item Code']); });
+            td.addEventListener('dblclick', e => { e.stopPropagation(); resumeCode = item['Item Code']; openItem(item); });
           }
         }
       } else {
@@ -2016,6 +2071,12 @@ function renderGrid(){
   table.appendChild(buildColGroup(cols));
   table.appendChild(thead);
   table.appendChild(buildGridBody(pageItems, cols));
+  // Re-apply the keyboard-selected row's highlight — table.innerHTML = ''
+  // above wiped it, along with every other class, on this fresh render.
+  if(selectedRowCode){
+    const selTr = table.querySelector('tr[data-code="' + CSS.escape(String(selectedRowCode)) + '"]');
+    if(selTr) selTr.classList.add('row-selected');
+  }
   const rangeEnd = Math.min(items.length, pageStart + pageItems.length);
   gridTotalPages = totalPages;
   document.getElementById('gridRowCount').textContent = items.length === 0 ? '0 of ' + ITEMS.length + ' items'
