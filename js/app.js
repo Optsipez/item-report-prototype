@@ -447,6 +447,31 @@ function ytdSold(it){
   for(let m = 0; m <= REPORT_MONTH.month; m++) t += yr.sales[m] || 0;
   return t;
 }
+/* STK Age — how long the current stock has been sitting, bucketed per the
+   Navision "Aging For Stock File" reference table, measured from Lrcv Date
+   (last received) against REPORT_MONTH (this app's "today", same anchor as
+   AVG/YTD Sold/13-mo Trend). Age is whole calendar months, not days — e.g.
+   an item received in August when today is September is 1 month old,
+   regardless of which day of either month. "New" (received in the current
+   calendar month) and "No-Dt" (no Lrcv Date at all) are their own buckets,
+   not part of the 0–3/3–6/… numeric ladder. __stkAgeSno is the reference
+   table's own bucket-order number (0=New … 7=24 Above, 8=No-Dt) — stored
+   only for sorting, never displayed. */
+function stkAgeFor(it){
+  const raw = it['Lrcv Date'];
+  const m = raw ? String(raw).match(/^(\d{2})-(\d{2})-(\d{4})$/) : null;
+  if(!m) return { label: 'No-Dt', sno: 8 };
+  const lrcvYear = Number(m[3]), lrcvMonth = Number(m[2]) - 1;
+  const ageMonths = (REPORT_MONTH.year - lrcvYear) * 12 + (REPORT_MONTH.month - lrcvMonth);
+  if(ageMonths <= 0) return { label: 'New', sno: 0 };
+  if(ageMonths < 3) return { label: '0-3', sno: 1 };
+  if(ageMonths < 6) return { label: '3-6', sno: 2 };
+  if(ageMonths < 9) return { label: '6-9', sno: 3 };
+  if(ageMonths < 12) return { label: '9-12', sno: 4 };
+  if(ageMonths < 18) return { label: '12-18', sno: 5 };
+  if(ageMonths < 24) return { label: '18-24', sno: 6 };
+  return { label: '24 Above', sno: 7 };
+}
 ITEMS.forEach(it => {
   it['SOH'] = sohValue(it);
   it['AVG'] = itemAvg(it);
@@ -456,6 +481,9 @@ ITEMS.forEach(it => {
   it['Nav Stock'] = navStockValue(it);
   it['YTD Sold'] = ytdSold(it);
   it['Store Count'] = uaeStoreCount(it);
+  const age = stkAgeFor(it);
+  it['STK Age'] = age.label;
+  it['__stkAgeSno'] = age.sno;
 });
 /* SOH (and SM, which is derived from it) are cached on the item rather than
    recomputed on every read — but SOH now moves with the SR Qty Oman toggle,
@@ -1244,6 +1272,8 @@ const COLUMN_LAYOUT = [
   { type:'group', key:'sr', title:'SR', short:'SR', cols:[
       { field:'Store Count', label:'SR',
         tip:'SR display — how many of the ' + UAE_STORES.length + ' UAE stores currently hold stock of this item.' } ] },
+  { type:'core', field:'STK Age', label:'STK Age', sortable:true,
+    tip:'How long the current stock has been sitting, measured from Lrcv Date: New (received this month), 0-3, 3-6, 6-9, 9-12, 12-18, 18-24, 24 Above (months), or No-Dt if there\'s no Lrcv Date on file.' },
   { type:'core', field:'__spark', label:'13-mo Trend', tip: SPARK_TIP },
   { type:'group', key:'attrs', title:'Attributes', short:'Attrs', cols:[
       { field:'Item Color Name', label:'Color' },
@@ -1478,6 +1508,7 @@ function sortValueFor(field, item){
   if(field === 'Vendor Code' || field === 'Range Name') return String(item[field] || '').toLowerCase();
   if(field === 'PUDA Code') return String(item[field] || '').toLowerCase().slice(-3);
   if(field === 'Current Plan Code') return PLAN_CODE_RANK[String(item[field] || '').trim().toUpperCase()] ?? 0;
+  if(field === 'STK Age') return item['__stkAgeSno'] ?? 0;
   return Number(item[field]) || 0;
 }
 function sortGridItems(items){
