@@ -1580,8 +1580,8 @@ function cycleGroup(field){
 // needing any field-specific direction flip. P is a newly-added code with no
 // data yet (it may or may not ever appear) — ranked here regardless, so it
 // sorts correctly the moment it does. Anything outside this list (B/O/W/S
-// are dropped entirely on load, see HIDDEN_PLAN_CODES; M doesn't occur in
-// this data) sorts after R.
+// are dropped entirely on load, see HIDDEN_PLAN_CODES; M isn't ingested at
+// all, see FULL_VALUE_LISTS) sorts after R.
 const PLAN_CODE_RANK = { K:9, P:8, C:7, A:6, N:5, H:4, D:3, U:2, R:1 };
 // A few fields are computed rather than stored directly (whsoh/SR Qty/total
 // received), and Vendor Code / Range Name / PUDA Code sort as text rather
@@ -2373,7 +2373,7 @@ const FULL_VALUE_LISTS = {
   // O / S / W items are dropped on load (see HIDDEN_CATG_CODES), so they're not
   // offered here either.
   'Category Code': ['A','F','K'],
-  'Current Plan Code': ['A','C','D','H','K','M','N','P','R','U'],
+  'Current Plan Code': ['A','C','D','H','K','N','P','R','U'],
 };
 // Per-filter display names for coded values. The checkbox value stays the raw
 // code (that's what the item data holds); only the visible label changes.
