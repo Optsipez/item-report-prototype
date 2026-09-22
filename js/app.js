@@ -1929,7 +1929,10 @@ function buildGridHeader(){
       const gth = document.createElement('th');
       gth.className = 'collapsed';
       gth.rowSpan = 2;
-      gth.innerHTML = `<span class="chev">+</span>${entry.title}`;
+      // entry.short, not entry.title — this text is rotated vertical
+      // (writing-mode:vertical-rl), so a longer string directly makes the
+      // column taller. The full name still shows on hover.
+      gth.innerHTML = `<span class="chev">+</span>${entry.short}`;
       gth.title = 'Click to expand: ' + entry.title;
       gth.dataset.col = 'grp:' + entry.key;
       gth.addEventListener('click', () => toggleGroup(entry.key));
