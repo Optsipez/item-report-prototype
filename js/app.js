@@ -258,20 +258,32 @@ function coverCell(v){
     + '<span class="cover-track"><span class="cover-fill" style="width:' + w.toFixed(0) + '%"></span></span>'
     + '</span>';
 }
-function avgFnl(item, anchor){
-  const s = trailingSales(item, anchor.year, anchor.month, 13);
-  const base123 = nonZeroAvg([s[0], s[1], s[2]]);
-  const windows = [
-    s[0] > base123 ? s[0] : base123, // Avg 123M
-    nonZeroAvg(s.slice(3, 6)),        // Avg 456M
-    nonZeroAvg(s.slice(6, 9)),        // Avg 789M
-    nonZeroAvg(s.slice(9, 13)),       // Avg 10-13M
-    nonZeroAvg(s.slice(1, 7)),        // Avg 6M
-    nonZeroAvg(s.slice(7, 13)),       // Avg Old 6M
-    nonZeroAvg(s.slice(4, 10)),       // Mid Avg
-  ];
-  const recent3 = nonZeroAvg([s[1], s[2], s[3]]);
-  return excelRound(Math.max(recent3, ...windows));
+/* The 8 named sub-windows from the ported U-FNL AVG formula above, as
+   [startMonth, endMonth] in the app's 1-indexed "month 1 = current" scheme.
+   Generalized so AVG at every stats-window size (3+1/6+1/9+1/All) runs this
+   SAME formula — just with whichever sub-windows don't fit inside a smaller
+   window dropped, rather than a different simplified rule for the shorter
+   settings. A sub-window is used only when its end month is within the
+   months actually in scope; at 13 months every one of them fits, so this
+   reduces to exactly the original formula unchanged. */
+const AVG_SUBWINDOWS = [
+  { start: 2, end: 4 },                          // Recent 3
+  { start: 1, end: 3, monthOneOverride: true },  // Avg 123M (month 1 can override this one)
+  { start: 4, end: 6 },                          // Avg 456M
+  { start: 7, end: 9 },                          // Avg 789M
+  { start: 10, end: 13 },                        // Avg 10-13M
+  { start: 2, end: 7 },                          // Avg 6M (recent 6)
+  { start: 8, end: 13 },                         // Avg Old 6M
+  { start: 5, end: 10 },                         // Mid Avg
+];
+function avgFnl(item, anchor, totalMonths){
+  const n = totalMonths || 13;
+  const s = trailingSales(item, anchor.year, anchor.month, n);
+  const candidates = AVG_SUBWINDOWS.filter(w => w.end <= n).map(w => {
+    const avg = nonZeroAvg(s.slice(w.start - 1, w.end));
+    return w.monthOneOverride ? Math.max(s[0], avg) : avg;
+  });
+  return excelRound(Math.max(...candidates));
 }
 function detectAvgAnchor(){
   const years = [...new Set(ITEMS.flatMap(it => Object.keys(it.years).map(Number)))].sort((a, b) => b - a);
@@ -377,16 +389,7 @@ function itemAvg(item){
     const qty = Number(item['PO-Qty']) || 0;
     return excelRound(qty * poQtyAvgRate(qty));
   }
-  const n = statsWindowMonthCount();
-  if(n >= 13) return avgFnl(item, AVG_ANCHOR);
-  // Shorter windows don't have an equivalent to the 13-month formula's own
-  // named sub-windows (months 4-6, 7-9, the three overlapping 6-month
-  // spans, …) — those boundaries only mean something across exactly 13
-  // months. Reusing the same formula's own "don't let a strong current
-  // month get diluted" idea instead: the larger of the current month alone,
-  // or a plain non-zero average across the whole (shorter) window.
-  const s = trailingSales(item, AVG_ANCHOR.year, AVG_ANCHOR.month, n);
-  return excelRound(Math.max(s[0] || 0, nonZeroAvg(s)));
+  return avgFnl(item, AVG_ANCHOR, statsWindowMonthCount());
 }
 /* Months of cover, to one decimal:
      SM = SOH    / AVG
@@ -512,7 +515,7 @@ function ytdSoldTip(){
 // describe the 13-month/full-history version.
 function avgTip(){
   if(statsWindow === 'all') return 'AVG = U-FNL AVG, the rolling 13-month demand formula (the larger of several weighted sales-history windows).';
-  return 'AVG over the trailing ' + statsWindowMonthCount() + ' months (the ' + statsWindow + ' months before now, plus the current month): the larger of the current month\'s own sales, or a plain average across that window.';
+  return 'AVG over the trailing ' + statsWindowMonthCount() + ' months (the ' + statsWindow + ' months before now, plus the current month): same U-FNL formula as the 13-month version, using whichever of its sub-windows fit inside this shorter span.';
 }
 function totalRcvdTip(){
   if(statsWindow === 'all') return 'Total Received Qty = stock received (GRN), summed over the same rolling 13-month window as the 13-mo Trend column.';
