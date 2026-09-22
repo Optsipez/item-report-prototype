@@ -1359,7 +1359,7 @@ const COLUMN_LAYOUT = [
       { field:'Store Count', label:'SR',
         tip:'SR display — how many of the ' + UAE_STORES.length + ' UAE stores currently hold stock of this item.' } ] },
   { type:'core', field:'STK Age', label:'STK Age', sortable:true, stack:true,
-    tip:'How long the current stock has been sitting, measured from Lrcv Date: New (received this month), 0-3, 3-6, 6-9, 9-12, 12-18, 18-24, 24 Above (months), or No-Dt if there\'s no Lrcv Date on file.\nAging group number (also the sort order): New=0, 0-3=1, 3-6=2, 6-9=3, 9-12=4, 12-18=5, 18-24=6, 24 Above=7, No-Dt=8.' },
+    tip:'How long the current stock has been sitting, measured from Lrcv Date: New (received this month), 0-3, 3-6, 6-9, 9-12, 12-18, 18-24, 24 Above (months), or No-Dt if there\'s no Lrcv Date on file.' },
   { type:'core', field:'__spark', label:'13-mo Trend', tip: SPARK_TIP },
   { type:'group', key:'attrs', title:'Attributes', short:'Attrs', cols:[
       { field:'Item Color Name', label:'Color' },
