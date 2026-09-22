@@ -1207,8 +1207,8 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 const COLUMN_LAYOUT = [
   { type:'core', field:'Item Code', label:'Item Code', cls:'item-code mono', fz:'fz-itemcode', stack:true },
   { type:'core', field:'Description', label:'Description', left:true, fz:'fz-desc' },
-  { type:'core', field:'Vendor Code', label:'Vendor Code', fz:'fz-vendor' },
-  { type:'core', field:'Range Name', label:'Range Name', fz:'fz-range' },
+  { type:'core', field:'Vendor Code', label:'Vendor Code', fz:'fz-vendor', sortable:true },
+  { type:'core', field:'Range Name', label:'Range Name', fz:'fz-range', sortable:true },
   { type:'group', key:'class', title:'Classification', short:'Class', cols:[
       { field:'Catg Code', label:'Catg Code' },
       { field:'Category', label:'Category' },
@@ -1219,9 +1219,9 @@ const COLUMN_LAYOUT = [
       { field:'Sub Group Code', label:'SubGrp Code' },
       { field:'Sub Group Desc', label:'SubGrp Desc' } ] },
   { type:'group', key:'puda', title:'PUDA', short:'PUDA', cols:[
-      { field:'PUDA Code', label:'PUDA Code', groupable:true },
+      { field:'PUDA Code', label:'PUDA Code', sortable:true },
       { field:'PUDA Desc', label:'PUDA Desc' } ] },
-  { type:'core', field:'Current Plan Code', label:'Plan', groupable:true },
+  { type:'core', field:'Current Plan Code', label:'Plan', sortable:true },
   { type:'group', key:'price', title:'Pricing', short:'Pricing', cols:[
       { field:'L-Cost (Aed)', label:'L-Cost', fmt:'money2' },
       { field:'Was (Aed)', label:'Was', fmt:'money0' },
@@ -1286,15 +1286,27 @@ const ALL_GROUP_KEYS = COLUMN_LAYOUT.filter(e => e.type === 'group').map(e => e.
 let collapsedGroups = new Set(['class','attrs','fob','logi','soldby-old','stockin-old']);
 
 /* Grid ordering has two independent layers that stack:
-   - GROUP (categorical): click Plan / PUDA Code to cluster rows that share a
-     value, groups running A→Z. Click again to clear. A thin rule divides one
-     group from the next. PUDA Code groups by its leading letter only (all
-     A… together, then all F…); Plan groups by the whole code.
-   - SORT (directional): click SOH / PO Qty / AVG / Total Received Qty to cycle
-     none → high→low → low→high → none.
-   With both on, the group is primary and the directional sort orders rows
-   inside each group; turning one on never clears the other. */
-let gridSort = null;  // { field, dir: 'desc' | 'asc' }
+   - GROUP (categorical): clusters rows that share a value, groups running
+     A→Z, with a thin rule between one group and the next. Nothing in
+     COLUMN_LAYOUT currently sets a header to trigger this any more — Plan
+     and PUDA Code, the two columns that used to (see cycleGroup/
+     applyGroupHeader), are both sortable columns now instead — but the
+     mechanism (gridGroup, sortGridItems, buildGridBody's group-break rule)
+     is left in place in case a future column wants it back.
+   - SORT (directional, multi-column): click any sortable header to cycle
+     none → high→low → low→high → none for that column. Clicking a column
+     that ISN'T already part of the sort appends it as the next-lowest
+     priority instead of replacing what's there — click Plan Code then Range
+     Name and you get Plan Code as the primary key, Range Name breaking ties
+     within it, and so on for as many columns as you click. Re-clicking an
+     already-sorted column cycles its own direction in place (keeping its
+     rank) until the third click drops it, shifting any lower-priority
+     columns up. When 2+ columns are active, each header's arrow gets a
+     rank number (▼1, ▲2, …) so the priority order is visible; a single
+     active sort just shows the plain arrow.
+   There's no standing default order any more — with nothing clicked, rows
+   sit in whatever order the underlying data/filter left them in. */
+let gridSort = [];    // [{ field, dir: 'desc' | 'asc' }, ...] — index 0 is primary
 let gridGroup = null; // { field }
 /* Single-click an Item Code cell to select that row, Excel-style — arrow
    up/down then moves the highlight between rows (crossing page boundaries
@@ -1360,19 +1372,13 @@ let gridTotalPages = 1;   // kept in sync by renderGrid; used to clamp the "Go t
 let lastGridQuerySig = null;
 function gridQuerySignature(){
   const filters = Object.keys(activeFilters).sort().map(k => k + ':' + Array.from(activeFilters[k]).sort().join(',')).join('|');
-  const sort = gridSort ? gridSort.field + gridSort.dir : '';
+  const sort = gridSort.map(s => s.field + s.dir).join(',');
   const group = gridGroup ? gridGroup.field : '';
   const dept = DEPT_STOCK_MIN_GROUPS.map(g => g.inputId + '=' + (deptStockMin[g.inputId] ?? '')).join(',');
   return [filters, sort, group, dept, srQtyInclOman].join('~~');
 }
-/* Per-field grouping key — how much of the value defines a group. Default is
-   the whole value; PUDA Code clusters on its first letter. */
-const GROUP_KEY = {
-  'PUDA Code': v => String(v == null ? '' : v).trim().charAt(0).toUpperCase(),
-};
-function groupKeyFor(field, val){
-  const fn = GROUP_KEY[field];
-  return fn ? fn(val) : String(val == null ? '' : val).trim().toUpperCase();
+function groupKeyFor(val){
+  return String(val == null ? '' : val).trim().toUpperCase();
 }
 /* FLIP reorder animation (First-Last-Invert-Play): capture each row's
    screen position keyed by a stable id before the DOM rebuilds, then after
@@ -1432,10 +1438,15 @@ function flashHeader(selector){
   el.classList.add('sort-flash');
 }
 let flipGridRows = false;
+// New column: appended as the next-lowest sort priority (never replaces the
+// existing chain). Already in the chain: cycles that column's own direction
+// in place, keeping its rank, until the third click drops it — any
+// lower-priority columns then shift up to fill the gap.
 function cycleSort(field){
-  if(!gridSort || gridSort.field !== field) gridSort = { field: field, dir: 'desc' };
-  else if(gridSort.dir === 'desc') gridSort = { field: field, dir: 'asc' };
-  else gridSort = null;
+  const idx = gridSort.findIndex(s => s.field === field);
+  if(idx === -1) gridSort.push({ field: field, dir: 'desc' });
+  else if(gridSort[idx].dir === 'desc') gridSort[idx] = { field: field, dir: 'asc' };
+  else gridSort.splice(idx, 1);
   flipGridRows = true;
   renderGrid();
   flashHeader('#gridTable thead th[data-col="' + field + '"]');
@@ -1446,50 +1457,46 @@ function cycleGroup(field){
   renderGrid();
   flashHeader('#gridTable thead [data-col="' + field + '"]');
 }
-/* Standing default order — Vendor Code, then Range Name, then PUDA Code —
-   active from page load with nothing clicked, exactly like a real sort/group
-   would be. The moment the user picks any column sort or group this steps
-   aside for that; clearing it (gridSort/gridGroup both back to null, e.g.
-   via Clear Sort) brings this straight back. Never shown as "active" on any
-   column header — it's a background default, not a user selection. */
-function defaultSortedItems(items){
-  // lowercased so e.g. "Aaji" and "ALVAA" interleave alphabetically instead
-  // of all-caps range names clustering separately from mixed-case ones.
-  // PUDA Code sorts by its last 3 digits (e.g. "A03096" -> "096"), not the
-  // whole code — every real PUDA Code is a letter + 3 digits + that 3-digit
-  // suffix, and the suffix is what actually distinguishes them.
-  const key = it => [
-    String(it['Vendor Code'] || '').toLowerCase(),
-    String(it['Range Name'] || '').toLowerCase(),
-    String(it['PUDA Code'] || '').toLowerCase().slice(-3),
-  ];
-  return items.slice().sort((a, b) => {
-    const ka = key(a), kb = key(b);
-    for(let i = 0; i < ka.length; i++){
-      if(ka[i] !== kb[i]) return ka[i] < kb[i] ? -1 : 1;
-    }
-    return 0;
-  });
+// Plan Code sorts by a fixed business hierarchy, not alphabetically — N is
+// the highest priority, U the lowest. Mapped to descending numbers (N=8 ...
+// U=1) specifically so that a first click (which always starts a column at
+// dir:'desc', same as every other sortable column) lands on N-first without
+// needing any field-specific direction flip. Anything outside this list
+// (there isn't any in practice — B/O/W/S are dropped entirely on load, see
+// HIDDEN_PLAN_CODES, and M doesn't occur in this data) sorts after U.
+const PLAN_CODE_RANK = { N:8, K:7, C:6, A:5, R:4, H:3, D:2, U:1 };
+// A few fields are computed rather than stored directly (whsoh/SR Qty/total
+// received), and Vendor Code / Range Name / PUDA Code sort as text rather
+// than numbers — PUDA Code specifically on just its last 3 digits, same as
+// the old default order used to, since every real PUDA Code is a letter +
+// 3 digits + that distinguishing 3-digit suffix. Everything else sortable
+// is a plain number (or a numeric string, e.g. SM/PM's "3.5"/"X").
+function sortValueFor(field, item){
+  if(field === '__whsoh') return whSohValue(item);
+  if(field === 'SR Qty') return srQtyValue(item);
+  if(field === '__totalRcvd') return totalReceivedQty(item);
+  if(field === 'Vendor Code' || field === 'Range Name') return String(item[field] || '').toLowerCase();
+  if(field === 'PUDA Code') return String(item[field] || '').toLowerCase().slice(-3);
+  if(field === 'Current Plan Code') return PLAN_CODE_RANK[String(item[field] || '').trim().toUpperCase()] ?? 0;
+  return Number(item[field]) || 0;
 }
 function sortGridItems(items){
   const g = gridGroup;
-  const s = gridSort;
-  if(!g && !s) return defaultSortedItems(items);
+  const sorts = gridSort;
+  if(!g && sorts.length === 0) return items.slice();
   const arr = items.slice();
-  const origIdx = new Map(arr.map((it, i) => [it, i]));
-  const groupVal = it => groupKeyFor(g.field, it[g.field]);
-  const sortVal = it => s.field === '__whsoh' ? whSohValue(it) : s.field === 'SR Qty' ? srQtyValue(it) : s.field === '__totalRcvd' ? totalReceivedQty(it) : (Number(it[s.field]) || 0);
-  const mul = s && s.dir === 'asc' ? 1 : -1;
   arr.sort((a, b) => {
     if(g){
-      const ga = groupVal(a), gb = groupVal(b);
+      const ga = groupKeyFor(a[g.field]), gb = groupKeyFor(b[g.field]);
       if(ga !== gb) return ga < gb ? -1 : 1;          // groups A→Z
     }
-    if(s){
-      const d = (sortVal(a) - sortVal(b)) * mul;      // then directional, within group
-      if(d) return d;
+    for(const s of sorts){                            // primary -> secondary -> ...
+      const va = sortValueFor(s.field, a), vb = sortValueFor(s.field, b);
+      if(va === vb) continue;
+      const cmp = va < vb ? -1 : 1;
+      return s.dir === 'asc' ? cmp : -cmp;
     }
-    return origIdx.get(a) - origIdx.get(b);           // stable otherwise
+    return 0;                                          // Array#sort is stable — ties keep their relative order
   });
   return arr;
 }
@@ -1532,7 +1539,7 @@ document.getElementById('expandAllBtn').addEventListener('click', () => {
   renderGrid();
 });
 document.getElementById('clearSortBtn').addEventListener('click', () => {
-  gridSort = null;
+  gridSort = [];
   gridGroup = null;
   renderGrid();
 });
@@ -1713,6 +1720,23 @@ function applyGroupHeader(th, field){
   }
   th.addEventListener('click', () => cycleGroup(field));
 }
+/* Wire a header cell (core or group-field) as a sort toggle — shared by both
+   so a group-nested column (e.g. PUDA Code) gets the exact same multi-sort
+   behavior, including the rank badge, as a top-level one (e.g. SOH). */
+function applySortableHeader(th, field){
+  th.classList.add('sortable');
+  const idx = gridSort.findIndex(s => s.field === field);
+  if(idx !== -1){
+    const s = gridSort[idx];
+    th.classList.add('sorted');
+    const ind = document.createElement('span');
+    ind.className = 'sort-ind';
+    const arrow = s.dir === 'asc' ? '▲' : '▼';
+    ind.textContent = gridSort.length > 1 ? arrow + (idx + 1) : arrow;
+    th.appendChild(ind);
+  }
+  th.addEventListener('click', () => cycleSort(field));
+}
 
 function buildGridHeader(){
   const groupRow = document.createElement('tr');
@@ -1751,15 +1775,7 @@ function buildGridHeader(){
       if(entry.field === 'Current Plan Code') gth.classList.add('plan-head');
       if(entry.tip) gth.title = entry.tip;
       if(entry.sortable){
-        gth.classList.add('sortable');
-        if(gridSort && gridSort.field === entry.field){
-          gth.classList.add('sorted');
-          const ind = document.createElement('span');
-          ind.className = 'sort-ind';
-          ind.textContent = gridSort.dir === 'asc' ? '▲' : '▼';
-          gth.appendChild(ind);
-        }
-        gth.addEventListener('click', () => cycleSort(entry.field));
+        applySortableHeader(gth, entry.field);
       } else if(entry.groupable){
         applyGroupHeader(gth, entry.field);
       }
@@ -1819,7 +1835,8 @@ function buildGridHeader(){
         if(i === 0) fth.classList.add('group-start');
         fth.dataset.col = c.field;
         if(c.tip) fth.title = c.tip;
-        if(c.groupable) applyGroupHeader(fth, c.field);
+        if(c.sortable) applySortableHeader(fth, c.field);
+        else if(c.groupable) applyGroupHeader(fth, c.field);
         addColResizer(fth);
         fieldRow.appendChild(fth);
       });
@@ -1870,7 +1887,7 @@ function buildGridBody(items, cols){
   const gField = gridGroup ? gridGroup.field : null;
   let prevGroupVal = null;
   items.forEach((item, itemIdx) => {
-    const groupVal = gField ? groupKeyFor(gField, item[gField]) : null;
+    const groupVal = gField ? groupKeyFor(item[gField]) : null;
     const newGroup = gField && itemIdx > 0 && groupVal !== prevGroupVal;
     prevGroupVal = groupVal;
 
@@ -2084,7 +2101,7 @@ function renderGrid(){
   jumpEl.placeholder = (gridPage + 1) + '/' + totalPages;
   document.getElementById('gridPrevBtn').disabled = gridPage <= 0;
   document.getElementById('gridNextBtn').disabled = gridPage >= totalPages - 1;
-  document.getElementById('clearSortBtn').hidden = !gridSort && !gridGroup;
+  document.getElementById('clearSortBtn').hidden = gridSort.length === 0 && !gridGroup;
   if(oldRowTops) flipRows(table.querySelector('tbody'), 'tr[data-code]', 'code', oldRowTops);
   flipGridRows = false;
   if(colResizeActive){

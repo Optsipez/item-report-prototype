@@ -818,6 +818,13 @@ table.grid thead tr.field-row th.groupable:hover{filter:brightness(.97);}
 table.grid thead tr.field-row th.grouped{
   background:var(--primary);color:var(--on-primary);border-bottom-color:var(--primary-hover);
 }
+/* same sort styling as the core columns (see th.core.sortable/.sorted
+   above), but for a group-nested column header like PUDA Code */
+table.grid thead tr.field-row th.sortable{cursor:pointer;}
+table.grid thead tr.field-row th.sortable:hover{filter:brightness(.97);}
+table.grid thead tr.field-row th.sorted{
+  background:var(--primary);color:var(--on-primary);border-bottom-color:var(--primary-hover);
+}
 .group-ind{position:absolute;top:3px;right:4px;line-height:0;pointer-events:none;color:currentColor;opacity:.9;}
 .group-ind svg{display:block;fill:currentColor;}
 /* thin rule where one group ends and the next begins */
