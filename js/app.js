@@ -1573,14 +1573,16 @@ function cycleGroup(field){
   renderGrid();
   flashHeader('#gridTable thead [data-col="' + field + '"]');
 }
-// Plan Code sorts by a fixed business hierarchy, not alphabetically — N is
-// the highest priority, U the lowest. Mapped to descending numbers (N=8 ...
-// U=1) specifically so that a first click (which always starts a column at
-// dir:'desc', same as every other sortable column) lands on N-first without
-// needing any field-specific direction flip. Anything outside this list
-// (there isn't any in practice — B/O/W/S are dropped entirely on load, see
-// HIDDEN_PLAN_CODES, and M doesn't occur in this data) sorts after U.
-const PLAN_CODE_RANK = { N:8, K:7, C:6, A:5, R:4, H:3, D:2, U:1 };
+// Plan Code sorts by a fixed business hierarchy, not alphabetically — K is
+// the highest priority, R the lowest. Mapped to descending numbers (K=9 ...
+// R=1) specifically so that a first click (which always starts a column at
+// dir:'desc', same as every other sortable column) lands on K-first without
+// needing any field-specific direction flip. P is a newly-added code with no
+// data yet (it may or may not ever appear) — ranked here regardless, so it
+// sorts correctly the moment it does. Anything outside this list (B/O/W/S
+// are dropped entirely on load, see HIDDEN_PLAN_CODES; M doesn't occur in
+// this data) sorts after R.
+const PLAN_CODE_RANK = { K:9, P:8, C:7, A:6, N:5, H:4, D:3, U:2, R:1 };
 // A few fields are computed rather than stored directly (whsoh/SR Qty/total
 // received), and Vendor Code / Range Name / PUDA Code sort as text rather
 // than numbers — PUDA Code specifically on just its last 3 digits, same as
@@ -2371,7 +2373,7 @@ const FULL_VALUE_LISTS = {
   // O / S / W items are dropped on load (see HIDDEN_CATG_CODES), so they're not
   // offered here either.
   'Category Code': ['A','F','K'],
-  'Current Plan Code': ['A','C','D','H','K','M','N','R','U'],
+  'Current Plan Code': ['A','C','D','H','K','M','N','P','R','U'],
 };
 // Per-filter display names for coded values. The checkbox value stays the raw
 // code (that's what the item data holds); only the visible label changes.
