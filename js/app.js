@@ -71,12 +71,24 @@ function nonZeroAvg(win){
   if(count === 0) return 0;
   return excelRound(win.reduce((a, b) => a + b, 0) / count);
 }
-function trailing13Sales(item, anchorYear, anchorMonth){
+function trailingSales(item, anchorYear, anchorMonth, n){
   const s = [];
   let y = anchorYear, m = anchorMonth;
-  for(let i = 0; i < 13; i++){
+  for(let i = 0; i < n; i++){
     const yr = item.years[String(y)];
     s.push(yr ? (yr.sales[m] || 0) : 0);
+    if(--m < 0){ m = 11; y--; }
+  }
+  return s;
+}
+// Same walk-back-by-month shape as trailingSales, but over stock RECEIVED
+// (GRN) instead of sales — used by Total Received Qty's windowed total.
+function trailingStock(item, anchorYear, anchorMonth, n){
+  const s = [];
+  let y = anchorYear, m = anchorMonth;
+  for(let i = 0; i < n; i++){
+    const yr = item.years[String(y)];
+    s.push(yr ? (yr.stock[m] || 0) : 0);
     if(--m < 0){ m = 11; y--; }
   }
   return s;
@@ -135,7 +147,9 @@ function monthlyStockSeries(item){
 /* Total Received Qty — stock received (GRN) summed over the same rolling
    13-month window as the 13-mo Trend column, not a fixed calendar year. */
 function totalReceivedQty(item){
-  return monthlyStockSeries(item).reduce((a, b) => a + b, 0);
+  const n = statsWindowMonthCount();
+  if(n >= 13) return monthlyStockSeries(item).reduce((a, b) => a + b, 0);
+  return trailingStock(item, REPORT_MONTH.year, REPORT_MONTH.month, n).reduce((a, b) => a + b, 0);
 }
 const TREND_BUCKET_IDX = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], [12]]; // oldest -> newest
 function trendBars(item){
@@ -245,7 +259,7 @@ function coverCell(v){
     + '</span>';
 }
 function avgFnl(item, anchor){
-  const s = trailing13Sales(item, anchor.year, anchor.month);
+  const s = trailingSales(item, anchor.year, anchor.month, 13);
   const base123 = nonZeroAvg([s[0], s[1], s[2]]);
   const windows = [
     s[0] > base123 ? s[0] : base123, // Avg 123M
@@ -342,12 +356,37 @@ function poQtyAvgRate(qty){
   if(qty < 700) return 0.25;
   return 0.22;
 }
+/* Stats window — lets AVG / YTD Sold / Total Received Qty (and anything
+   derived from them, i.e. SM/PM) all be recalculated over a shorter trailing
+   span instead of the app's full history. 'all' is today's existing
+   behavior, unchanged. The other settings mean "N trailing months PLUS the
+   current month" — e.g. '3' is a 4-month total window — per how the
+   business already counts these (the current month is always included on
+   top of however many months back you pick). Changing this needs
+   refreshStatsWindowDependents() to recompute the cached fields, then a
+   re-render — see the #statsWindowSelect handler. */
+let statsWindow = 'all'; // 'all' | '3' | '6' | '9'
+function statsWindowMonthCount(){
+  if(statsWindow === '3') return 4;
+  if(statsWindow === '6') return 7;
+  if(statsWindow === '9') return 10;
+  return 13;
+}
 function itemAvg(item){
   if(String(item['Current Plan Code']).trim().toUpperCase() === 'N'){
     const qty = Number(item['PO-Qty']) || 0;
     return excelRound(qty * poQtyAvgRate(qty));
   }
-  return avgFnl(item, AVG_ANCHOR);
+  const n = statsWindowMonthCount();
+  if(n >= 13) return avgFnl(item, AVG_ANCHOR);
+  // Shorter windows don't have an equivalent to the 13-month formula's own
+  // named sub-windows (months 4-6, 7-9, the three overlapping 6-month
+  // spans, …) — those boundaries only mean something across exactly 13
+  // months. Reusing the same formula's own "don't let a strong current
+  // month get diluted" idea instead: the larger of the current month alone,
+  // or a plain non-zero average across the whole (shorter) window.
+  const s = trailingSales(item, AVG_ANCHOR.year, AVG_ANCHOR.month, n);
+  return excelRound(Math.max(s[0] || 0, nonZeroAvg(s)));
 }
 /* Months of cover, to one decimal:
      SM = SOH    / AVG
@@ -441,11 +480,43 @@ function sohValue(item){
    REPORT_MONTH.year. Recomputed each load, so it grows on its own as months
    pass (and picks up the current month's sales as they land). */
 function ytdSold(it){
-  const yr = it.years[String(REPORT_MONTH.year)];
-  if(!yr) return 0;
-  let t = 0;
-  for(let m = 0; m <= REPORT_MONTH.month; m++) t += yr.sales[m] || 0;
-  return t;
+  const n = statsWindowMonthCount();
+  if(n >= 13){
+    const yr = it.years[String(REPORT_MONTH.year)];
+    if(!yr) return 0;
+    let t = 0;
+    for(let m = 0; m <= REPORT_MONTH.month; m++) t += yr.sales[m] || 0;
+    return t;
+  }
+  // Not "year to date" any more at the shorter settings — see
+  // ytdSoldLabel()/ytdSoldTip(), which relabel the column so it's never
+  // shown as "YTD" while actually holding a trailing-N-months total.
+  return trailingSales(it, REPORT_MONTH.year, REPORT_MONTH.month, n).reduce((a, b) => a + b, 0);
+}
+/* Column header text/tooltip for the YTD Sold field — dynamic because its
+   own meaning changes with the stats window (see ytdSold() above): true
+   calendar year-to-date only at 'all', a plain trailing-N-months total
+   otherwise, relabeled so the header is never wrong about what it's
+   showing. */
+function ytdSoldLabel(){
+  return statsWindow === 'all' ? 'YTD Sold' : statsWindow + '-Mo Sold';
+}
+function ytdSoldTip(){
+  if(statsWindow === 'all') return YTD_TIP;
+  return 'Units sold in the trailing ' + statsWindowMonthCount() + ' months (the ' + statsWindow +
+    ' months before now, plus the current month).';
+}
+// AVG and Total Received Qty keep their header text either way (neither name
+// implies a specific period the way "YTD" does), but their tooltips need to
+// say which window is actually active or they'd misleadingly always
+// describe the 13-month/full-history version.
+function avgTip(){
+  if(statsWindow === 'all') return 'AVG = U-FNL AVG, the rolling 13-month demand formula (the larger of several weighted sales-history windows).';
+  return 'AVG over the trailing ' + statsWindowMonthCount() + ' months (the ' + statsWindow + ' months before now, plus the current month): the larger of the current month\'s own sales, or a plain average across that window.';
+}
+function totalRcvdTip(){
+  if(statsWindow === 'all') return 'Total Received Qty = stock received (GRN), summed over the same rolling 13-month window as the 13-mo Trend column.';
+  return 'Total Received Qty = stock received (GRN), summed over the trailing ' + statsWindowMonthCount() + ' months (the ' + statsWindow + ' months before now, plus the current month).';
 }
 /* STK Age — how long the current stock has been sitting, bucketed per the
    Navision "Aging For Stock File" reference table, measured from Lrcv Date
@@ -494,6 +565,19 @@ function refreshSohDependents(){
   ITEMS.forEach(it => {
     it['SOH'] = sohValue(it);
     it['SM'] = monthsOfCover(Number(it['SOH']) || 0, it['AVG']);
+  });
+}
+/* AVG (and SM/PM, which read it) and YTD Sold are all cached on the item
+   rather than recomputed on every read, same reasoning as SOH/SM above —
+   but they move with the stats window, so that cache goes stale the moment
+   #statsWindowSelect changes. Total Received Qty isn't cached (computed
+   fresh on every read via totalReceivedQty()), so it needs nothing here. */
+function refreshStatsWindowDependents(){
+  ITEMS.forEach(it => {
+    it['AVG'] = itemAvg(it);
+    it['SM'] = monthsOfCover(Number(it['SOH']) || 0, it['AVG']);
+    it['PM'] = monthsOfCover(Number(it['PO-Qty']) || 0, it['AVG']);
+    it['YTD Sold'] = ytdSold(it);
   });
 }
 
@@ -1266,9 +1350,8 @@ const COLUMN_LAYOUT = [
   { type:'core', field:'AVG', label:'AVG', sortable:true },
   { type:'core', field:'SM', label:'SM', sortable:true },
   { type:'core', field:'PM', label:'PM', sortable:true },
-  { type:'core', field:'YTD Sold', label:'YTD Sold', sortable:true, tip: YTD_TIP },
-  { type:'core', field:'__totalRcvd', label:'Total Received Qty', sortable:true, stack:true,
-    tip:'Total Received Qty = stock received (GRN), summed over the same rolling 13-month window as the 13-mo Trend column.' },
+  { type:'core', field:'YTD Sold', label:'YTD Sold', sortable:true },
+  { type:'core', field:'__totalRcvd', label:'Total Received Qty', sortable:true, stack:true },
   { type:'group', key:'sr', title:'SR', short:'SR', cols:[
       { field:'Store Count', label:'SR',
         tip:'SR display — how many of the ' + UAE_STORES.length + ' UAE stores currently hold stock of this item.' } ] },
@@ -1405,7 +1488,7 @@ function gridQuerySignature(){
   const sort = gridSort.map(s => s.field + s.dir).join(',');
   const group = gridGroup ? gridGroup.field : '';
   const dept = DEPT_STOCK_MIN_GROUPS.map(g => g.inputId + '=' + (deptStockMin[g.inputId] ?? '')).join(',');
-  return [filters, sort, group, dept, srQtyInclOman].join('~~');
+  return [filters, sort, group, dept, srQtyInclOman, statsWindow].join('~~');
 }
 function groupKeyFor(val){
   return String(val == null ? '' : val).trim().toUpperCase();
@@ -1797,14 +1880,20 @@ function buildGridHeader(){
           gth.appendChild(document.createTextNode(word));
         });
       } else {
-        gth.textContent = entry.label;
+        // YTD Sold's label is dynamic, not entry.label — this column stops
+        // being "YTD" the moment #statsWindowSelect picks a shorter window
+        // (see ytdSold()/ytdSoldLabel()).
+        gth.textContent = entry.field === 'YTD Sold' ? ytdSoldLabel() : entry.label;
       }
       gth.dataset.col = entry.field;
       if(entry.field === 'AVG') gth.classList.add('avg-head');
       if(entry.field === 'SOH') gth.classList.add('soh-head');
       if(entry.field === 'Nav Stock') gth.classList.add('navstock-head');
       if(entry.field === 'Current Plan Code') gth.classList.add('plan-head');
-      if(entry.tip) gth.title = entry.tip;
+      if(entry.field === 'YTD Sold') gth.title = ytdSoldTip();
+      else if(entry.field === 'AVG') gth.title = avgTip();
+      else if(entry.field === '__totalRcvd') gth.title = totalRcvdTip();
+      else if(entry.tip) gth.title = entry.tip;
       if(entry.sortable){
         applySortableHeader(gth, entry.field);
       } else if(entry.groupable){
@@ -2209,6 +2298,14 @@ document.getElementById('omanToggleBtn').addEventListener('click', () => {
   refreshSohDependents();
   renderGrid();
   if(selectedItem) renderReport(selectedItem);
+});
+
+document.getElementById('statsWindowSelect').addEventListener('change', e => {
+  statsWindow = e.target.value;
+  e.target.closest('.stats-window-field').classList.toggle('active', statsWindow !== 'all');
+  refreshStatsWindowDependents();
+  flipGridRows = true;
+  renderGrid();
 });
 
 // Both header rows' sticky offsets must clear whatever's ALSO stuck above

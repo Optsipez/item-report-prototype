@@ -204,6 +204,15 @@
               <input type="number" id="minStockAccessory" placeholder="—" inputmode="numeric">
             </label>
             <button id="omanToggleBtn" type="button" class="oman-toggle"></button>
+            <label class="stats-window-field" title="Recalculate AVG, YTD Sold (renamed to match), and Total Received Qty over a shorter trailing window instead of the full history — the window is always that many months back PLUS the current month.">
+              <span class="dsf-label">Window</span>
+              <select id="statsWindowSelect">
+                <option value="all" selected>All</option>
+                <option value="3">3 mo</option>
+                <option value="6">6 mo</option>
+                <option value="9">9 mo</option>
+              </select>
+            </label>
             <button id="clearSortBtn" hidden>Clear sort</button>
           </div>
         </div>
