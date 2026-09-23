@@ -683,15 +683,22 @@ table.grid tbody tr.row-item td.wk-cell:hover{
    its own top margin reserved to match — see syncStickyHeader() in app.js,
    which measures this bar's rendered height and sets both that margin and
    the grid header's own sticky offsets from it.
-   top:80px, not 56px (the topbar's own height) — flush against the dark
-   topbar read as no breathing room at all. The 80 = 56 + 24 (--sp-6) has
-   to stay in sync with the "80" used for `base` in syncStickyHeader() in
-   app.js, since that's what positions the grid's own header right below
-   this bar. */
+   top:56px (flush with the topbar's own height), not 80px — a bare top
+   offset here left the same kind of hole as the old left-offset problem
+   above, just on the vertical axis: nothing painted the 56-80px strip
+   between the topbar and this box, so once you scrolled, table rows
+   passed straight through it on their way up before disappearing behind
+   the toolbar (see the 2026-09-23 screenshot report — the breathing room
+   above the toolbar was added as a bare position offset without this box
+   extending up to cover it). The breathing-room LOOK instead comes from
+   padding-top, same fix pattern as padding-left above — the box still
+   reaches all the way up to y=56 so its background covers that strip too,
+   the content inside just sits lower within it. Keep the base used in
+   syncStickyHeader() in app.js in sync with this 56. */
 .grid-toolbar{
-  position:fixed;top:80px;left:var(--rail-w);right:0;
+  position:fixed;top:56px;left:var(--rail-w);right:0;
   z-index:8;background:var(--canvas);
-  padding-left:var(--sp-6);padding-bottom:var(--sp-2);
+  padding-left:var(--sp-6);padding-top:var(--sp-6);padding-bottom:var(--sp-2);
 }
 .grid-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:var(--sp-1) var(--sp-3);}
 .grid-toolbar h1{font-size:var(--fs-xl);margin:0;font-weight:600;letter-spacing:-.015em;}
@@ -797,15 +804,15 @@ table.grid thead th{
   font-weight:600;color:var(--ink-soft);text-align:right;
 }
 table.grid thead tr.group-row th{
-  /* 80px here is just a fallback for before JS has run once — the dark
+  /* 56px here is just a fallback for before JS has run once — the dark
      .topbar is ALSO position:sticky;top:0 and sits above everything, now
      that this row sticks to the real page (see .grid-scroll) instead of
      its own clipped box, and .grid-toolbar (title/pagination/buttons) is
-     ALSO now fixed right below the top bar with its own gap (see there,
-     top:80px), so the real value is 80 + toolbar height, set inline by
-     syncStickyHeader() in app.js once it can measure the toolbar's actual
-     rendered height. */
-  top:80px;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.06em;
+     ALSO now fixed right below the top bar (see there, top:56px, its
+     breathing room is padding-top not a position offset), so the real
+     value is 56 + toolbar height, set inline by syncStickyHeader() in
+     app.js once it can measure the toolbar's actual rendered height. */
+  top:56px;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.06em;
   color:#cbd5e1;background:var(--s-800);border-color:rgba(255,255,255,.08);
   text-align:left;cursor:pointer;user-select:none;transition:background var(--t-fast),color var(--t-fast);
 }

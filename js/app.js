@@ -2336,7 +2336,7 @@ function syncStickyHeader(){
   // flow — .grid-scroll needs that space reserved by hand or the table
   // would render right underneath it.
   const gridScroll = document.querySelector('.grid-scroll');
-  const toolbarBottom = toolbar ? toolbar.getBoundingClientRect().bottom : 80;
+  const toolbarBottom = toolbar ? toolbar.getBoundingClientRect().bottom : 56;
   if(gridScroll){
     // toolbarH alone isn't the right margin — .grid-scroll still flows
     // normally below .main's own top padding, so without correcting for
@@ -2349,7 +2349,7 @@ function syncStickyHeader(){
     const naturalDocTop = gridScroll.getBoundingClientRect().top + window.scrollY;
     gridScroll.style.marginTop = Math.max(0, toolbarBottom - naturalDocTop) + 'px';
   }
-  const base = 80 + toolbarH; // 80 must match .grid-toolbar's own top:80px in css/styles.css
+  const base = 56 + toolbarH; // 56 must match .grid-toolbar's own top:56px in css/styles.css
   groupRow.querySelectorAll('th').forEach(th => { th.style.top = base + 'px'; });
   const h = groupRow.getBoundingClientRect().height;
   fieldRow.querySelectorAll('th').forEach(th => { th.style.top = (base + h) + 'px'; });
