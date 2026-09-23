@@ -1369,6 +1369,12 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 // while scrolling), then classification/pricing/sourcing detail — most of
 // which is collapsible — then the monthly time series at the far right.
 const COLUMN_LAYOUT = [
+  // Rolling row number — the row's position in the current filtered/sorted/
+  // paginated list (1-based, continues across pages: page 2 starts at 201,
+  // not back at 1). Computed fresh per render in buildGridBody(), not a
+  // real data field or a cached per-item value, since it depends entirely
+  // on whatever view you're currently looking at.
+  { type:'core', field:'__sno', label:'S.No', fz:'fz-sno' },
   { type:'core', field:'Item Code', label:'Item Code', cls:'item-code mono', fz:'fz-itemcode', stack:true },
   { type:'core', field:'Description', label:'Description', left:true, fz:'fz-desc' },
   { type:'core', field:'Vendor Code', label:'Vendor Code', fz:'fz-vendor', sortable:true },
@@ -2053,7 +2059,7 @@ function cellValueForItem(item, field){
   return item[field];
 }
 
-function buildGridBody(items, cols){
+function buildGridBody(items, cols, pageStart){
   const tbody = document.createElement('tbody');
   // First column of each expanded group gets a visual divider so adjacent
   // groups (e.g. Sold by Month / Stock In by Month, same 13-month strip) aren't ambiguous.
@@ -2092,7 +2098,10 @@ function buildGridBody(items, cols){
         td.classList.add('collapsed-cell');
         if(col.key === 'soldby' || col.key === 'soldby-old') makeWeeklyCell(td, item);
       } else if(col.type === 'core'){
-        if(col.field === '__spark'){
+        if(col.field === '__sno'){
+          if(col.fz) td.classList.add(col.fz);
+          td.textContent = (pageStart || 0) + itemIdx + 1;
+        } else if(col.field === '__spark'){
           td.classList.add('spark-cell', 'left', 'wk-cell');
           td.innerHTML = trendMiniBar(item);
           td.addEventListener('click', e => { e.stopPropagation(); openTrendModal(item); });
@@ -2267,7 +2276,7 @@ function renderGrid(){
   const thead = buildGridHeader();
   table.appendChild(buildColGroup(cols));
   table.appendChild(thead);
-  table.appendChild(buildGridBody(pageItems, cols));
+  table.appendChild(buildGridBody(pageItems, cols, pageStart));
   // Re-apply the keyboard-selected row's highlight — table.innerHTML = ''
   // above wiped it, along with every other class, on this fresh render.
   if(selectedRowCode){

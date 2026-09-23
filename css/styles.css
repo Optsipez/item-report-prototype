@@ -391,15 +391,16 @@ button{font-family:inherit;}
 /* ===== Main =====
    margin-left reserves the space .rail (position:fixed, see .rail) claims,
    tied to the same --rail-w variable so resizing the rail keeps them
-   matched (23px less than --rail-w, same relationship .fz-itemcode's own
-   offset uses — see there).
+   matched (23px less than --rail-w, same relationship the frozen columns'
+   own offsets use — see .fz-sno).
    Left padding is 22px, not the usual --sp-7 (32px) — with the full 32px,
    the grid's frozen columns sit 10px right of where their own sticky `left`
-   locks them (see .fz-itemcode), so the first ~10px of scrolling closed
-   that gap before they engaged. Mathematically smooth, but 10 screen pixels
-   closing in a single scroll tick reads as a sudden snap. 22px puts Item
-   Code's resting position exactly at its locked position, so there's
-   nothing left to close — it's effectively already "stuck" at rest. */
+   locks them (see .fz-sno, the first one), so the first ~10px of scrolling
+   closed that gap before they engaged. Mathematically smooth, but 10 screen
+   pixels closing in a single scroll tick reads as a sudden snap. 22px puts
+   the first frozen column's (S.No's) resting position exactly at its
+   locked position, so there's nothing left to close — it's effectively
+   already "stuck" at rest. */
 .main{padding:var(--sp-6) var(--sp-7) var(--sp-8) 22px;margin-left:calc(var(--rail-w) - 23px);}
 .main.flush{padding:var(--sp-6) var(--sp-7) var(--sp-7);}
 .view{display:none;}
@@ -1036,38 +1037,41 @@ table.grid tfoot td{
   position:sticky;bottom:0;background:var(--sunken);border-top:2px solid var(--line-strong);font-weight:700;
 }
 
-/* Frozen left columns — Item Code, Description, Vendor Code, Range Name stay
-   put while the rest of the row scrolls under them, so they're always
-   readable next to whatever monthly column you've scrolled over to. Plain
-   native position:sticky works for this now that .grid-scroll no longer
-   clips/scrolls anything itself (see .grid-scroll) — sticky reaches all the
-   way up to the real page scroll, same as .topbar-nav does.
+/* Frozen left columns — S.No, Item Code, Description, Vendor Code, Range
+   Name stay put while the rest of the row scrolls under them, so they're
+   always readable next to whatever monthly column you've scrolled over to.
+   Plain native position:sticky works for this now that .grid-scroll no
+   longer clips/scrolls anything itself (see .grid-scroll) — sticky reaches
+   all the way up to the real page scroll, same as .topbar-nav does.
    left offsets match --rail-w exactly (see :root and .rail — resizing the
-   rail updates this and these move with it), not Item Code's own natural
-   resting position (which used to be 10px further right). Locking to a
-   smaller threshold than the natural position was a bug the first time
-   round: sticky only holds an element AT its threshold once scrolling would
-   otherwise push it past that point, so a too-large threshold leaves the
-   gap between the rail and Item Code permanently uncovered — at any scroll
-   position, whatever real column happened to land in that screen sliver
-   shows through, since nothing is ever painted there. Matching --rail-w
-   exactly closes that hole completely. Each subsequent offset stacks the
-   previous columns' widths on top of that same value. min-width matching
-   width keeps table auto-layout from shrinking a column below it when its
+   rail updates this and these move with it), not S.No's own natural
+   resting position (which used to be 10px further right, back when Item
+   Code was the first frozen column). Locking to a smaller threshold than
+   the natural position was a bug the first time round: sticky only holds
+   an element AT its threshold once scrolling would otherwise push it past
+   that point, so a too-large threshold leaves the gap between the rail and
+   the first frozen column permanently uncovered — at any scroll position,
+   whatever real column happened to land in that screen sliver shows
+   through, since nothing is ever painted there. Matching --rail-w exactly
+   closes that hole completely. Each subsequent offset stacks the previous
+   columns' widths on top of that same value. min-width matching width
+   keeps table auto-layout from shrinking a column below it when its
    content is short, which would leave a gap between columns. */
-.fz-itemcode,.fz-desc,.fz-vendor,.fz-range{position:sticky;overflow:hidden;text-overflow:ellipsis;}
-.fz-itemcode{left:var(--rail-w);width:78px;min-width:78px;}
-.fz-desc{left:calc(var(--rail-w) + 78px);width:200px;min-width:200px;}
-.fz-vendor{left:calc(var(--rail-w) + 278px);width:80px;min-width:80px;}
-.fz-range{left:calc(var(--rail-w) + 358px);width:100px;min-width:100px;}
+.fz-sno,.fz-itemcode,.fz-desc,.fz-vendor,.fz-range{position:sticky;overflow:hidden;text-overflow:ellipsis;}
+.fz-sno{left:var(--rail-w);width:64px;min-width:64px;}
+.fz-itemcode{left:calc(var(--rail-w) + 64px);width:78px;min-width:78px;}
+.fz-desc{left:calc(var(--rail-w) + 142px);width:200px;min-width:200px;}
+.fz-vendor{left:calc(var(--rail-w) + 342px);width:80px;min-width:80px;}
+.fz-range{left:calc(var(--rail-w) + 422px);width:100px;min-width:100px;}
+table.grid:not(.resizable) .fz-sno{max-width:64px;}
 table.grid:not(.resizable) .fz-itemcode{max-width:78px;}
 table.grid:not(.resizable) .fz-desc{max-width:200px;}
 table.grid:not(.resizable) .fz-vendor{max-width:80px;}
 table.grid:not(.resizable) .fz-range{max-width:100px;}
-table.grid thead th.fz-itemcode,table.grid thead th.fz-desc,table.grid thead th.fz-vendor,table.grid thead th.fz-range{z-index:4;}
-table.grid tbody td.fz-itemcode,table.grid tbody td.fz-desc,table.grid tbody td.fz-vendor,table.grid tbody td.fz-range{z-index:1;}
-table.grid tbody tr.row-item td.fz-itemcode,table.grid tbody tr.row-item td.fz-desc,table.grid tbody tr.row-item td.fz-vendor,table.grid tbody tr.row-item td.fz-range{background:var(--panel);}
-table.grid tbody tr.row-item:hover td.fz-itemcode,table.grid tbody tr.row-item:hover td.fz-desc,table.grid tbody tr.row-item:hover td.fz-vendor,table.grid tbody tr.row-item:hover td.fz-range{background:var(--row-hover);}
+table.grid thead th.fz-sno,table.grid thead th.fz-itemcode,table.grid thead th.fz-desc,table.grid thead th.fz-vendor,table.grid thead th.fz-range{z-index:4;}
+table.grid tbody td.fz-sno,table.grid tbody td.fz-itemcode,table.grid tbody td.fz-desc,table.grid tbody td.fz-vendor,table.grid tbody td.fz-range{z-index:1;}
+table.grid tbody tr.row-item td.fz-sno,table.grid tbody tr.row-item td.fz-itemcode,table.grid tbody tr.row-item td.fz-desc,table.grid tbody tr.row-item td.fz-vendor,table.grid tbody tr.row-item td.fz-range{background:var(--panel);}
+table.grid tbody tr.row-item:hover td.fz-sno,table.grid tbody tr.row-item:hover td.fz-itemcode,table.grid tbody tr.row-item:hover td.fz-desc,table.grid tbody tr.row-item:hover td.fz-vendor,table.grid tbody tr.row-item:hover td.fz-range{background:var(--row-hover);}
 /* The strong divider + "there's frozen content" shadow now belongs on the
    LAST frozen column (Range Name) — that's the real edge where the frozen
    block meets the scrolling columns. Made deliberately heavier than a normal
@@ -1092,8 +1096,8 @@ table.grid thead tr.field-row th.group-end, table.grid tbody td.group-end{border
 
 /* "Resume here" — the row you drilled into, marked when you press Back */
 table.grid tbody tr.row-item.row-resume td{background:var(--primary-weak);}
-table.grid tbody tr.row-resume td.fz-itemcode,table.grid tbody tr.row-resume td.fz-desc,table.grid tbody tr.row-resume td.fz-vendor,table.grid tbody tr.row-resume td.fz-range{background:var(--primary-weak);}
-table.grid tbody tr.row-resume td.fz-itemcode{box-shadow:inset 3px 0 0 var(--primary);}
+table.grid tbody tr.row-resume td.fz-sno,table.grid tbody tr.row-resume td.fz-itemcode,table.grid tbody tr.row-resume td.fz-desc,table.grid tbody tr.row-resume td.fz-vendor,table.grid tbody tr.row-resume td.fz-range{background:var(--primary-weak);}
+table.grid tbody tr.row-resume td.fz-sno{box-shadow:inset 3px 0 0 var(--primary);}
 table.grid tbody tr.row-item.row-resume td.item-code{color:var(--primary-hover);}
 table.grid tbody tr.row-resume td{animation:resumeFlash 1.5s ease 1;}
 @keyframes resumeFlash{0%{background:var(--i-300);}18%{background:var(--i-200);}100%{background:var(--primary-weak);}}
@@ -1105,8 +1109,8 @@ table.grid tbody tr.row-resume td{animation:resumeFlash 1.5s ease 1;}
    separate class, since the two track different things and can both be
    active on different rows at once. */
 table.grid tbody tr.row-item.row-selected td{background:var(--primary-weak);}
-table.grid tbody tr.row-selected td.fz-itemcode,table.grid tbody tr.row-selected td.fz-desc,table.grid tbody tr.row-selected td.fz-vendor,table.grid tbody tr.row-selected td.fz-range{background:var(--primary-weak);}
-table.grid tbody tr.row-selected td.fz-itemcode{box-shadow:inset 3px 0 0 var(--primary);}
+table.grid tbody tr.row-selected td.fz-sno,table.grid tbody tr.row-selected td.fz-itemcode,table.grid tbody tr.row-selected td.fz-desc,table.grid tbody tr.row-selected td.fz-vendor,table.grid tbody tr.row-selected td.fz-range{background:var(--primary-weak);}
+table.grid tbody tr.row-selected td.fz-sno{box-shadow:inset 3px 0 0 var(--primary);}
 table.grid tbody tr.row-item.row-selected td.item-code{color:var(--primary-hover);}
 
 /* Scroll-aware elevation — header + frozen column only cast a shadow once scrolled */
