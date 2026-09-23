@@ -297,12 +297,19 @@ button{font-family:inherit;}
 .lookup-box button:hover{background:var(--primary-hover);border-color:var(--primary-hover);box-shadow:var(--sh-sm);}
 
 /* Login gate — see js/auth.js. Sits above everything (z-index above the
-   sticky topbar at 40) so nothing of the app is visible until signed in. */
+   sticky topbar at 40) so nothing of the app is visible until signed in.
+   display:none by default, flex only when NOT hidden (matches .wk-modal's
+   pattern below) -- an unconditional display:flex here overrides the
+   [hidden] attribute's default display:none (an author-stylesheet rule
+   always beats the UA default, regardless of specificity or source
+   order), so overlay.hidden = true in JS would silently do nothing and
+   the login card would never actually go away after a successful login. */
 .login-overlay{
-  position:fixed;inset:0;z-index:500;
-  display:flex;align-items:center;justify-content:center;
+  display:none;position:fixed;inset:0;z-index:500;
+  align-items:center;justify-content:center;
   background:var(--canvas);
 }
+.login-overlay:not([hidden]){display:flex;}
 .login-card{
   width:min(340px,100%);background:var(--panel);border:1px solid var(--line-strong);
   border-radius:var(--r-lg);box-shadow:var(--sh-lg);padding:var(--sp-7);
