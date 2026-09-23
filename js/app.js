@@ -556,24 +556,31 @@ function totalRcvdTip(){
    (last received) against REPORT_MONTH (this app's "today", same anchor as
    AVG/YTD Sold/13-mo Trend). Age is whole calendar months, not days — e.g.
    an item received in August when today is September is 1 month old,
-   regardless of which day of either month. "New" (received in the current
-   calendar month) and "No-Dt" (no Lrcv Date at all) are their own buckets,
-   not part of the 0–3/3–6/… numeric ladder. __stkAgeSno is the reference
-   table's own bucket-order number (0=New … 7=24 Above, 8=No-Dt) — stored
-   only for sorting, never displayed.
-   No Lrcv Date on file: Plan Code "N" genuinely means the item is new and
-   hasn't been received yet, so that case is "New" rather than "unknown" —
-   anything else with no date is a real data gap, so it's "No-Dt". */
+   regardless of which day of either month. __stkAgeSno is the reference
+   table's own bucket-order number (0=New … 7=24 Above) — stored only for
+   sorting, never displayed.
+   Plan Code "N" is its own case, entirely separate from the numeric
+   ladder — it's ALWAYS "New" in some form regardless of what the date
+   would otherwise compute to: "New*" if Lrcv Date is on file (it just
+   hasn't been long enough to matter, or the date's presence itself is
+   worth flagging with the asterisk), "New" if there's no date at all.
+   Every other Plan Code always runs the real 0–3/3–6/…/24-Above ladder —
+   never "New"/"New*", even if the date happens to fall in the current
+   month (that no-longer short-circuits to "New" the way it used to; it
+   just lands in "0-3" like any other recent date). No Lrcv Date on a
+   non-N item is treated as if it were received 01-Jan-2015 — a fixed
+   placeholder, not a data patch, so it keeps working once live Navision
+   data is connected — and runs through that exact same ladder. */
 function stkAgeFor(it){
   const raw = it['Lrcv Date'];
   const m = raw ? String(raw).match(/^(\d{2})-(\d{2})-(\d{4})$/) : null;
-  if(!m){
-    const isPlanN = String(it['Current Plan Code']).trim().toUpperCase() === 'N';
-    return isPlanN ? { label: 'New', sno: 0 } : { label: 'No-Dt', sno: 8 };
+
+  if(String(it['Current Plan Code']).trim().toUpperCase() === 'N'){
+    return m ? { label: 'New*', sno: 0 } : { label: 'New', sno: 0 };
   }
-  const lrcvYear = Number(m[3]), lrcvMonth = Number(m[2]) - 1;
+
+  const lrcvYear = m ? Number(m[3]) : 2015, lrcvMonth = m ? Number(m[2]) - 1 : 0;
   const ageMonths = (REPORT_MONTH.year - lrcvYear) * 12 + (REPORT_MONTH.month - lrcvMonth);
-  if(ageMonths <= 0) return { label: 'New', sno: 0 };
   if(ageMonths < 3) return { label: '0-3', sno: 1 };
   if(ageMonths < 6) return { label: '3-6', sno: 2 };
   if(ageMonths < 9) return { label: '6-9', sno: 3 };
@@ -1401,7 +1408,7 @@ const COLUMN_LAYOUT = [
       { field:'Store Count', label:'SR',
         tip:'SR display — how many of the ' + UAE_STORES.length + ' UAE stores currently hold stock of this item.' } ] },
   { type:'core', field:'STK Age', label:'STK Age', sortable:true, stack:true,
-    tip:'How long the current stock has been sitting, measured from Lrcv Date: New (received this month), 0-3, 3-6, 6-9, 9-12, 12-18, 18-24, 24 Above (months), or No-Dt if there\'s no Lrcv Date on file (unless Plan Code is N, which counts as New instead).' },
+    tip:'How long the current stock has been sitting. Plan Code N is always New* (has an Lrcv Date) or New (no Lrcv Date), regardless of age. Every other plan follows 0-3, 3-6, 6-9, 9-12, 12-18, 18-24, or 24 Above (months) from Lrcv Date, or from 01-Jan-2015 if there\'s no Lrcv Date on file.' },
   { type:'core', field:'__spark', label:'13-mo Trend' },
   { type:'group', key:'attrs', title:'Attributes', short:'Attrs', cols:[
       { field:'Item Color Name', label:'Color' },
