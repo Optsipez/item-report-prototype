@@ -523,6 +523,12 @@ table.matrix td.neg{color:var(--neg);}
    safety net in case a future branch list is ever wide again for some
    other reason. */
 #branchMatrixWrap{overflow-x:auto;}
+/* table.matrix defaults to width:100%, which is right for the Overview
+   year-matrix (12+ month columns, wants the room) but wrong here — this
+   table only has 3 narrow columns (Branch Code/SOH/Sold), so stretching it
+   to fill the wrap's full width just spread the columns out with large gaps
+   instead of sizing to content. Scoped to this wrap only. */
+#branchMatrixWrap table.matrix{width:auto;}
 .matrix-wrap:last-child{margin-bottom:0;}
 
 /* Combined Stock/Sold/Remaining-stock blocks, one per calendar year, shown
