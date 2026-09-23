@@ -614,6 +614,12 @@ function setView(view){
   railAll.classList.toggle('active', !isLookup);
   viewLookup.classList.toggle('active', isLookup);
   viewAll.classList.toggle('active', !isLookup);
+  // .main's left padding is trimmed to 22px (not the usual 32px) specifically
+  // for the grid's frozen columns (see the comment on .main in styles.css) —
+  // Item Lookup has no such column to align with, so that tight padding just
+  // read as its title/text crowding the rail's edge. .flush restores the
+  // fuller padding for this view only, leaving the grid's alignment alone.
+  document.querySelector('.main').classList.toggle('flush', isLookup);
   if(!isLookup) renderGrid();
   if(typeof syncTopbarWidth === 'function') syncTopbarWidth();
 }
