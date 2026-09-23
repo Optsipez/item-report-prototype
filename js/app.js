@@ -1719,15 +1719,15 @@ document.getElementById('clearSortBtn').addEventListener('click', () => {
   gridGroup = null;
   renderGrid();
 });
-/* Scroll the page (vertically only) so the grid's top edge is back in view —
-   used whenever changing pages should return you to row 1 of the new page.
+/* Scroll the page back to the very top (vertically only) — used whenever
+   changing pages should return you to row 1 of the new page. Always jumps
+   all the way to 0, not a partial nudge toward the grid's edge — a relative
+   adjustment here previously left you partway down the page on a page
+   change, which read as "barely moved" rather than a clean jump to the top.
    .grid-scroll has no scroll position of its own to reset (rows scroll with
-   the page now, see .grid-scroll in styles.css). */
+   the page now, see .grid-scroll in styles.css), so this is just the window. */
 function scrollGridIntoView(){
-  const gs = document.querySelector('.grid-scroll');
-  if(!gs) return;
-  const top = gs.getBoundingClientRect().top;
-  if(top < 56) window.scrollTo({ top: Math.max(0, window.scrollY + top - 76), left: window.scrollX });
+  window.scrollTo({ top: 0, left: window.scrollX });
 }
 /* "Go to page" — the only way to change pages now (no more Prev/Next
    arrows). Enter or blur jumps; the typed number is clamped to whatever the
