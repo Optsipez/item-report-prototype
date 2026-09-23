@@ -70,6 +70,16 @@ function showLoginOverlay(msg){
   overlay.hidden = false;
   const err = document.getElementById('loginError');
   if(err) err.textContent = msg || '';
+  // Only on an actual rejection (msg set), not the plain "show the login
+  // screen" call at page load. Clearing + refocusing the password field
+  // avoids a confusing case: typing over a rejected password without
+  // first selecting it all inserts new characters into the old ones
+  // instead of replacing them, so the retry silently fails too and shows
+  // the exact same error text -- looking exactly like nothing happened.
+  if(msg){
+    const pwField = document.getElementById('loginPassword');
+    if(pwField){ pwField.value = ''; pwField.focus(); }
+  }
 }
 function hideLoginOverlay(){
   const overlay = document.getElementById('loginOverlay');
