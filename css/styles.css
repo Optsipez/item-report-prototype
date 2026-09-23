@@ -581,10 +581,14 @@ table.matrix td.neg{color:var(--neg);}
 #branchMatrixWrap table.matrix{width:auto;}
 .matrix-wrap:last-child{margin-bottom:0;}
 
-/* Branch Wise table extras: a rolling Sort Order rank, and per-branch-family
-   grouping (main branch + its -DM/CL- variants — see BRANCH_ORDER/branchFamily
-   in app.js) shown as alternating tints with a blank spacer row between
-   families, matching the reference layout the buying team sketched out. */
+/* Branch Wise table extras: a rolling Sort Order rank, and per-branch-group
+   grouping (see BRANCH_GROUPS in app.js) shown as alternating SOLID fills
+   with a blank spacer row between groups, matching the buying team's
+   reference sheet exactly -- including its two fill colors (a tan/peach and
+   a soft blue, both standard Excel "lighter 40%" theme swatches). A subtle
+   tint on only every other row (the previous approach) read as barely-there
+   in some cells, so both bands now get a distinct solid color instead of
+   one band getting a tint and the other getting none. */
 table.branch-matrix th.branch-sno, table.branch-matrix td.branch-sno{
   text-align:right;font-family:inherit;font-weight:400;color:var(--ink-faint);
 }
@@ -597,8 +601,10 @@ table.branch-matrix th:nth-child(2), table.branch-matrix td:nth-child(2){
 table.branch-matrix th.branch-month, table.branch-matrix td.branch-month{
   font-size:var(--fs-2xs);
 }
-table.branch-matrix tbody tr.branch-fam-1 td{background:var(--row-shade);}
-table.branch-matrix tbody tr.branch-fam-1:hover td{background:var(--s-25);}
+table.branch-matrix tbody tr.branch-fam-0 td{background:#f8cbad;}
+table.branch-matrix tbody tr.branch-fam-0:hover td{background:#f4b98d;}
+table.branch-matrix tbody tr.branch-fam-1 td{background:#bdd7ee;}
+table.branch-matrix tbody tr.branch-fam-1:hover td{background:#a1c6e6;}
 table.branch-matrix tbody tr.branch-sep td{border-bottom:none;padding:4px 0;}
 table.branch-matrix tbody tr.branch-total td{border-top:1px solid var(--line-strong);border-bottom:none;}
 
