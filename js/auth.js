@@ -17,7 +17,17 @@ const EMPLOYEES = [
   { id: 'BUY001', password: 'CHANGE_ME_BUYER', role: 'buyer' },
   { id: 'BUY002', password: 'CHANGE_ME_BUYER', role: 'buyer' },
   { id: 'BUY003', password: 'CHANGE_ME_BUYER', role: 'buyer' },
-  // add more Buyer IDs here, same password as the ones above
+  { id: 'BUY004', password: 'CHANGE_ME_BUYER', role: 'buyer' },
+  { id: 'BUY005', password: 'CHANGE_ME_BUYER', role: 'buyer' },
+  { id: 'BUY006', password: 'CHANGE_ME_BUYER', role: 'buyer' },
+  { id: 'BUY007', password: 'CHANGE_ME_BUYER', role: 'buyer' },
+  { id: 'BUY008', password: 'CHANGE_ME_BUYER', role: 'buyer' },
+  { id: 'BUY009', password: 'CHANGE_ME_BUYER', role: 'buyer' },
+  { id: 'BUY010', password: 'CHANGE_ME_BUYER', role: 'buyer' },
+  { id: 'BUY011', password: 'CHANGE_ME_BUYER', role: 'buyer' },
+  { id: 'BUY012', password: 'CHANGE_ME_BUYER', role: 'buyer' },
+  { id: 'BUY013', password: 'CHANGE_ME_BUYER', role: 'buyer' },
+  // add/remove Buyer IDs here, same password as the ones above
   { id: 'MGR1', password: 'CHANGE_ME_MANAGER', role: 'manager' },
   { id: 'CEO', password: 'CHANGE_ME_CEO', role: 'ceo' },
 ];
