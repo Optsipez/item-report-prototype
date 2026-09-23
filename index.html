@@ -20,7 +20,13 @@
     </div>
   </div>
   <div class="spacer"></div>
-  <div class="env">Prototype — sample data from Navision_Report_Format.xlsx</div>
+  <div class="topbar-right">
+    <div class="topbar-user">
+      <span id="topbarUserLabel"></span>
+      <button id="logoutBtn" type="button">Log out</button>
+    </div>
+    <div class="env">Prototype — sample data from Navision_Report_Format.xlsx</div>
+  </div>
 </div>
 
 <div class="layout">
@@ -258,6 +264,21 @@
   </div>
 </div>
 
+<!-- Login gate — shown until a valid session exists, see js/auth.js -->
+<div id="loginOverlay" class="login-overlay" hidden>
+  <form id="loginForm" class="login-card">
+    <h2>Inventory Intelligence</h2>
+    <p class="login-sub">Sign in with your employee ID</p>
+    <label class="login-label" for="loginId">Employee ID</label>
+    <input id="loginId" type="text" autocomplete="username" autofocus>
+    <label class="login-label" for="loginPassword">Password</label>
+    <input id="loginPassword" type="password" autocomplete="current-password">
+    <p id="loginError" class="login-error"></p>
+    <button type="submit">Sign in</button>
+  </form>
+</div>
+
+<script src="js/auth.js"></script>
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>
 

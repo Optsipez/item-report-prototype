@@ -1506,6 +1506,17 @@ const COLUMN_LAYOUT = [
 ];
 
 const ALL_GROUP_KEYS = COLUMN_LAYOUT.filter(e => e.type === 'group').map(e => e.key);
+// Role-filtered view of COLUMN_LAYOUT — the single place both visibleColumns()
+// and buildGridHeader() read from, so a role restriction only needs adding
+// here once rather than in every render function that touches columns.
+// CURRENT_ROLE comes from js/auth.js (loaded before this file).
+function activeColumnLayout(){
+  if(CURRENT_ROLE !== 'buyer') return COLUMN_LAYOUT;
+  return COLUMN_LAYOUT.map(entry => {
+    if(entry.type !== 'group') return entry;
+    return Object.assign({}, entry, { cols: entry.cols.filter(c => c.field !== 'Vendor Name') });
+  });
+}
 // Sensible default: keep the essentials visible first. soldby-old/stockin-old
 // (the oldest 4 of the 13 months) start collapsed on every fresh load —
 // this is a plain module-level default, not tied to how the page was
@@ -1746,7 +1757,7 @@ function fmtCell(v, fmt){
 
 function visibleColumns(){
   const out = [];
-  COLUMN_LAYOUT.forEach(entry => {
+  activeColumnLayout().forEach(entry => {
     if(entry.type === 'core'){ out.push(entry); return; }
     if(collapsedGroups.has(entry.key)){
       out.push({ type:'collapsed', key:entry.key, title:entry.title });
@@ -1975,7 +1986,7 @@ function buildGridHeader(){
   const fieldRow = document.createElement('tr');
   fieldRow.className = 'field-row';
 
-  COLUMN_LAYOUT.forEach(entry => {
+  activeColumnLayout().forEach(entry => {
     if(entry.type === 'core'){
       const gth = document.createElement('th');
       gth.className = 'core' + (entry.fz ? ' ' + entry.fz : '');

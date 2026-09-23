@@ -1,0 +1,107 @@
+/* ============================================================
+   LOGIN GATE — employee ID + password, role-based (buyer / manager /
+   ceo). This app is static (no backend — data.js ships the whole
+   dataset straight to the browser), so this is NOT real security:
+   anyone who opens this file or the browser's dev tools can read the
+   credentials and the data regardless of login state. It's a
+   lightweight gate to keep casual/wrong-department access out and
+   route each role to the right view — nothing more.
+
+   EDIT EMPLOYEES BELOW with the real employee IDs and passwords
+   before real use — these are placeholders. Every Buyer ID shares one
+   password; Manager 1 and CEO each have their own. Role names used
+   elsewhere (see activeColumnLayout() in app.js): 'buyer', 'manager',
+   'ceo'.
+   ============================================================ */
+const EMPLOYEES = [
+  { id: 'BUY001', password: 'CHANGE_ME_BUYER', role: 'buyer' },
+  { id: 'BUY002', password: 'CHANGE_ME_BUYER', role: 'buyer' },
+  { id: 'BUY003', password: 'CHANGE_ME_BUYER', role: 'buyer' },
+  // add more Buyer IDs here, same password as the ones above
+  { id: 'MGR1', password: 'CHANGE_ME_MANAGER', role: 'manager' },
+  { id: 'CEO', password: 'CHANGE_ME_CEO', role: 'ceo' },
+];
+
+let CURRENT_ROLE = null;
+let CURRENT_EMPLOYEE_ID = null;
+
+function findEmployee(id){
+  const norm = String(id || '').trim().toUpperCase();
+  if(!norm) return null;
+  return EMPLOYEES.find(e => e.id.toUpperCase() === norm) || null;
+}
+
+function saveSession(emp){
+  try { sessionStorage.setItem('empSession', JSON.stringify({ id: emp.id, role: emp.role })); } catch(e){}
+}
+function clearSession(){
+  try { sessionStorage.removeItem('empSession'); } catch(e){}
+}
+// Trusts the session for the tab's lifetime rather than re-checking
+// EMPLOYEES on every load — simplest option for a gate that's explicitly
+// not meant to be bypass-proof. An edited/removed ID takes effect on that
+// employee's next login, not retroactively on an already-open tab.
+function restoreSession(){
+  let raw;
+  try { raw = sessionStorage.getItem('empSession'); } catch(e){ raw = null; }
+  if(!raw) return false;
+  let saved;
+  try { saved = JSON.parse(raw); } catch(e){ return false; }
+  if(!saved || !saved.id || !saved.role) return false;
+  CURRENT_ROLE = saved.role;
+  CURRENT_EMPLOYEE_ID = saved.id;
+  return true;
+}
+
+function showLoginOverlay(msg){
+  const overlay = document.getElementById('loginOverlay');
+  if(!overlay) return;
+  overlay.hidden = false;
+  const err = document.getElementById('loginError');
+  if(err) err.textContent = msg || '';
+}
+function hideLoginOverlay(){
+  const overlay = document.getElementById('loginOverlay');
+  if(overlay) overlay.hidden = true;
+}
+function updateTopbarUser(){
+  const label = document.getElementById('topbarUserLabel');
+  if(!label || !CURRENT_ROLE) return;
+  const roleLabel = CURRENT_ROLE === 'ceo' ? 'CEO' : CURRENT_ROLE === 'manager' ? 'Manager' : 'Buyer';
+  label.textContent = CURRENT_EMPLOYEE_ID + ' · ' + roleLabel;
+}
+
+(function initAuth(){
+  if(restoreSession()){
+    hideLoginOverlay();
+    updateTopbarUser();
+  } else {
+    showLoginOverlay();
+  }
+
+  const form = document.getElementById('loginForm');
+  if(form){
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const idVal = document.getElementById('loginId').value;
+      const pwVal = document.getElementById('loginPassword').value;
+      const emp = findEmployee(idVal);
+      if(!emp || emp.password !== pwVal){
+        showLoginOverlay('Incorrect employee ID or password.');
+        return;
+      }
+      saveSession(emp);
+      // Reload so app.js's very first render already sees the right
+      // CURRENT_ROLE, rather than re-rendering the grid after the fact.
+      location.reload();
+    });
+  }
+
+  const logoutBtn = document.getElementById('logoutBtn');
+  if(logoutBtn){
+    logoutBtn.addEventListener('click', () => {
+      clearSession();
+      location.reload();
+    });
+  }
+})();
