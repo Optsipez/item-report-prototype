@@ -582,15 +582,12 @@ table.matrix td.neg{color:var(--neg);}
 .matrix-wrap:last-child{margin-bottom:0;}
 
 /* Branch Wise table extras: a rolling Sort Order rank, and per-branch-group
-   grouping (see BRANCH_GROUPS in app.js) shown as alternating SOLID fills
-   with a blank spacer row between groups, matching the buying team's
-   reference sheet exactly -- including its two fill colors (a tan/peach and
-   a soft blue, both standard Excel "lighter 40%" theme swatches). A subtle
-   tint on only every other row (the previous approach) read as barely-there
-   in some cells, so both bands now get a distinct solid color instead of
-   one band getting a tint and the other getting none. */
+   grouping (see BRANCH_GROUPS in app.js) shown as SOLID fills with a blank
+   spacer row between groups, matching the buying team's reference sheet:
+   the first group is tan, the next three are blue, everything after that
+   is a plain grey (not a strict two-tone alternation). */
 table.branch-matrix th.branch-sno, table.branch-matrix td.branch-sno{
-  text-align:right;font-family:inherit;font-weight:400;color:var(--ink-faint);
+  text-align:right;font-family:inherit;font-weight:400;color:var(--ink-soft);
 }
 /* Branch Code is column 2 now (Sort Order sits ahead of it), so it needs
    the same left-align/mono/bold treatment table.matrix normally gives
@@ -601,10 +598,18 @@ table.branch-matrix th:nth-child(2), table.branch-matrix td:nth-child(2){
 table.branch-matrix th.branch-month, table.branch-matrix td.branch-month{
   font-size:var(--fs-2xs);
 }
-table.branch-matrix tbody tr.branch-fam-0 td{background:#f8cbad;}
-table.branch-matrix tbody tr.branch-fam-0:hover td{background:#f4b98d;}
-table.branch-matrix tbody tr.branch-fam-1 td{background:#bdd7ee;}
-table.branch-matrix tbody tr.branch-fam-1:hover td{background:#a1c6e6;}
+/* table.matrix's own td.zero rule uses --ink-faint (a light grey) for de-
+   emphasized zero/placeholder values, which has poor contrast against any
+   of the three fill colors below -- most cells here ARE zero/placeholder,
+   so nearly everything but the Branch Code column was hard to read. Scoped
+   to a darker, still-secondary color just for this table. */
+table.branch-matrix td.zero{color:var(--ink-soft);}
+table.branch-matrix tbody tr.branch-tan td{background:#f8cbad;}
+table.branch-matrix tbody tr.branch-tan:hover td{background:#f4b98d;}
+table.branch-matrix tbody tr.branch-blue td{background:#bdd7ee;}
+table.branch-matrix tbody tr.branch-blue:hover td{background:#a1c6e6;}
+table.branch-matrix tbody tr.branch-grey td{background:#d9d9d9;}
+table.branch-matrix tbody tr.branch-grey:hover td{background:#c7c7c7;}
 table.branch-matrix tbody tr.branch-sep td{border-bottom:none;padding:4px 0;}
 table.branch-matrix tbody tr.branch-total td{border-top:1px solid var(--line-strong);border-bottom:none;}
 

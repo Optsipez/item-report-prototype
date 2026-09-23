@@ -1240,33 +1240,37 @@ function closeWeekModal(){
 /* Master branch display order and grouping — given directly (as a hand-laid-
    out spreadsheet) rather than derived from a naming pattern: the first
    group mixes SAJWH/DCSHJ/CLRNC/CL-DCSHJ together, which a plain "strip CL-/
-   -DM" rule wouldn't produce, so each group is spelled out exactly.
-   RAKMA/ZAHIA/WEBSTR weren't in the reference sheet — tacked on at the end
-   following the same shape as the other groups (2-row DM pair, standalone
-   for one with no variants). */
+   -DM" rule wouldn't produce, so each group is spelled out exactly. Each
+   group also carries its own color (not just alternating two tones) --
+   the reference sheet colors its first group tan, the next three blue, and
+   the rest a plain grey, not a strict alternation. RAKMA/ZAHIA/WEBSTR
+   weren't in the reference sheet — tacked on at the end following the same
+   shape (and grey color) as the other trailing groups. */
 const BRANCH_GROUPS = [
-  ['SAJWH', 'DCSHJ', 'CLRNC', 'CL-DCSHJ'],
-  ['JUMRA', 'JUMRA-DM', 'CL-JUMRA'],
-  ['MARIN', 'MARIN-DM', 'CL-MARIN'],
-  ['REGUS', 'REGUS-DM', 'CL-REGUS'],
-  ['BRSHA', 'BRSHA-DM'],
-  ['GALER', 'GALER-DM'],
-  ['ALNML', 'ALNML-DM'],
-  ['PARKC', 'PARKC-DM'],
-  ['DALMA', 'DALMA-DM'],
-  ['RAKMA', 'RAKMA-DM'],
-  ['ZAHIA', 'ZAHIA-DM'],
-  ['WEBSTR'],
+  { color: 'tan', codes: ['SAJWH', 'DCSHJ', 'CLRNC', 'CL-DCSHJ'] },
+  { color: 'blue', codes: ['JUMRA', 'JUMRA-DM', 'CL-JUMRA'] },
+  { color: 'blue', codes: ['MARIN', 'MARIN-DM', 'CL-MARIN'] },
+  { color: 'blue', codes: ['REGUS', 'REGUS-DM', 'CL-REGUS'] },
+  { color: 'grey', codes: ['BRSHA', 'BRSHA-DM'] },
+  { color: 'grey', codes: ['GALER', 'GALER-DM'] },
+  { color: 'grey', codes: ['ALNML', 'ALNML-DM'] },
+  { color: 'grey', codes: ['PARKC', 'PARKC-DM'] },
+  { color: 'grey', codes: ['DALMA', 'DALMA-DM'] },
+  { color: 'grey', codes: ['RAKMA', 'RAKMA-DM'] },
+  { color: 'grey', codes: ['ZAHIA', 'ZAHIA-DM'] },
+  { color: 'grey', codes: ['WEBSTR'] },
 ];
-const BRANCH_ORDER = BRANCH_GROUPS.flat();
+const BRANCH_ORDER = BRANCH_GROUPS.flatMap(g => g.codes);
 const BRANCH_RANK = Object.fromEntries(BRANCH_ORDER.map((c, i) => [c, i]));
 const BRANCH_GROUP_OF = {};
-BRANCH_GROUPS.forEach((g, gi) => g.forEach(c => { BRANCH_GROUP_OF[c] = gi; }));
+const BRANCH_COLOR_OF = {};
+BRANCH_GROUPS.forEach((g, gi) => g.codes.forEach(c => { BRANCH_GROUP_OF[c] = gi; BRANCH_COLOR_OF[c] = g.color; }));
 // A code not in BRANCH_ORDER/BRANCH_GROUPS (e.g. a future branch not yet
 // added above) still renders, just sorted after every known one and
 // without a group of its own, instead of erroring.
 function branchRank(code){ return code in BRANCH_RANK ? BRANCH_RANK[code] : BRANCH_ORDER.length; }
 function branchGroupIndex(code){ return code in BRANCH_GROUP_OF ? BRANCH_GROUP_OF[code] : -1; }
+function branchColorClass(code){ return 'branch-' + (BRANCH_COLOR_OF[code] || 'grey'); }
 
 function buildBranchTable(wrapEl, item){
   const branch = BRANCH_BY_ITEM[item['Item Code']];
@@ -1288,18 +1292,17 @@ function buildBranchTable(wrapEl, item){
     '<th class="branch-sno">Sort Order</th><th>Branch Code</th><th>SOH</th><th>Sold</th>' +
     monthHeaderHtml + '</tr></thead><tbody>';
 
-  let sno = 0, band = -1, prevGroup = null;
+  let sno = 0, prevGroup = null;
   codes.forEach(c => {
     const group = branchGroupIndex(c);
     if(group !== prevGroup){
       if(prevGroup !== null) html += '<tr class="branch-sep" aria-hidden="true"><td colspan="' + colCount + '"></td></tr>';
-      band++;
       prevGroup = group;
     }
     sno++;
     const soh = branch[c];
     const soldV = sold ? sold[c] : null;
-    html += '<tr class="branch-fam-' + (band % 2) + '">';
+    html += '<tr class="' + branchColorClass(c) + '">';
     html += '<td class="branch-sno">' + sno + '</td>';
     html += '<td>' + c + '</td>';
     html += '<td class="' + (soh === 0 ? 'zero' : (soh < 0 ? 'neg' : '')) + '">' + soh + '</td>';
