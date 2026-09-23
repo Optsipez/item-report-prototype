@@ -30,6 +30,7 @@ const EMPLOYEES = [
   // add/remove Buyer IDs here, same password as the ones above
   { id: '3111', password: 'Jav@1923', role: 'manager' },
   { id: 'CEO', password: 'Suood@2986', role: 'ceo' },
+  { id: 'admin', password: 'Admin0306', role: 'admin' },
 ];
 
 let CURRENT_ROLE = null;
@@ -77,7 +78,7 @@ function hideLoginOverlay(){
 function updateTopbarUser(){
   const label = document.getElementById('topbarUserLabel');
   if(!label || !CURRENT_ROLE) return;
-  const roleLabel = CURRENT_ROLE === 'ceo' ? 'CEO' : CURRENT_ROLE === 'manager' ? 'Manager' : 'Buyer';
+  const roleLabel = CURRENT_ROLE === 'ceo' ? 'CEO' : CURRENT_ROLE === 'manager' ? 'Manager' : CURRENT_ROLE === 'admin' ? 'Admin' : 'Buyer';
   label.textContent = CURRENT_EMPLOYEE_ID + ' · ' + roleLabel;
 }
 
