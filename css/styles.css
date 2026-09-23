@@ -1058,12 +1058,12 @@ table.grid tfoot td{
    keeps table auto-layout from shrinking a column below it when its
    content is short, which would leave a gap between columns. */
 .fz-sno,.fz-itemcode,.fz-desc,.fz-vendor,.fz-range{position:sticky;overflow:hidden;text-overflow:ellipsis;}
-.fz-sno{left:var(--rail-w);width:64px;min-width:64px;}
-.fz-itemcode{left:calc(var(--rail-w) + 64px);width:78px;min-width:78px;}
-.fz-desc{left:calc(var(--rail-w) + 142px);width:200px;min-width:200px;}
-.fz-vendor{left:calc(var(--rail-w) + 342px);width:80px;min-width:80px;}
-.fz-range{left:calc(var(--rail-w) + 422px);width:100px;min-width:100px;}
-table.grid:not(.resizable) .fz-sno{max-width:64px;}
+.fz-sno{left:var(--rail-w);width:72px;min-width:72px;}
+.fz-itemcode{left:calc(var(--rail-w) + 72px);width:78px;min-width:78px;}
+.fz-desc{left:calc(var(--rail-w) + 150px);width:200px;min-width:200px;}
+.fz-vendor{left:calc(var(--rail-w) + 350px);width:80px;min-width:80px;}
+.fz-range{left:calc(var(--rail-w) + 430px);width:100px;min-width:100px;}
+table.grid:not(.resizable) .fz-sno{max-width:72px;}
 table.grid:not(.resizable) .fz-itemcode{max-width:78px;}
 table.grid:not(.resizable) .fz-desc{max-width:200px;}
 table.grid:not(.resizable) .fz-vendor{max-width:80px;}
