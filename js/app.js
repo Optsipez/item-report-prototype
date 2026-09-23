@@ -1428,18 +1428,20 @@ const COLUMN_LAYOUT = [
   // itself stays oldest -> newest internally since the trend sparkline / YTD
   // math depend on that order. field:'__sold_'+i still points at the right
   // MONTH_WINDOW entry regardless of the display order below.
-  // Each 13-month strip splits into its own recent 6 months (default open)
-  // and its oldest 7 months (default collapsed, own toggle) — this is just
-  // "the last 7 of the window", so it keeps meaning the same thing as
-  // MONTH_WINDOW rolls forward.
+  // Each 13-month strip splits into its own recent 7 months — the current
+  // month plus 6 trailing, same "N + current month" convention as the
+  // stats-window toggle (6+1) — (default open) and its oldest 6 months
+  // (default collapsed, own toggle). This is just "the last 6 of the
+  // window", so it keeps meaning the same thing as MONTH_WINDOW rolls
+  // forward.
   { type:'group', key:'soldby', title:'Sold by Month', short:'Sold',
-    cols: MONTH_WINDOW.map((w, i) => ({ field:'__sold_'+i, label: monthColLabel(w) })).reverse().slice(0, 6) },
+    cols: MONTH_WINDOW.map((w, i) => ({ field:'__sold_'+i, label: monthColLabel(w) })).reverse().slice(0, 7) },
   { type:'group', key:'soldby-old', title:'Sold by Month — Older', short:'Sold (Older)',
-    cols: MONTH_WINDOW.map((w, i) => ({ field:'__sold_'+i, label: monthColLabel(w) })).reverse().slice(6) },
+    cols: MONTH_WINDOW.map((w, i) => ({ field:'__sold_'+i, label: monthColLabel(w) })).reverse().slice(7) },
   { type:'group', key:'stockin', title:'Stock In by Month', short:'Stock In',
-    cols: MONTH_WINDOW.map((w, i) => ({ field:'__stock_'+i, label: monthColLabel(w) })).reverse().slice(0, 6) },
+    cols: MONTH_WINDOW.map((w, i) => ({ field:'__stock_'+i, label: monthColLabel(w) })).reverse().slice(0, 7) },
   { type:'group', key:'stockin-old', title:'Stock In by Month — Older', short:'Stock In (Older)',
-    cols: MONTH_WINDOW.map((w, i) => ({ field:'__stock_'+i, label: monthColLabel(w) })).reverse().slice(6) },
+    cols: MONTH_WINDOW.map((w, i) => ({ field:'__stock_'+i, label: monthColLabel(w) })).reverse().slice(7) },
 ];
 
 const ALL_GROUP_KEYS = COLUMN_LAYOUT.filter(e => e.type === 'group').map(e => e.key);
