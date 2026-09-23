@@ -1398,7 +1398,7 @@ const COLUMN_LAYOUT = [
       { field:'Now (Aed)', label:'Now', fmt:'money0' },
       { field:'Disct%', label:'Disct%', fmt:'pct' },
       { field:'MRG Factor', label:'Mrg', fmt:'x2' } ] },
-  { type:'core', field:'Nav Stock', label:'Navision Stock', sortable:true, stack:true,
+  { type:'core', field:'Nav Stock', label:'Nav Stk', sortable:true, stack:true,
     tip:'Navision Stock = Navision U-SOH + M-SOH (UAE stock on hand + Oman market stock).\nCurrently sourced from Book2.xlsx; moves to the live Navision feed later.' },
   { type:'core', field:'SOH', label:'SOH', sortable:true,
     tip:'SOH = WH SOH + SR Qty (store stock, plus Oman when the SR Qty badge has it toggled in).' },
