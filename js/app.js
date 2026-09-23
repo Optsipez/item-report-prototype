@@ -1182,33 +1182,33 @@ function closeWeekModal(){
    in data.js; only the 10 UAE retail stores are covered (same scope as
    BRANCH_BY_ITEM's own "which store" concept), so a store or an item with
    no branch-level sales just isn't a key here. */
+// One row per branch (not one column) — with ~28 branches, a column-per-branch
+// layout needed ~1850px and overflowed the tab panel with no way to see it
+// all without horizontal scroll. Transposed so it's tall instead of wide,
+// which the page already handles fine (vertical scroll), and never needs
+// horizontal scroll no matter how many branches there are.
 function buildBranchTable(wrapEl, item){
   const branch = BRANCH_BY_ITEM[item['Item Code']];
   if(!branch){ wrapEl.innerHTML = '<p class="foot-note">No branch-level data found for this item.</p>'; return; }
   const codes = Object.keys(branch);
   const sold = BRANCH_SOLD_BY_ITEM[item['Item Code']];
 
-  let html = '<table class="matrix"><thead><tr><th>Branch Code</th>';
-  codes.forEach(c => html += `<th>${c}</th>`);
-  html += '<th>Total</th></tr></thead><tbody>';
+  let html = '<table class="matrix"><thead><tr><th>Branch Code</th><th>SOH</th><th>Sold</th></tr></thead><tbody>';
+
+  codes.forEach(c => {
+    const soh = branch[c];
+    const soldV = sold ? sold[c] : null;
+    html += `<tr><td>${c}</td>`;
+    html += `<td class="${soh === 0 ? 'zero' : (soh < 0 ? 'neg' : '')}">${soh}</td>`;
+    html += soldV == null
+      ? '<td class="zero" title="Awaiting branch-level sales data">—</td>'
+      : `<td class="${soldV === 0 ? 'zero' : (soldV < 0 ? 'neg' : '')}">${soldV}</td>`;
+    html += '</tr>';
+  });
 
   const sohTotal = codes.reduce((a, c) => a + branch[c], 0);
-  html += '<tr><td>SOH</td>';
-  codes.forEach(c => {
-    const v = branch[c];
-    html += `<td class="${v === 0 ? 'zero' : (v < 0 ? 'neg' : '')}">${v}</td>`;
-  });
-  html += `<td><strong>${sohTotal}</strong></td></tr>`;
-
-  html += '<tr><td>Sold</td>';
-  codes.forEach(c => {
-    const v = sold ? sold[c] : null;
-    html += v == null
-      ? '<td class="zero" title="Awaiting branch-level sales data">—</td>'
-      : `<td class="${v === 0 ? 'zero' : (v < 0 ? 'neg' : '')}">${v}</td>`;
-  });
   const soldTotal = sold ? codes.reduce((a, c) => a + (sold[c] || 0), 0) : null;
-  html += `<td><strong>${soldTotal == null ? '—' : soldTotal}</strong></td></tr>`;
+  html += `<tr><td><strong>Total</strong></td><td><strong>${sohTotal}</strong></td><td><strong>${soldTotal == null ? '—' : soldTotal}</strong></td></tr>`;
 
   html += '</tbody></table>';
   wrapEl.innerHTML = html;

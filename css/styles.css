@@ -502,6 +502,19 @@ table.matrix td.neg{color:var(--neg);}
 .matrix-title{font-size:var(--fs-sm);color:var(--ink-soft);margin:0 0 var(--sp-3);}
 .matrix-hint{font-size:var(--fs-2xs);color:var(--ink-faint);}
 .matrix-wrap{margin-bottom:var(--sp-6);}
+/* Branch Wise's matrix specifically — with ~28 branches, the old layout
+   (one column per branch) needed ~1850px and was overflowing the tab
+   panel's own rounded box with no scroll affordance at all, so the excess
+   just bled out past the panel's border/shadow instead of scrolling.
+   Shrinking padding/font only got it down to ~1550px, still wider than the
+   panel — not enough columns worth of room exists at any readable size.
+   Transposed instead (see buildBranchTable() in app.js: one row per branch,
+   just Branch Code/SOH/Sold as columns) — tall instead of wide, which the
+   page already scrolls vertically for elsewhere, and never needs
+   horizontal scroll regardless of branch count. overflow-x:auto stays as a
+   safety net in case a future branch list is ever wide again for some
+   other reason. */
+#branchMatrixWrap{overflow-x:auto;}
 .matrix-wrap:last-child{margin-bottom:0;}
 
 /* Combined Stock/Sold/Remaining-stock blocks, one per calendar year, shown
