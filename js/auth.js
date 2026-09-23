@@ -81,6 +81,27 @@ function updateTopbarUser(){
   const roleLabel = CURRENT_ROLE === 'ceo' ? 'CEO' : CURRENT_ROLE === 'manager' ? 'Manager' : CURRENT_ROLE === 'admin' ? 'Admin' : 'Buyer';
   label.textContent = CURRENT_EMPLOYEE_ID + ' · ' + roleLabel;
 }
+// Applies a successful login WITHOUT reloading the page. Used to reload
+// here and rely on restoreSession() picking the session back up from
+// sessionStorage on the fresh load — but some browsers/security
+// extensions block Web Storage entirely, which silently turned every
+// correct login into a loop straight back to the login screen (the
+// reload happened, then restoreSession() found nothing and re-showed the
+// overlay). Applying the role in place, live in the already-loaded page,
+// works regardless of whether storage is available. saveSession() is
+// still called (best-effort) purely so a later *manual* refresh can skip
+// the login screen on browsers where storage does work.
+function enterApp(emp){
+  CURRENT_ROLE = emp.role;
+  CURRENT_EMPLOYEE_ID = emp.id;
+  hideLoginOverlay();
+  updateTopbarUser();
+  // app.js already ran its first render before login happened (with
+  // CURRENT_ROLE still null, which activeColumnLayout() treats as
+  // full access) — re-render now that the real role is known, so e.g.
+  // a Buyer's hidden Vendor Name column actually takes effect.
+  if(typeof renderGrid === 'function') renderGrid();
+}
 
 (function initAuth(){
   if(restoreSession()){
@@ -102,9 +123,7 @@ function updateTopbarUser(){
         return;
       }
       saveSession(emp);
-      // Reload so app.js's very first render already sees the right
-      // CURRENT_ROLE, rather than re-rendering the grid after the fact.
-      location.reload();
+      enterApp(emp);
     });
   }
 
