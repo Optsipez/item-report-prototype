@@ -1237,32 +1237,36 @@ function closeWeekModal(){
 // which the page already handles fine (vertical scroll), and never needs
 // horizontal scroll no matter how many branches there are.
 
-/* Master branch display order — clusters each branch family (a main branch
-   plus its -DM and CL- variants) together, main first, then -DM, then CL-.
-   Families are ordered by the branch code's first appearance in the raw
-   ingested data. There's no branch-hierarchy field to derive this from, so
-   it's hardcoded from the full set of branch codes seen across BRANCH_BY_ITEM. */
-const BRANCH_ORDER = [
-  'SAJWH',
-  'DCSHJ', 'CL-DCSHJ',
-  'REGUS', 'REGUS-DM', 'CL-REGUS',
-  'MARIN', 'MARIN-DM', 'CL-MARIN',
-  'JUMRA', 'JUMRA-DM', 'CL-JUMRA',
-  'DALMA', 'DALMA-DM',
-  'ALNML', 'ALNML-DM',
-  'GALER', 'GALER-DM',
-  'RAKMA', 'RAKMA-DM',
-  'ZAHIA', 'ZAHIA-DM',
-  'PARKC', 'PARKC-DM',
-  'BRSHA', 'BRSHA-DM',
-  'CLRNC',
-  'WEBSTR',
+/* Master branch display order and grouping — given directly (as a hand-laid-
+   out spreadsheet) rather than derived from a naming pattern: the first
+   group mixes SAJWH/DCSHJ/CLRNC/CL-DCSHJ together, which a plain "strip CL-/
+   -DM" rule wouldn't produce, so each group is spelled out exactly.
+   RAKMA/ZAHIA/WEBSTR weren't in the reference sheet — tacked on at the end
+   following the same shape as the other groups (2-row DM pair, standalone
+   for one with no variants). */
+const BRANCH_GROUPS = [
+  ['SAJWH', 'DCSHJ', 'CLRNC', 'CL-DCSHJ'],
+  ['JUMRA', 'JUMRA-DM', 'CL-JUMRA'],
+  ['MARIN', 'MARIN-DM', 'CL-MARIN'],
+  ['REGUS', 'REGUS-DM', 'CL-REGUS'],
+  ['BRSHA', 'BRSHA-DM'],
+  ['GALER', 'GALER-DM'],
+  ['ALNML', 'ALNML-DM'],
+  ['PARKC', 'PARKC-DM'],
+  ['DALMA', 'DALMA-DM'],
+  ['RAKMA', 'RAKMA-DM'],
+  ['ZAHIA', 'ZAHIA-DM'],
+  ['WEBSTR'],
 ];
+const BRANCH_ORDER = BRANCH_GROUPS.flat();
 const BRANCH_RANK = Object.fromEntries(BRANCH_ORDER.map((c, i) => [c, i]));
-// A code not in BRANCH_ORDER (e.g. a future branch not yet added above)
-// still renders, just sorted after every known one instead of erroring.
+const BRANCH_GROUP_OF = {};
+BRANCH_GROUPS.forEach((g, gi) => g.forEach(c => { BRANCH_GROUP_OF[c] = gi; }));
+// A code not in BRANCH_ORDER/BRANCH_GROUPS (e.g. a future branch not yet
+// added above) still renders, just sorted after every known one and
+// without a group of its own, instead of erroring.
 function branchRank(code){ return code in BRANCH_RANK ? BRANCH_RANK[code] : BRANCH_ORDER.length; }
-function branchFamily(code){ return code.replace(/^CL-/, '').replace(/-DM$/, ''); }
+function branchGroupIndex(code){ return code in BRANCH_GROUP_OF ? BRANCH_GROUP_OF[code] : -1; }
 
 function buildBranchTable(wrapEl, item){
   const branch = BRANCH_BY_ITEM[item['Item Code']];
@@ -1284,13 +1288,13 @@ function buildBranchTable(wrapEl, item){
     '<th class="branch-sno">Sort Order</th><th>Branch Code</th><th>SOH</th><th>Sold</th>' +
     monthHeaderHtml + '</tr></thead><tbody>';
 
-  let sno = 0, band = -1, prevFamily = null;
+  let sno = 0, band = -1, prevGroup = null;
   codes.forEach(c => {
-    const family = branchFamily(c);
-    if(family !== prevFamily){
-      if(prevFamily !== null) html += '<tr class="branch-sep" aria-hidden="true"><td colspan="' + colCount + '"></td></tr>';
+    const group = branchGroupIndex(c);
+    if(group !== prevGroup){
+      if(prevGroup !== null) html += '<tr class="branch-sep" aria-hidden="true"><td colspan="' + colCount + '"></td></tr>';
       band++;
-      prevFamily = family;
+      prevGroup = group;
     }
     sno++;
     const soh = branch[c];
