@@ -14,22 +14,22 @@
    'ceo'.
    ============================================================ */
 const EMPLOYEES = [
-  { id: 'BUY001', password: 'CHANGE_ME_BUYER', role: 'buyer' },
-  { id: 'BUY002', password: 'CHANGE_ME_BUYER', role: 'buyer' },
-  { id: 'BUY003', password: 'CHANGE_ME_BUYER', role: 'buyer' },
-  { id: 'BUY004', password: 'CHANGE_ME_BUYER', role: 'buyer' },
-  { id: 'BUY005', password: 'CHANGE_ME_BUYER', role: 'buyer' },
-  { id: 'BUY006', password: 'CHANGE_ME_BUYER', role: 'buyer' },
-  { id: 'BUY007', password: 'CHANGE_ME_BUYER', role: 'buyer' },
-  { id: 'BUY008', password: 'CHANGE_ME_BUYER', role: 'buyer' },
-  { id: 'BUY009', password: 'CHANGE_ME_BUYER', role: 'buyer' },
-  { id: 'BUY010', password: 'CHANGE_ME_BUYER', role: 'buyer' },
-  { id: 'BUY011', password: 'CHANGE_ME_BUYER', role: 'buyer' },
-  { id: 'BUY012', password: 'CHANGE_ME_BUYER', role: 'buyer' },
-  { id: 'BUY013', password: 'CHANGE_ME_BUYER', role: 'buyer' },
+  { id: '3068', password: 'Buy@2267', role: 'buyer' },
+  { id: '3067', password: 'Buy@2267', role: 'buyer' },
+  { id: '3055', password: 'Buy@2267', role: 'buyer' },
+  { id: '3066', password: 'Buy@2267', role: 'buyer' },
+  { id: '7191', password: 'Buy@2267', role: 'buyer' },
+  { id: '3065', password: 'Buy@2267', role: 'buyer' },
+  { id: '7448', password: 'Buy@2267', role: 'buyer' },
+  { id: '3014', password: 'Buy@2267', role: 'buyer' },
+  { id: '3060', password: 'Buy@2267', role: 'buyer' },
+  { id: '3039', password: 'Buy@2267', role: 'buyer' },
+  { id: '3035', password: 'Buy@2267', role: 'buyer' },
+  { id: '3082', password: 'Buy@2267', role: 'buyer' },
+  { id: '4027', password: 'Buy@2267', role: 'buyer' },
   // add/remove Buyer IDs here, same password as the ones above
-  { id: 'MGR1', password: 'CHANGE_ME_MANAGER', role: 'manager' },
-  { id: 'CEO', password: 'CHANGE_ME_CEO', role: 'ceo' },
+  { id: '3111', password: 'Jav@1923', role: 'manager' },
+  { id: 'CEO', password: 'Suood@2986', role: 'ceo' },
 ];
 
 let CURRENT_ROLE = null;
