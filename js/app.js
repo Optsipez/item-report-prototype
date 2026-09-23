@@ -103,17 +103,18 @@ function trailingStock(item, anchorYear, anchorMonth, n){
    halfway point (i.e. Sold > Stock) or not. Click opens the full
    period-by-period breakdown in the popup. */
 function trendMiniBar(item){
-  const sold = monthlySeries(item), stock = monthlyStockSeries(item);
+  const n = statsWindowMonthCount();
+  const sold = monthlySeries(item, n), stock = monthlyStockSeries(item, n);
   const stockTotal = stock.reduce((a, b) => a + b, 0);
   const soldTotal = sold.reduce((a, b) => a + b, 0);
-  const clickHint = ' — click for the full 13-month breakdown';
+  const clickHint = ' — click for the full ' + n + '-month breakdown';
   const denom = stockTotal + soldTotal;
   if(denom === 0) return '<span class="spark-empty" title="No stock or sales activity' + clickHint + '">—</span>';
   const sellThrough = Math.round((soldTotal / denom) * 100);
   const salePct = (soldTotal / denom * 100).toFixed(1);
   const stockPct = (100 - salePct).toFixed(1);
   const title = 'Stock ' + stockTotal.toLocaleString('en-US') + '  ·  Sold ' + soldTotal.toLocaleString('en-US') +
-    '  ·  ' + sellThrough + '% sell-through (13-month total)' + clickHint;
+    '  ·  ' + sellThrough + '% sell-through (' + n + '-month total)' + clickHint;
   // A number you can actually read at a glance, plus the stacked bar as a
   // secondary visual cue — collapsed to just a thin two-colour block (no
   // label) it was unreadable; the split alone doesn't say what it's a split
@@ -127,19 +128,24 @@ function trendMiniBar(item){
     '</span>';
 }
 
-/* 13-month trend popup — one column per period (current month, then four
-   3-month periods), using all 13 months. Same proportional-fill idea as the
-   mini cell above: each column is always fully coloured, Stock (gold) down
-   from the top and Sold (blue) up from the bottom, meeting at Sold's actual
-   share of the two that period — plus the same fixed white centre line. */
-function monthlySeries(item){
-  return MONTH_WINDOW.map(w => {
+/* Trend popup — one column per period (current month, then N 3-month
+   periods), using the stats window's month count (n) — defaults to all 13
+   when n is omitted, e.g. for callers that always want the full history
+   regardless of the toggle (totalReceivedQty's 'all' branch). Same
+   proportional-fill idea as the mini cell above: each column is always
+   fully coloured, Stock (gold) down from the top and Sold (blue) up from
+   the bottom, meeting at Sold's actual share of the two that period — plus
+   the same fixed white centre line. */
+function monthlySeries(item, n){
+  const win = n ? MONTH_WINDOW.slice(MONTH_WINDOW.length - n) : MONTH_WINDOW;
+  return win.map(w => {
     const yr = item.years[String(w.year)];
     return yr ? (yr.sales[w.m] || 0) : 0;
   });
 }
-function monthlyStockSeries(item){
-  return MONTH_WINDOW.map(w => {
+function monthlyStockSeries(item, n){
+  const win = n ? MONTH_WINDOW.slice(MONTH_WINDOW.length - n) : MONTH_WINDOW;
+  return win.map(w => {
     const yr = item.years[String(w.year)];
     return yr ? (yr.stock[w.m] || 0) : 0;
   });
@@ -151,15 +157,27 @@ function totalReceivedQty(item){
   if(n >= 13) return monthlyStockSeries(item).reduce((a, b) => a + b, 0);
   return trailingStock(item, REPORT_MONTH.year, REPORT_MONTH.month, n).reduce((a, b) => a + b, 0);
 }
-const TREND_BUCKET_IDX = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], [12]]; // oldest -> newest
+// Oldest->newest indices into an n-month window, grouped into 3-month
+// chunks with the current (last) month always its own trailing group of 1
+// — e.g. n=13 (All) gives [[0,1,2],[3,4,5],[6,7,8],[9,10,11],[12]], the
+// original fixed grouping. n-1 is always a multiple of 3 for every stats
+// window size (4, 7, 10, 13), so this never leaves an uneven leftover chunk.
+function trendBucketIdx(n){
+  const idx = [];
+  for(let i = 0; i < n - 1; i += 3) idx.push([i, i + 1, i + 2]);
+  idx.push([n - 1]);
+  return idx;
+}
 function trendBars(item){
-  const sold = monthlySeries(item), stock = monthlyStockSeries(item);
-  const bars = TREND_BUCKET_IDX.map(idxs => {
+  const n = statsWindowMonthCount();
+  const sold = monthlySeries(item, n), stock = monthlyStockSeries(item, n);
+  const windowSlice = MONTH_WINDOW.slice(MONTH_WINDOW.length - n);
+  const bars = trendBucketIdx(n).map(idxs => {
     const soldTotal = idxs.reduce((a, i) => a + sold[i], 0);
     const stockTotal = idxs.reduce((a, i) => a + stock[i], 0);
     return {
       soldTotal, stockTotal, monthCount: idxs.length,
-      from: MONTH_WINDOW[idxs[0]], to: MONTH_WINDOW[idxs[idxs.length - 1]],
+      from: windowSlice[idxs[0]], to: windowSlice[idxs[idxs.length - 1]],
     };
   });
   bars.reverse();   // newest -> oldest, current month first, matching the grid's month order
@@ -215,7 +233,7 @@ function buildTrendChart(item){
 let trendModalReturn = null;
 function openTrendModal(item){
   if(!item) return;
-  document.getElementById('trTitle').textContent = '13-month trend — ' + item['Description'];
+  document.getElementById('trTitle').textContent = statsWindowMonthCount() + '-month trend — ' + item['Description'];
   document.getElementById('trSub').textContent = item['Item Code'];
   document.getElementById('trBody').innerHTML = buildTrendChart(item);
 
@@ -340,17 +358,29 @@ const MONTH_WINDOW_LAST_DATA = (function(){
   return last;
 })();
 
-/* Hover explainer for the 13-mo Trend column header. */
-const SPARK_TIP =
-  '13-month trend, ' +
-  monthColLabel(MONTH_WINDOW[0]) + ' to ' + monthColLabel(MONTH_WINDOW[MONTH_WINDOW_LAST_DATA]) +
-  ' — a small bar, Stock (gold) filling down from the top and Sold (blue)\n' +
-  'filling up from the bottom, meeting at Sold\'s share of the two — always\n' +
-  'fully coloured, never empty. A fixed white line marks the exact centre:\n' +
-  'when the blue rises past it, Sold has overtaken Stock over the 13 months.\n' +
-  'The actual totals and sell-through rate (Sold ÷ (Stock + Sold)) are in the tooltip.\n' +
-  'Click for a full breakdown: the current month, then four 3-month periods\n' +
-  'going backwards, each with its own bar, totals, and sell-through %.';
+/* Column header text/tooltip for the 13-mo Trend column — dynamic because,
+   like YTD Sold, its whole window shrinks with the stats-window toggle.
+   Unlike YTD Sold, the header text itself doesn't need relabeling (no
+   dedicated column name to keep honest, just a plain number of months), so
+   only the tooltip changes; label swaps "13-mo" for "N-mo" purely for
+   visual consistency with the other dynamic headers. */
+function sparkLabel(){
+  return statsWindow === 'all' ? '13-mo Trend' : statsWindow + '-Mo Trend';
+}
+function sparkTip(){
+  const n = statsWindowMonthCount();
+  const periods = (n - 1) / 3;
+  const windowSlice = MONTH_WINDOW.slice(MONTH_WINDOW.length - n);
+  return n + '-month trend, ' +
+    monthColLabel(windowSlice[0]) + ' to ' + monthColLabel(MONTH_WINDOW[MONTH_WINDOW_LAST_DATA]) +
+    ' — a small bar, Stock (gold) filling down from the top and Sold (blue)\n' +
+    'filling up from the bottom, meeting at Sold\'s share of the two — always\n' +
+    'fully coloured, never empty. A fixed white line marks the exact centre:\n' +
+    'when the blue rises past it, Sold has overtaken Stock over the ' + n + ' months.\n' +
+    'The actual totals and sell-through rate (Sold ÷ (Stock + Sold)) are in the tooltip.\n' +
+    'Click for a full breakdown: the current month, then ' + periods + ' 3-month period' + (periods === 1 ? '' : 's') + '\n' +
+    'going backwards, each with its own bar, totals, and sell-through %.';
+}
 
 /* Hover explainer for the YTD Sold column header. */
 const YTD_TIP =
@@ -1366,7 +1396,7 @@ const COLUMN_LAYOUT = [
         tip:'SR display — how many of the ' + UAE_STORES.length + ' UAE stores currently hold stock of this item.' } ] },
   { type:'core', field:'STK Age', label:'STK Age', sortable:true, stack:true,
     tip:'How long the current stock has been sitting, measured from Lrcv Date: New (received this month), 0-3, 3-6, 6-9, 9-12, 12-18, 18-24, 24 Above (months), or No-Dt if there\'s no Lrcv Date on file.' },
-  { type:'core', field:'__spark', label:'13-mo Trend', tip: SPARK_TIP },
+  { type:'core', field:'__spark', label:'13-mo Trend' },
   { type:'group', key:'attrs', title:'Attributes', short:'Attrs', cols:[
       { field:'Item Color Name', label:'Color' },
       { field:'Lifestyle', label:'Lifestyle', fmt:'lifestyle' },
@@ -1877,8 +1907,10 @@ function buildGridHeader(){
       if(entry.field === '__spark'){
         // Quick visible legend right under the title — the tooltip explains
         // the full gold/blue split, but this saves a hover just to learn
-        // which color is which.
-        gth.appendChild(document.createTextNode(entry.label));
+        // which color is which. Label is dynamic (sparkLabel()), not
+        // entry.label — this column's own window shrinks with the stats
+        // window too, see sparkLabel()/sparkTip().
+        gth.appendChild(document.createTextNode(sparkLabel()));
         gth.appendChild(document.createElement('br'));
         const cap = document.createElement('span');
         cap.className = 'spark-head-cap';
@@ -1904,6 +1936,7 @@ function buildGridHeader(){
       if(entry.field === 'YTD Sold') gth.title = ytdSoldTip();
       else if(entry.field === 'AVG') gth.title = avgTip();
       else if(entry.field === '__totalRcvd') gth.title = totalRcvdTip();
+      else if(entry.field === '__spark') gth.title = sparkTip();
       else if(entry.tip) gth.title = entry.tip;
       if(entry.sortable){
         applySortableHeader(gth, entry.field);
