@@ -1236,28 +1236,83 @@ function closeWeekModal(){
 // all without horizontal scroll. Transposed so it's tall instead of wide,
 // which the page already handles fine (vertical scroll), and never needs
 // horizontal scroll no matter how many branches there are.
+
+/* Master branch display order — clusters each branch family (a main branch
+   plus its -DM and CL- variants) together, main first, then -DM, then CL-.
+   Families are ordered by the branch code's first appearance in the raw
+   ingested data. There's no branch-hierarchy field to derive this from, so
+   it's hardcoded from the full set of branch codes seen across BRANCH_BY_ITEM. */
+const BRANCH_ORDER = [
+  'SAJWH',
+  'DCSHJ', 'CL-DCSHJ',
+  'REGUS', 'REGUS-DM', 'CL-REGUS',
+  'MARIN', 'MARIN-DM', 'CL-MARIN',
+  'JUMRA', 'JUMRA-DM', 'CL-JUMRA',
+  'DALMA', 'DALMA-DM',
+  'ALNML', 'ALNML-DM',
+  'GALER', 'GALER-DM',
+  'RAKMA', 'RAKMA-DM',
+  'ZAHIA', 'ZAHIA-DM',
+  'PARKC', 'PARKC-DM',
+  'BRSHA', 'BRSHA-DM',
+  'CLRNC',
+  'WEBSTR',
+];
+const BRANCH_RANK = Object.fromEntries(BRANCH_ORDER.map((c, i) => [c, i]));
+// A code not in BRANCH_ORDER (e.g. a future branch not yet added above)
+// still renders, just sorted after every known one instead of erroring.
+function branchRank(code){ return code in BRANCH_RANK ? BRANCH_RANK[code] : BRANCH_ORDER.length; }
+function branchFamily(code){ return code.replace(/^CL-/, '').replace(/-DM$/, ''); }
+
 function buildBranchTable(wrapEl, item){
   const branch = BRANCH_BY_ITEM[item['Item Code']];
   if(!branch){ wrapEl.innerHTML = '<p class="foot-note">No branch-level data found for this item.</p>'; return; }
-  const codes = Object.keys(branch);
+  const codes = Object.keys(branch).sort((a, b) => branchRank(a) - branchRank(b));
   const sold = BRANCH_SOLD_BY_ITEM[item['Item Code']];
 
-  let html = '<table class="matrix"><thead><tr><th>Branch Code</th><th>SOH</th><th>Sold</th></tr></thead><tbody>';
+  // 13 rolling month headers, newest first — same order as the grid's Sold/
+  // Stock by Month columns. There's no per-branch monthly Sold in the
+  // ingested data (only branch-level totals and item-level monthly totals
+  // combined across all branches), so these are header-only for now: real
+  // numbers can fill in once the source data carries a branch dimension.
+  const monthLabels = MONTH_WINDOW.slice().reverse().map(monthColLabel);
+  const colCount = 4 + monthLabels.length;
+  const monthHeaderHtml = monthLabels.map(l => '<th class="branch-month">' + l + '</th>').join('');
+  const monthCellHtml = '<td class="branch-month zero" title="Per-branch monthly Sold isn\'t in the ingested data yet — only branch totals are">—</td>'.repeat(monthLabels.length);
 
+  let html = '<table class="matrix branch-matrix"><thead><tr>' +
+    '<th class="branch-sno">Sort Order</th><th>Branch Code</th><th>SOH</th><th>Sold</th>' +
+    monthHeaderHtml + '</tr></thead><tbody>';
+
+  let sno = 0, band = -1, prevFamily = null;
   codes.forEach(c => {
+    const family = branchFamily(c);
+    if(family !== prevFamily){
+      if(prevFamily !== null) html += '<tr class="branch-sep" aria-hidden="true"><td colspan="' + colCount + '"></td></tr>';
+      band++;
+      prevFamily = family;
+    }
+    sno++;
     const soh = branch[c];
     const soldV = sold ? sold[c] : null;
-    html += `<tr><td>${c}</td>`;
-    html += `<td class="${soh === 0 ? 'zero' : (soh < 0 ? 'neg' : '')}">${soh}</td>`;
+    html += '<tr class="branch-fam-' + (band % 2) + '">';
+    html += '<td class="branch-sno">' + sno + '</td>';
+    html += '<td>' + c + '</td>';
+    html += '<td class="' + (soh === 0 ? 'zero' : (soh < 0 ? 'neg' : '')) + '">' + soh + '</td>';
     html += soldV == null
       ? '<td class="zero" title="Awaiting branch-level sales data">—</td>'
-      : `<td class="${soldV === 0 ? 'zero' : (soldV < 0 ? 'neg' : '')}">${soldV}</td>`;
+      : '<td class="' + (soldV === 0 ? 'zero' : (soldV < 0 ? 'neg' : '')) + '">' + soldV + '</td>';
+    html += monthCellHtml;
     html += '</tr>';
   });
 
   const sohTotal = codes.reduce((a, c) => a + branch[c], 0);
   const soldTotal = sold ? codes.reduce((a, c) => a + (sold[c] || 0), 0) : null;
-  html += `<tr><td><strong>Total</strong></td><td><strong>${sohTotal}</strong></td><td><strong>${soldTotal == null ? '—' : soldTotal}</strong></td></tr>`;
+  html += '<tr class="branch-total"><td></td><td><strong>Total</strong></td>' +
+    '<td><strong>' + sohTotal + '</strong></td>' +
+    '<td><strong>' + (soldTotal == null ? '—' : soldTotal) + '</strong></td>' +
+    '<td class="branch-month"></td>'.repeat(monthLabels.length) +
+    '</tr>';
 
   html += '</tbody></table>';
   wrapEl.innerHTML = html;

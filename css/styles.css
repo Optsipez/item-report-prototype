@@ -524,12 +524,33 @@ table.matrix td.neg{color:var(--neg);}
    other reason. */
 #branchMatrixWrap{overflow-x:auto;}
 /* table.matrix defaults to width:100%, which is right for the Overview
-   year-matrix (12+ month columns, wants the room) but wrong here — this
-   table only has 3 narrow columns (Branch Code/SOH/Sold), so stretching it
-   to fill the wrap's full width just spread the columns out with large gaps
-   instead of sizing to content. Scoped to this wrap only. */
+   year-matrix (12+ month columns, wants the room) but wrong here — Sort
+   Order/Branch Code/SOH/Sold are narrow, so stretching them to fill the
+   wrap's full width spread them out with large gaps instead of sizing to
+   content. Scoped to this wrap only. */
 #branchMatrixWrap table.matrix{width:auto;}
 .matrix-wrap:last-child{margin-bottom:0;}
+
+/* Branch Wise table extras: a rolling Sort Order rank, and per-branch-family
+   grouping (main branch + its -DM/CL- variants — see BRANCH_ORDER/branchFamily
+   in app.js) shown as alternating tints with a blank spacer row between
+   families, matching the reference layout the buying team sketched out. */
+table.branch-matrix th.branch-sno, table.branch-matrix td.branch-sno{
+  text-align:right;font-family:inherit;font-weight:400;color:var(--ink-faint);
+}
+/* Branch Code is column 2 now (Sort Order sits ahead of it), so it needs
+   the same left-align/mono/bold treatment table.matrix normally gives
+   whatever its first column is. */
+table.branch-matrix th:nth-child(2), table.branch-matrix td:nth-child(2){
+  text-align:left;font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--ink);
+}
+table.branch-matrix th.branch-month, table.branch-matrix td.branch-month{
+  font-size:var(--fs-2xs);
+}
+table.branch-matrix tbody tr.branch-fam-1 td{background:var(--row-shade);}
+table.branch-matrix tbody tr.branch-fam-1:hover td{background:var(--s-25);}
+table.branch-matrix tbody tr.branch-sep td{border-bottom:none;padding:4px 0;}
+table.branch-matrix tbody tr.branch-total td{border-top:1px solid var(--line-strong);border-bottom:none;}
 
 /* Combined Stock/Sold/Remaining-stock blocks, one per calendar year, shown
    below the Overview info cards (replaces the old separate monthly tabs).
