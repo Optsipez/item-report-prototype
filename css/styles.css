@@ -412,7 +412,14 @@ button{font-family:inherit;}
 .empty-state h3{color:var(--ink);font-size:var(--fs-xl);margin:0 0 var(--sp-2);font-weight:600;letter-spacing:-.01em;}
 .empty-state p{font-size:var(--fs-md);margin:0;line-height:1.65;}
 
-.report{display:none;}
+/* max-width so the report doesn't stretch edge-to-edge on a large external
+   monitor — .metrics-band/.overview-grid/table.year-matrix all use fr/%
+   widths that just spread thinner (not wider content, just more gap) once
+   the container gets very wide, reading as sparse rather than using the
+   extra room well. Left-aligned, not centered, to match the rest of the
+   app (the grid also starts flush against the rail). No effect at laptop
+   widths — .main's available width there is already under this cap. */
+.report{display:none;max-width:1500px;}
 .report.visible{display:block;}
 
 /* header strip */
