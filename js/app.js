@@ -1064,9 +1064,23 @@ function dailySales(item, year, monthIdx){
   for(let d = 1; d <= days; d++){
     const dow = new Date(year, monthIdx, d).getDay();
     const peak = dow === 5 ? 1.35 : (dow === 0 || dow === 6) ? 1.9 : 1.0;
-    w.push(peak * seededWobble(item['Item Code'] + '|' + year + '|' + monthIdx + '|' + d));
+    w.push(peak * seededWobble((item._wobbleKey || item['Item Code']) + '|' + year + '|' + monthIdx + '|' + d));
   }
   const sum = w.reduce((a, b) => a + b, 0);
+  if(item._integerDays){
+    // Whole units per day that add back up to the month total exactly
+    // (largest-remainder rounding), so per-branch weeks — where a month may
+    // be just 1-3 units — sum to the real monthly figure instead of drifting
+    // from rounding each week on its own. Negative months (returns) work on
+    // the magnitude and flip the sign back.
+    const sign = total < 0 ? -1 : 1, mag = Math.abs(total);
+    const raw = w.map(x => mag * x / sum);
+    const out = raw.map(Math.floor);
+    let left = Math.round(mag) - out.reduce((a, b) => a + b, 0);
+    raw.map((x, i) => ({ i, r: x - out[i] })).sort((a, b) => b.r - a.r)
+      .slice(0, Math.max(0, left)).forEach(o => { out[o.i] += 1; });
+    return out.map(x => x * sign);
+  }
   return w.map(x => total * x / sum);
 }
 function weekUnits(item, weekStart, dayCount, cache){
@@ -1151,6 +1165,23 @@ function makeWeeklyCell(td, item, monthCtx){
   td.addEventListener('click', e => { e.stopPropagation(); openWeekModal(item, monthCtx); });
 }
 
+/* The weekly popup only reads item.years[year].sales, so a single branch's
+   monthly sales (from BRANCH_MONTHLY_SOLD_BY_ITEM) can be wrapped as an
+   item-shaped object and fed to it unchanged. Weeks are estimated from those
+   monthly totals exactly as they are for All Products. */
+function branchWeeklyItem(item, branchCode){
+  const byYear = (BRANCH_MONTHLY_SOLD_BY_ITEM[item['Item Code']] || {})[branchCode] || {};
+  const years = {};
+  Object.keys(byYear).forEach(y => { years[y] = { sales: byYear[y] }; });
+  return {
+    'Item Code': item['Item Code'],
+    'Description': item['Description'] + ' — ' + branchCode,
+    _wobbleKey: item['Item Code'] + '|' + branchCode,
+    _integerDays: true,
+    years,
+  };
+}
+
 let weekModalReturn = null;
 function openWeekModal(item, monthCtx){
   if(!item) return;
@@ -1175,7 +1206,7 @@ function openWeekModal(item, monthCtx){
   // whichever direction the weeks are ordered in.
   let lastYearSeen = null;
   const cols = weeks.map(w => {
-    const heat = w.units / max;
+    const heat = Math.max(0, w.units / max);
     const cls = ['wk-col', w.partial ? 'wk-col-partial' : '', w.highlight ? 'wk-col-hl' : ''].filter(Boolean).join(' ');
     const yearChanged = lastYearSeen !== null && lastYearSeen !== w.start.getFullYear();
     lastYearSeen = w.start.getFullYear();
@@ -1322,10 +1353,11 @@ function buildBranchTable(wrapEl, item){
     html += soldV == null
       ? '<td class="zero" title="No branch-level sales history for this item">—</td>'
       : '<td class="' + (soldV === 0 ? 'zero' : (soldV < 0 ? 'neg' : '')) + '">' + soldV + '</td>';
-    html += monthVals.map(v => {
+    html += monthVals.map((v, mi) => {
+      const w = monthWindow[mi];
       return v == null
         ? '<td class="branch-month zero" title="No branch-level sales history for this item">—</td>'
-        : '<td class="branch-month' + (v === 0 ? ' zero' : (v < 0 ? ' neg' : '')) + '">' + v + '</td>';
+        : '<td class="branch-month wk-cell' + (v === 0 ? ' zero' : (v < 0 ? ' neg' : '')) + '" data-branch="' + c + '" data-y="' + w.year + '" data-m="' + w.m + '" title="Weekly breakdown for ' + c + ', starting ' + MONTHS[w.m] + ' ' + w.year + '">' + v + '</td>';
     }).join('');
     html += '</tr>';
   });
@@ -1340,6 +1372,13 @@ function buildBranchTable(wrapEl, item){
 
   html += '</tbody></table>';
   wrapEl.innerHTML = html;
+  // Click a month cell -> the same weekly breakdown popup All Products uses,
+  // for just this branch.
+  wrapEl.onclick = e => {
+    const td = e.target.closest('td.branch-month[data-y]');
+    if(!td) return;
+    openWeekModal(branchWeeklyItem(item, td.dataset.branch), { year: +td.dataset.y, month: +td.dataset.m });
+  };
 }
 
 // Buyers never see Vendor Name anywhere (grid column, Item Lookup header,
