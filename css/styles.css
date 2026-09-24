@@ -10,6 +10,9 @@
      from this one value instead of its own hardcoded pixel number, so a
      resize keeps all of them in sync automatically. */
   --rail-w:323px;
+  /* frozen grid columns (S.No .. Range Name): widths as variables so the block can
+     shrink on small screens and grow on big ones; lefts below are cumulative sums */
+  --fz-sno:72px; --fz-item:78px; --fz-desc:200px; --fz-vendor:80px; --fz-range:100px;
   /* ---- slate neutrals ---- */
   --s-0:#ffffff;
   --s-25:#fbfcfd;
@@ -291,7 +294,7 @@ body.role-buyer .vendor-name-only{display:none !important;}
 body.view-dashboard .rail, body.view-dashboard .rail-resizer{display:none;}
 body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .topbar .brand{cursor:pointer;}
-.dash{max-width:1240px;margin:0 auto;}
+.dash{max-width:clamp(1240px,62vw,1900px);margin:0 auto;}
 .dash-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--sp-5);margin:var(--sp-3) 0 var(--sp-6);}
 .dash-date{font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint);font-weight:600;margin-bottom:6px;}
 .dash-greet{margin:0;font-size:30px;line-height:1.15;letter-spacing:-.02em;font-weight:650;color:var(--ink);}
@@ -315,7 +318,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .dash-trend-bar span{display:block;width:100%;background:var(--pos);border-radius:4px 4px 0 0;min-height:0;}
 .dash-trend-col.nodata .dash-trend-bar{border-bottom:2px dashed var(--line-strong);}
 .dash-trend-col.partial .dash-trend-bar span{background:repeating-linear-gradient(135deg,var(--pos) 0 6px,#34d399 6px 12px);}
-.dash-trend-k small{display:block;font-size:9px;color:var(--ink-faint);text-align:center;}
+.dash-trend-k small{display:block;font-size:10.5px;color:var(--ink-faint);text-align:center;}
 .dash-trend-v{font-size:var(--fs-2xs);color:var(--ink-soft);font-variant-numeric:tabular-nums;height:14px;}
 .dash-trend-k{font-size:var(--fs-2xs);color:var(--ink-faint);white-space:nowrap;}
 .dash-bars{display:flex;flex-direction:column;gap:10px;}
@@ -398,7 +401,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .dash-table tr.dash-pick:hover td{background:var(--primary-weak);}
 .dash-table td.good{color:var(--pos);font-weight:650;}
 .dash-table .mono{font-family:'IBM Plex Mono',monospace;font-weight:600;}
-.dash-table small{color:var(--ink-faint);}
+.dash-table small{color:var(--ink-faint);font-size:var(--fs-2xs);}
 .chip.chip-focus{background:var(--primary-weak);border-color:var(--primary-line);}
 @media (max-width:1100px){.dash-kpis{grid-template-columns:repeat(3,minmax(0,1fr));}.dash-tiles{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media (max-width:820px){.dash-grid{grid-template-columns:minmax(0,1fr);}.dash-greet{font-size:24px;}.dash-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}.dash-hero{flex-direction:column;align-items:flex-start;}}
@@ -493,12 +496,12 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
   transition:border-color var(--t-fast),color var(--t-fast),background var(--t-fast);
 }
 .clear-filters:hover{border-color:var(--primary-line);color:var(--primary);background:var(--primary-weak);}
-#filterBlocks{display:flex;flex-direction:column;flex:1;min-height:0;}
+#filterBlocks{display:flex;flex-direction:column;flex:1;}
 /* Each filter is its own small card — subtle border + lift, rather than a
    bare stacked list — with a lift on hover so the rail reads as a set of
    distinct, considered panels instead of one flat block of checkboxes. */
 .filter-block{
-  flex:1;min-height:0;display:flex;flex-direction:column;
+  flex:1;min-height:96px;display:flex;flex-direction:column;
   margin-bottom:var(--sp-2);
   background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);
   padding:5px 8px 6px;box-shadow:var(--sh-xs);
@@ -596,7 +599,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    extra room well. Left-aligned, not centered, to match the rest of the
    app (the grid also starts flush against the rail). No effect at laptop
    widths — .main's available width there is already under this cap. */
-.report{display:none;max-width:1500px;}
+.report{display:none;max-width:clamp(1500px,62vw,2000px);}
 .report.visible{display:block;}
 
 /* header strip */
@@ -722,8 +725,9 @@ table.branch-matrix th:nth-child(2), table.branch-matrix td:nth-child(2){
   text-align:left;font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--ink);
 }
 table.branch-matrix th.branch-month, table.branch-matrix td.branch-month{
-  font-size:var(--fs-2xs);
+  font-size:var(--fs-2xs);padding-left:5px;padding-right:5px;white-space:nowrap;
 }
+table.branch-matrix th.branch-month{line-height:1.25;letter-spacing:.02em;}
 /* table.matrix's own td.zero rule uses --ink-faint (a light grey) for de-
    emphasized zero/placeholder values, which has poor contrast against any
    of the three fill colors below -- most cells here ARE zero/placeholder,
@@ -765,6 +769,7 @@ table.branch-matrix tbody tr.branch-total td{border-top:1px solid var(--line-str
    Own header/year-row treatment (not the shared .matrix look Branch Wise
    uses) so this reads as its own distinct section rather than a plain grid. */
 #yearMatrices{margin-top:var(--sp-6);}
+#yearMatrices, #panel-overview .matrix-wrap{overflow-x:auto;}
 table.year-matrix{border-radius:var(--r-sm);overflow:hidden;}
 table.year-matrix tbody tr{animation:rowFade .2s ease both;}
 /* ...except mid-regroup, where the FLIP slide drives `transform` on these
@@ -1298,16 +1303,16 @@ table.grid tfoot td{
    keeps table auto-layout from shrinking a column below it when its
    content is short, which would leave a gap between columns. */
 .fz-sno,.fz-itemcode,.fz-desc,.fz-vendor,.fz-range{position:sticky;overflow:hidden;text-overflow:ellipsis;}
-.fz-sno{left:var(--rail-w);width:72px;min-width:72px;}
-.fz-itemcode{left:calc(var(--rail-w) + 72px);width:78px;min-width:78px;}
-.fz-desc{left:calc(var(--rail-w) + 150px);width:200px;min-width:200px;}
-.fz-vendor{left:calc(var(--rail-w) + 350px);width:80px;min-width:80px;}
-.fz-range{left:calc(var(--rail-w) + 430px);width:100px;min-width:100px;}
-table.grid:not(.resizable) .fz-sno{max-width:72px;}
-table.grid:not(.resizable) .fz-itemcode{max-width:78px;}
-table.grid:not(.resizable) .fz-desc{max-width:200px;}
-table.grid:not(.resizable) .fz-vendor{max-width:80px;}
-table.grid:not(.resizable) .fz-range{max-width:100px;}
+.fz-sno{left:var(--rail-w);width:var(--fz-sno);min-width:var(--fz-sno);}
+.fz-itemcode{left:calc(var(--rail-w) + var(--fz-sno));width:var(--fz-item);min-width:var(--fz-item);}
+.fz-desc{left:calc(var(--rail-w) + var(--fz-sno) + var(--fz-item));width:var(--fz-desc);min-width:var(--fz-desc);}
+.fz-vendor{left:calc(var(--rail-w) + var(--fz-sno) + var(--fz-item) + var(--fz-desc));width:var(--fz-vendor);min-width:var(--fz-vendor);}
+.fz-range{left:calc(var(--rail-w) + var(--fz-sno) + var(--fz-item) + var(--fz-desc) + var(--fz-vendor));width:var(--fz-range);min-width:var(--fz-range);}
+table.grid:not(.resizable) .fz-sno{max-width:var(--fz-sno);}
+table.grid:not(.resizable) .fz-itemcode{max-width:var(--fz-item);}
+table.grid:not(.resizable) .fz-desc{max-width:var(--fz-desc);}
+table.grid:not(.resizable) .fz-vendor{max-width:var(--fz-vendor);}
+table.grid:not(.resizable) .fz-range{max-width:var(--fz-range);}
 table.grid thead th.fz-sno,table.grid thead th.fz-itemcode,table.grid thead th.fz-desc,table.grid thead th.fz-vendor,table.grid thead th.fz-range{z-index:4;}
 table.grid tbody td.fz-sno,table.grid tbody td.fz-itemcode,table.grid tbody td.fz-desc,table.grid tbody td.fz-vendor,table.grid tbody td.fz-range{z-index:1;}
 table.grid tbody tr.row-item td.fz-sno,table.grid tbody tr.row-item td.fz-itemcode,table.grid tbody tr.row-item td.fz-desc,table.grid tbody tr.row-item td.fz-vendor,table.grid tbody tr.row-item td.fz-range{background:var(--panel);}
@@ -1481,4 +1486,43 @@ table.year-matrix tr.year-row td{animation:popIn .22s cubic-bezier(.16,1,.3,1) b
     animation-duration:.01ms!important;animation-iteration-count:1!important;
     transition-duration:.01ms!important;
   }
+}
+
+/* ===== Responsive: laptops 11-17", monitors 22-27", wireless displays =====
+   Widths below are CSS pixels as Chrome/Edge report them (screen pixels divided
+   by OS scaling and browser zoom): a 1080p 15" laptop at 150% is ~1280 wide, at
+   125% browser zoom ~1024; a 27" QHD monitor is 2560; 4K at 100% is 3840. */
+
+/* Small: 1150px and under -- narrower filter rail and frozen-column block so
+   the scrolling columns keep a usable width; cards reflow instead of overflowing. */
+@media (max-width:1150px){
+  :root{--rail-w:250px;--fz-sno:60px;--fz-item:70px;--fz-desc:130px;--fz-vendor:66px;--fz-range:84px;}
+  table.grid th.fz-sno, table.grid td.fz-sno{padding-left:8px;padding-right:8px;}
+  table.grid th.fz-itemcode, table.grid td.fz-itemcode{padding-left:6px;padding-right:8px;}
+  table.grid th.fz-vendor, table.grid td.fz-vendor, table.grid th.fz-range, table.grid td.fz-range{padding-left:8px;padding-right:8px;}
+  .metrics-band{grid-template-columns:1fr 1fr;}
+  .metrics-band .pricing-group{grid-column:1/-1;}
+  .overview-grid{grid-template-columns:1fr;}
+  .item-header .code{font-size:var(--fs-xl);}
+}
+/* The "Prototype" pill is decoration; on narrow screens it would collide with the user label. */
+@media (max-width:1279px){ .topbar .env{display:none;} }
+
+/* Short screens (11" laptops, browser zoomed in, wireless displays at 720p): give the
+   grid more room by tightening the toolbar and row padding. */
+@media (max-height:700px){
+  .grid-toolbar{padding-top:var(--sp-3);}
+  table.grid th, table.grid td{padding-top:6px;padding-bottom:6px;}
+}
+
+/* Large monitors: 27" QHD and up. Text and the frozen block grow a little so
+   the app doesn't look tiny with lots of unused space. */
+@media (min-width:2200px){
+  :root{--rail-w:350px;--fz-sno:80px;--fz-item:88px;--fz-desc:224px;--fz-vendor:90px;--fz-range:112px;
+        --fs-2xs:11.5px;--fs-xs:12.5px;--fs-sm:13.5px;--fs-base:14.5px;--fs-md:15.5px;--fs-lg:17px;--fs-xl:20px;--fs-2xl:26px;}
+}
+/* 4K at 100% scaling: larger still. */
+@media (min-width:3200px){
+  :root{--rail-w:420px;--fz-sno:100px;--fz-item:110px;--fz-desc:280px;--fz-vendor:112px;--fz-range:140px;
+        --fs-2xs:14px;--fs-xs:15px;--fs-sm:16px;--fs-base:17.5px;--fs-md:19px;--fs-lg:21px;--fs-xl:25px;--fs-2xl:32px;}
 }

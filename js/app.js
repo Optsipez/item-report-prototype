@@ -1338,7 +1338,8 @@ function buildBranchTable(wrapEl, item){
   const monthWindow = MONTH_WINDOW.slice().reverse();
   const monthLabels = monthWindow.map(monthColLabel);
   const colCount = 4 + monthLabels.length;
-  const monthHeaderHtml = monthLabels.map(l => '<th class="branch-month">' + l + '</th>').join('');
+  // Two lines ("Sep" over "'26", like the grid's month columns) so the 13 month columns can be narrow.
+  const monthHeaderHtml = monthLabels.map(l => '<th class="branch-month">' + l.replace("'", "<br>'") + '</th>').join('');
 
   let html = '<table class="matrix branch-matrix"><thead><tr>' +
     '<th class="branch-sno">Sort Order</th><th>Branch Code</th><th>SOH</th><th title="Total sold over the 13 months shown">Sold</th>' +
@@ -1461,6 +1462,9 @@ function renderReport(item){
    A generation counter cancels any still-running roll from a previous item. */
 function countUpMetrics(){
   if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  // Nothing to see in a hidden tab, and the browser pauses requestAnimationFrame there --
+  // skip the roll and leave the real numbers in place.
+  if(document.hidden) return;
   const gen = countUpMetrics._gen = (countUpMetrics._gen || 0) + 1;
   document.querySelectorAll('#report .metric-row .v').forEach(el => {
     const finalText = el.textContent.trim();
@@ -1472,15 +1476,25 @@ function countUpMetrics(){
     if(!isFinite(target) || target === 0) return;
     const t0 = performance.now(), dur = 560;
     el.classList.add('counting');
-    const step = now => {
-      if(countUpMetrics._gen !== gen) return;
-      const p = Math.max(0, Math.min(1, (now - t0) / dur));
+    const step = () => {
+      // Stop the moment this value has been finalised (by the timer below) or a newer
+      // roll has taken over -- a late frame must never write an in-between number over it.
+      if(countUpMetrics._gen !== gen || !el.classList.contains('counting')) return;
+      // performance.now(), the same clock as t0 -- the frame timestamp passed to requestAnimationFrame
+      // callbacks can be on a different clock under throttled/remote rendering, reading as "0% done".
+      const p = Math.max(0, Math.min(1, (performance.now() - t0) / dur));
       const val = target * (1 - Math.pow(1 - p, 3));
       el.textContent = (dec ? val.toFixed(dec) : Math.round(val).toLocaleString('en-US')) + suffix;
       if(p < 1) requestAnimationFrame(step);
       else { el.textContent = finalText; el.classList.remove('counting'); }
     };
     requestAnimationFrame(step);
+    // Safety net: if the browser throttles or pauses animation frames (background tab,
+    // remote or wireless display, screen capture), never leave a half-rolled or zero
+    // value on screen -- a timer always lands on the real number.
+    setTimeout(() => {
+      if(countUpMetrics._gen === gen && el.classList.contains('counting')){ el.textContent = finalText; el.classList.remove('counting'); }
+    }, dur + 250);
   });
 }
 
