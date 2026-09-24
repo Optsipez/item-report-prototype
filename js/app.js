@@ -1300,7 +1300,7 @@ function buildBranchTable(wrapEl, item){
     monthHeaderHtml + '</tr></thead><tbody>';
 
   let sno = 0, prevGroup = null, soldTotal = 0;
-  codes.forEach(c => {
+  codes.forEach((c, ci) => {
     const group = branchGroupIndex(c);
     if(group !== prevGroup){
       if(prevGroup !== null) html += '<tr class="branch-sep" aria-hidden="true"><td colspan="' + colCount + '"></td></tr>';
@@ -1312,7 +1312,10 @@ function buildBranchTable(wrapEl, item){
     const monthVals = monthWindow.map(w => branchMonthlySold(item['Item Code'], c, w));
     const soldV = monthVals[0] == null ? null : monthVals.reduce((a, v) => a + v, 0);
     if(soldV != null) soldTotal += soldV;
-    html += '<tr class="' + branchColorClass(c) + '">';
+    // Mark the first/last row of each group so CSS can draw a bold box around it.
+    const isFirst = group !== (ci > 0 ? branchGroupIndex(codes[ci - 1]) : null);
+    const isLast = ci === codes.length - 1 || group !== branchGroupIndex(codes[ci + 1]);
+    html += '<tr class="' + branchColorClass(c) + (isFirst ? ' branch-first' : '') + (isLast ? ' branch-last' : '') + '">';
     html += '<td class="branch-sno">' + sno + '</td>';
     html += '<td>' + c + '</td>';
     html += '<td class="' + (soh === 0 ? 'zero' : (soh < 0 ? 'neg' : '')) + '">' + soh + '</td>';
