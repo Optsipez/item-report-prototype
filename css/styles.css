@@ -1207,6 +1207,8 @@ table.grid tbody tr.row-resume td{animation:resumeFlash 1.5s ease 1;}
    separate class, since the two track different things and can both be
    active on different rows at once. */
 table.grid tbody tr.row-item.row-selected td{background:var(--primary-weak);}
+/* Excel-style cell cursor: the cell the arrow keys will move from. */
+table.grid tbody td.cell-active{outline:2px solid var(--primary);outline-offset:-2px;}
 table.grid tbody tr.row-selected td.fz-sno,table.grid tbody tr.row-selected td.fz-itemcode,table.grid tbody tr.row-selected td.fz-desc,table.grid tbody tr.row-selected td.fz-vendor,table.grid tbody tr.row-selected td.fz-range{background:var(--primary-weak);}
 table.grid tbody tr.row-selected td.fz-sno{box-shadow:inset 3px 0 0 var(--primary);}
 table.grid tbody tr.row-item.row-selected td.item-code{color:var(--primary-hover);}

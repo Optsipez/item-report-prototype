@@ -1572,87 +1572,128 @@ let collapsedGroups = new Set(['class','attrs','fob','logi','soldby-old','stocki
    sit in whatever order the underlying data/filter left them in. */
 let gridSort = [];    // [{ field, dir: 'desc' | 'asc' }, ...] — index 0 is primary
 let gridGroup = null; // { field }
-/* Click an Item Code cell to highlight that row; click more rows to keep
-   adding to the highlight, click a highlighted row again to un-highlight it,
-   Esc clears them all. The highlights survive paging/sorting/filtering (they
-   are tracked by item code, not by row). Arrow up/down still works on the
-   most recently clicked row and collapses back to a single highlighted row,
-   Excel-style, crossing page boundaries. Double-click still opens the item in
-   Item Lookup — see the Item Code cell's own click/dblclick handlers below. */
-let selectedRowCode = null;            // the "active" row arrow keys move
+/* Excel-style cell cursor + row highlights.
+   - Click any body cell to put the cell cursor (an outlined cell) on it;
+     the arrow keys then move it up/down/left/right, and the page scrolls to
+     keep it visible (clear of the frozen columns and sticky header). Up/Down
+     cross page boundaries. With no cell cursor, Left/Right still step pages.
+   - Click an Item Code cell to also toggle that row's highlight — click more
+     rows to highlight several, click again to remove, Esc clears both the
+     highlights and the cursor. Highlights are tracked by item code, so they
+     survive paging/sorting/filtering. Double-click opens Item Lookup — see the
+     Item Code cell's own click/dblclick handlers below. */
 const selectedRowCodes = new Set();    // every highlighted row
+let activeCellCode = null;             // row (item code) the cell cursor is on
+let activeColIdx = -1;                 // column index of the cell cursor
 function paintSelectedRows(){
-  let activeTr = null;
   document.querySelectorAll('#gridTable tbody tr.row-item').forEach(tr => {
     tr.classList.toggle('row-selected', selectedRowCodes.has(tr.dataset.code));
-    if(tr.dataset.code === selectedRowCode) activeTr = tr;
   });
-  return activeTr;
 }
-function selectGridRow(code, opts){
-  code = String(code);
-  if(opts && opts.toggle){
-    if(selectedRowCodes.has(code)){
-      selectedRowCodes.delete(code);
-      if(selectedRowCode === code) selectedRowCode = null;
-    } else {
-      selectedRowCodes.add(code);
-      selectedRowCode = code;
-    }
-  } else {
-    selectedRowCodes.clear();
-    selectedRowCodes.add(code);
-    selectedRowCode = code;
+function paintActiveCell(){
+  document.querySelectorAll('#gridTable td.cell-active').forEach(td => td.classList.remove('cell-active'));
+  if(activeCellCode == null) return null;
+  const tr = document.querySelector('#gridTable tbody tr[data-code="' + CSS.escape(activeCellCode) + '"]');
+  const td = tr && tr.children[activeColIdx];
+  if(td) td.classList.add('cell-active');
+  return td || null;
+}
+function scrollCellIntoView(td){
+  const fieldRow = document.querySelector('#gridTable thead tr.field-row');
+  const headBottom = fieldRow ? fieldRow.getBoundingClientRect().bottom : 56;
+  const de = document.documentElement;
+  const r = td.getBoundingClientRect();
+  let dx = 0, dy = 0;
+  if(r.top < headBottom) dy = r.top - headBottom;
+  else if(r.bottom > de.clientHeight) dy = r.bottom - de.clientHeight;
+  // Frozen columns stay put while the rest scroll under them, so a cell
+  // must clear the frozen block's right edge, not just the window's.
+  const isFrozen = /\bfz-/.test(td.className);
+  if(!isFrozen){
+    const fz = td.parentElement.querySelector('td.fz-range');
+    const frozenRight = fz ? fz.getBoundingClientRect().right : 0;
+    if(r.left < frozenRight) dx = r.left - frozenRight;
+    else if(r.right > de.clientWidth) dx = r.right - de.clientWidth;
   }
-  const activeTr = paintSelectedRows();
-  if(opts && opts.scroll && activeTr) activeTr.scrollIntoView({ block: 'nearest' });
+  if(dx || dy) window.scrollBy({ left: dx, top: dy, behavior: 'instant' });
+}
+function setActiveCell(code, colIdx, opts){
+  activeCellCode = String(code);
+  activeColIdx = colIdx;
+  const td = paintActiveCell();
+  if(opts && opts.scroll && td) scrollCellIntoView(td);
+}
+function toggleRowHighlight(code){
+  code = String(code);
+  if(selectedRowCodes.has(code)) selectedRowCodes.delete(code); else selectedRowCodes.add(code);
+  paintSelectedRows();
 }
 function clearGridSelection(){
   selectedRowCodes.clear();
-  selectedRowCode = null;
+  activeCellCode = null;
+  activeColIdx = -1;
   paintSelectedRows();
+  paintActiveCell();
 }
-function moveGridRowSelection(dir){
+function moveActiveCell(dRow, dCol){
   const rows = Array.from(document.querySelectorAll('#gridTable tbody tr.row-item'));
-  const idx = rows.findIndex(tr => tr.dataset.code === String(selectedRowCode));
-  if(idx < 0) return;
-  const nextIdx = idx + dir;
-  if(nextIdx >= 0 && nextIdx < rows.length){
-    selectGridRow(rows[nextIdx].dataset.code, { scroll: true });
+  const ri = rows.findIndex(tr => tr.dataset.code === activeCellCode);
+  if(ri < 0) return;
+  if(dCol){
+    const cells = rows[ri].children;
+    let c = activeColIdx;
+    do { c += dCol; } while(c >= 0 && c < cells.length && cells[c].classList.contains('collapsed-cell'));
+    if(c >= 0 && c < cells.length) setActiveCell(activeCellCode, c, { scroll: true });
     return;
   }
-  // Off the edge of the current page — step to the adjacent page and land on
-  // its first/last row, so holding the arrow key keeps moving through the
-  // full sorted list instead of stopping dead at an arbitrary page boundary.
-  if(nextIdx < 0 && gridPage > 0){
+  const next = ri + dRow;
+  if(next >= 0 && next < rows.length){
+    setActiveCell(rows[next].dataset.code, activeColIdx, { scroll: true });
+    return;
+  }
+  // Off the edge of the page: step to the adjacent page and land on its
+  // first/last row, so holding the key keeps going through the full list.
+  if(next < 0 && gridPage > 0){
     gridPage -= 1;
     renderGrid();
     const last = document.querySelector('#gridTable tbody tr.row-item:last-child');
-    if(last) selectGridRow(last.dataset.code, { scroll: true });
-  } else if(nextIdx >= rows.length && gridPage < gridTotalPages - 1){
+    if(last) setActiveCell(last.dataset.code, activeColIdx, { scroll: true });
+  } else if(next >= rows.length && gridPage < gridTotalPages - 1){
     gridPage += 1;
     renderGrid();
     const first = document.querySelector('#gridTable tbody tr.row-item:first-child');
-    if(first) selectGridRow(first.dataset.code, { scroll: true });
+    if(first) setActiveCell(first.dataset.code, activeColIdx, { scroll: true });
   }
 }
-// Guarded the same way as the Left/Right page-step shortcut below: only
-// while the grid view is active and the user isn't typing somewhere, and
-// only once a row is actually selected (otherwise the keys still just
-// scroll the page normally).
+// A click anywhere on a body cell puts the cell cursor there. Captured (not
+// bubbled) because some cells stop propagation for their own handlers.
+document.getElementById('gridTable').addEventListener('click', e => {
+  const td = e.target.closest('td');
+  if(!td || td.classList.contains('collapsed-cell')) return;
+  const tr = td.parentElement;
+  if(!tr.classList.contains('row-item')) return;
+  setActiveCell(tr.dataset.code, td.cellIndex);
+}, true);
+function gridKeysActive(){
+  const tag = document.activeElement && document.activeElement.tagName;
+  if(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return false;
+  if(document.querySelector('.wk-modal:not([hidden])')) return false;
+  return document.getElementById('viewAll').classList.contains('active');
+}
 document.addEventListener('keydown', e => {
-  if(e.key === 'Escape' && selectedRowCodes.size){
-    const t = document.activeElement && document.activeElement.tagName;
-    if(t !== 'INPUT' && t !== 'TEXTAREA' && document.getElementById('viewAll').classList.contains('active')) clearGridSelection();
+  if(!gridKeysActive()) return;
+  if(e.key === 'Escape'){
+    if(selectedRowCodes.size || activeCellCode != null) clearGridSelection();
     return;
   }
-  if(e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-  if(!selectedRowCode) return;
-  const tag = document.activeElement && document.activeElement.tagName;
-  if(tag === 'INPUT' || tag === 'TEXTAREA') return;
-  if(!document.getElementById('viewAll').classList.contains('active')) return;
+  const dirs = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
+  const d = dirs[e.key];
+  if(!d || e.ctrlKey || e.metaKey || e.altKey) return;
+  // Only while the cursor cell is actually on screen (otherwise the keys
+  // keep their normal job: scrolling, and Left/Right paging).
+  if(!document.querySelector('#gridTable td.cell-active')) return;
   e.preventDefault();
-  moveGridRowSelection(e.key === 'ArrowDown' ? 1 : -1);
+  moveActiveCell(d[0], d[1]);
 });
 /* Pagination — with the full ingested catalog (11,000+ visible rows), building
    every row into the DOM at once froze the tab for real users. Only one
@@ -1886,6 +1927,8 @@ document.getElementById('gridNextBtn').addEventListener('click', () => stepGridP
    box, etc. is untouched). */
 document.addEventListener('keydown', e => {
   if(e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  // With a cell cursor on screen, Left/Right move the cursor instead.
+  if(document.querySelector('#gridTable td.cell-active')) return;
   const tag = document.activeElement && document.activeElement.tagName;
   if(tag === 'INPUT' || tag === 'TEXTAREA') return;
   if(!document.getElementById('viewAll').classList.contains('active')) return;
@@ -2254,8 +2297,8 @@ function buildGridBody(items, cols, pageStart){
             // stays plain text so values can be selected and copied.
             // Click toggles this row's highlight (click several to highlight
             // several; Esc clears); double-click still opens the item.
-            td.title = 'Click to highlight this row (click more rows to add, click again to remove, Esc clears all) — double-click to open in Item Lookup';
-            td.addEventListener('click', e => { e.stopPropagation(); selectGridRow(item['Item Code'], { toggle: true }); });
+            td.title = 'Click to highlight this row (click more rows to add, click again to remove) — arrow keys move between cells, Esc clears — double-click to open in Item Lookup';
+            td.addEventListener('click', e => { e.stopPropagation(); toggleRowHighlight(item['Item Code']); });
             td.addEventListener('dblclick', e => { e.stopPropagation(); resumeCode = item['Item Code']; openItem(item); });
           }
         }
@@ -2401,6 +2444,7 @@ function renderGrid(){
   // Re-apply the highlighted rows — table.innerHTML = ''
   // above wiped it, along with every other class, on this fresh render.
   if(selectedRowCodes.size) paintSelectedRows();
+  if(activeCellCode != null) paintActiveCell();
   const rangeEnd = Math.min(items.length, pageStart + pageItems.length);
   gridTotalPages = totalPages;
   document.getElementById('gridRowCount').textContent = items.length === 0 ? '0 of ' + ITEMS.length + ' items'
