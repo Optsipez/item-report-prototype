@@ -946,6 +946,11 @@ table.grid thead tr.group-row th.core{
   white-space:normal;width:1%;text-align:left;line-height:1.25;word-break:keep-all;
 }
 table.grid thead tr.group-row th.core:hover{background:linear-gradient(180deg,var(--subhead-top),var(--subhead));color:var(--subhead-ink);}
+/* The frozen columns (S.No .. Range Name) get their own solid header colour so
+   they read as a separate pinned block instead of blending into the scrolling
+   columns beside them. Sorted keeps the usual brass highlight. */
+table.grid thead tr.group-row th.core:is(.fz-sno,.fz-itemcode,.fz-desc,.fz-vendor,.fz-range):not(.sorted){background:#bcd3ee;}
+table.grid thead tr.group-row th.core:is(.fz-sno,.fz-itemcode,.fz-desc,.fz-vendor,.fz-range):not(.sorted):hover{background:#a6c3e6;}
 table.grid thead tr.group-row th.core.sortable{cursor:pointer;}
 table.grid thead tr.group-row th.core.sortable:hover{background:var(--s-200);}
 table.grid thead tr.group-row th.core.sorted{background:var(--primary);color:var(--on-primary);}
