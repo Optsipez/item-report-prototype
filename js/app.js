@@ -1355,8 +1355,10 @@ function buildBranchTable(wrapEl, item){
       : '<td class="' + (soldV === 0 ? 'zero' : (soldV < 0 ? 'neg' : '')) + '">' + soldV + '</td>';
     html += monthVals.map((v, mi) => {
       const w = monthWindow[mi];
+      // A dash (no sales history for this item at all) still opens the popup —
+      // all empty weeks — same as All Products does for a zero-sales month.
       return v == null
-        ? '<td class="branch-month zero" title="No branch-level sales history for this item">—</td>'
+        ? '<td class="branch-month wk-cell zero" data-branch="' + c + '" data-y="' + w.year + '" data-m="' + w.m + '" title="No sales recorded for this item — click for the (empty) weekly breakdown">—</td>'
         : '<td class="branch-month wk-cell' + (v === 0 ? ' zero' : (v < 0 ? ' neg' : '')) + '" data-branch="' + c + '" data-y="' + w.year + '" data-m="' + w.m + '" title="Weekly breakdown for ' + c + ', starting ' + MONTHS[w.m] + ' ' + w.year + '">' + v + '</td>';
     }).join('');
     html += '</tr>';
