@@ -1271,6 +1271,17 @@ BRANCH_GROUPS.forEach((g, gi) => g.codes.forEach(c => { BRANCH_GROUP_OF[c] = gi;
 function branchRank(code){ return code in BRANCH_RANK ? BRANCH_RANK[code] : BRANCH_ORDER.length; }
 function branchGroupIndex(code){ return code in BRANCH_GROUP_OF ? BRANCH_GROUP_OF[code] : -1; }
 function branchColorClass(code){ return 'branch-' + (BRANCH_COLOR_OF[code] || 'grey'); }
+/* Real per-branch monthly Sold — from BRANCH_MONTHLY_SOLD_BY_ITEM (see its
+   header comment in branch-monthly.js for how it was built). null means
+   "this item has no branch-level sales tracking at all" (shows as — );
+   anything else means the number IS known, including a real 0 for a
+   branch/month with no sales that period. */
+function branchMonthlySold(itemCode, branchCode, w){
+  const byItem = BRANCH_MONTHLY_SOLD_BY_ITEM[itemCode];
+  if(!byItem) return null;
+  const arr = byItem[branchCode] && byItem[branchCode][String(w.year)];
+  return arr ? arr[w.m] : 0;
+}
 
 function buildBranchTable(wrapEl, item){
   const branch = BRANCH_BY_ITEM[item['Item Code']];
@@ -1279,14 +1290,11 @@ function buildBranchTable(wrapEl, item){
   const sold = BRANCH_SOLD_BY_ITEM[item['Item Code']];
 
   // 13 rolling month headers, newest first — same order as the grid's Sold/
-  // Stock by Month columns. There's no per-branch monthly Sold in the
-  // ingested data (only branch-level totals and item-level monthly totals
-  // combined across all branches), so these are header-only for now: real
-  // numbers can fill in once the source data carries a branch dimension.
-  const monthLabels = MONTH_WINDOW.slice().reverse().map(monthColLabel);
+  // Stock by Month columns.
+  const monthWindow = MONTH_WINDOW.slice().reverse();
+  const monthLabels = monthWindow.map(monthColLabel);
   const colCount = 4 + monthLabels.length;
   const monthHeaderHtml = monthLabels.map(l => '<th class="branch-month">' + l + '</th>').join('');
-  const monthCellHtml = '<td class="branch-month zero" title="Per-branch monthly Sold isn\'t in the ingested data yet — only branch totals are">—</td>'.repeat(monthLabels.length);
 
   let html = '<table class="matrix branch-matrix"><thead><tr>' +
     '<th class="branch-sno">Sort Order</th><th>Branch Code</th><th>SOH</th><th>Sold</th>' +
@@ -1309,7 +1317,12 @@ function buildBranchTable(wrapEl, item){
     html += soldV == null
       ? '<td class="zero" title="Awaiting branch-level sales data">—</td>'
       : '<td class="' + (soldV === 0 ? 'zero' : (soldV < 0 ? 'neg' : '')) + '">' + soldV + '</td>';
-    html += monthCellHtml;
+    html += monthWindow.map(w => {
+      const v = branchMonthlySold(item['Item Code'], c, w);
+      return v == null
+        ? '<td class="branch-month zero" title="No branch-level sales history for this item">—</td>'
+        : '<td class="branch-month' + (v === 0 ? ' zero' : (v < 0 ? ' neg' : '')) + '">' + v + '</td>';
+    }).join('');
     html += '</tr>';
   });
 
