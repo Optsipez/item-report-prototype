@@ -31,8 +31,8 @@ const EMPLOYEES = [
   { id: '3082', name: 'Marifor', password: 'Buy@2267', role: 'buyer' },
   { id: '4027', name: 'Yahya', password: 'Buy@2267', role: 'buyer' },
   // add/remove Buyer IDs here, same password as the ones above
-  { id: '3111', name: 'Javaid', password: 'Jav@1923', role: 'manager' },
-  { id: 'CEO', name: 'CEO', password: 'CEO@2986', role: 'ceo' },
+  { id: '3111', name: 'Javaid', password: 'Jav@1113', role: 'manager' },
+  { id: 'CEO', name: 'CEO', password: 'CEO', role: 'ceo' },
   { id: 'admin', name: 'Admin', password: 'Admin0306', role: 'admin' },
 ];
 
