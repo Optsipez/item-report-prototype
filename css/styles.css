@@ -620,6 +620,13 @@ table.branch-matrix tbody tr.branch-blue td{background:#bdd7ee;}
 table.branch-matrix tbody tr.branch-blue:hover td{background:#a1c6e6;}
 table.branch-matrix tbody tr.branch-grey td{background:#d9d9d9;}
 table.branch-matrix tbody tr.branch-grey:hover td{background:#c7c7c7;}
+/* The 13 rolling sales months use the same green as All Products' Sold by
+   Month block (header tint + light cell tint) instead of the group fill, so a
+   sales column looks the same in both places. [class] keeps these above the
+   group-colour and hover rules; the Total row keeps its plain cells. */
+table.branch-matrix thead th.branch-month{background:var(--soldby-tint-head);color:var(--ink-soft);}
+table.branch-matrix tbody tr[class]:not(.branch-total) td.branch-month{background:var(--soldby-2026);}
+table.branch-matrix tbody tr[class]:not(.branch-total):hover td.branch-month{background:var(--soldby-tint-head);}
 table.branch-matrix tbody tr.branch-sep td{border-bottom:none;padding:4px 0;}
 /* Excel-style boxes: each group of branches gets a strong slate outline
    across Sort Order | Branch Code | SOH | Sold (header and Total row too),
