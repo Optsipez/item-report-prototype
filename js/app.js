@@ -1572,20 +1572,45 @@ let collapsedGroups = new Set(['class','attrs','fob','logi','soldby-old','stocki
    sit in whatever order the underlying data/filter left them in. */
 let gridSort = [];    // [{ field, dir: 'desc' | 'asc' }, ...] — index 0 is primary
 let gridGroup = null; // { field }
-/* Single-click an Item Code cell to select that row, Excel-style — arrow
-   up/down then moves the highlight between rows (crossing page boundaries
-   too) without leaving the page. Double-click still opens the item in Item
-   Lookup — see the Item Code cell's own click/dblclick handlers below. */
-let selectedRowCode = null;
-function selectGridRow(code, opts){
-  selectedRowCode = code;
-  let selectedTr = null;
+/* Click an Item Code cell to highlight that row; click more rows to keep
+   adding to the highlight, click a highlighted row again to un-highlight it,
+   Esc clears them all. The highlights survive paging/sorting/filtering (they
+   are tracked by item code, not by row). Arrow up/down still works on the
+   most recently clicked row and collapses back to a single highlighted row,
+   Excel-style, crossing page boundaries. Double-click still opens the item in
+   Item Lookup — see the Item Code cell's own click/dblclick handlers below. */
+let selectedRowCode = null;            // the "active" row arrow keys move
+const selectedRowCodes = new Set();    // every highlighted row
+function paintSelectedRows(){
+  let activeTr = null;
   document.querySelectorAll('#gridTable tbody tr.row-item').forEach(tr => {
-    const match = tr.dataset.code === String(code);
-    tr.classList.toggle('row-selected', match);
-    if(match) selectedTr = tr;
+    tr.classList.toggle('row-selected', selectedRowCodes.has(tr.dataset.code));
+    if(tr.dataset.code === selectedRowCode) activeTr = tr;
   });
-  if(opts && opts.scroll && selectedTr) selectedTr.scrollIntoView({ block: 'nearest' });
+  return activeTr;
+}
+function selectGridRow(code, opts){
+  code = String(code);
+  if(opts && opts.toggle){
+    if(selectedRowCodes.has(code)){
+      selectedRowCodes.delete(code);
+      if(selectedRowCode === code) selectedRowCode = null;
+    } else {
+      selectedRowCodes.add(code);
+      selectedRowCode = code;
+    }
+  } else {
+    selectedRowCodes.clear();
+    selectedRowCodes.add(code);
+    selectedRowCode = code;
+  }
+  const activeTr = paintSelectedRows();
+  if(opts && opts.scroll && activeTr) activeTr.scrollIntoView({ block: 'nearest' });
+}
+function clearGridSelection(){
+  selectedRowCodes.clear();
+  selectedRowCode = null;
+  paintSelectedRows();
 }
 function moveGridRowSelection(dir){
   const rows = Array.from(document.querySelectorAll('#gridTable tbody tr.row-item'));
@@ -1616,6 +1641,11 @@ function moveGridRowSelection(dir){
 // only once a row is actually selected (otherwise the keys still just
 // scroll the page normally).
 document.addEventListener('keydown', e => {
+  if(e.key === 'Escape' && selectedRowCodes.size){
+    const t = document.activeElement && document.activeElement.tagName;
+    if(t !== 'INPUT' && t !== 'TEXTAREA' && document.getElementById('viewAll').classList.contains('active')) clearGridSelection();
+    return;
+  }
   if(e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
   if(!selectedRowCode) return;
   const tag = document.activeElement && document.activeElement.tagName;
@@ -2222,10 +2252,10 @@ function buildGridBody(items, cols, pageStart){
           if(col.field === 'Item Code'){
             // Only this cell has these handlers — everywhere else in the row
             // stays plain text so values can be selected and copied.
-            // Single click selects the row (Excel-style, arrow keys then move
-            // it); double-click still opens the item in Item Lookup.
-            td.title = 'Click to select this row (↑/↓ to move) — double-click to open in Item Lookup';
-            td.addEventListener('click', e => { e.stopPropagation(); selectGridRow(item['Item Code']); });
+            // Click toggles this row's highlight (click several to highlight
+            // several; Esc clears); double-click still opens the item.
+            td.title = 'Click to highlight this row (click more rows to add, click again to remove, Esc clears all) — double-click to open in Item Lookup';
+            td.addEventListener('click', e => { e.stopPropagation(); selectGridRow(item['Item Code'], { toggle: true }); });
             td.addEventListener('dblclick', e => { e.stopPropagation(); resumeCode = item['Item Code']; openItem(item); });
           }
         }
@@ -2368,12 +2398,9 @@ function renderGrid(){
   table.appendChild(buildColGroup(cols));
   table.appendChild(thead);
   table.appendChild(buildGridBody(pageItems, cols, pageStart));
-  // Re-apply the keyboard-selected row's highlight — table.innerHTML = ''
+  // Re-apply the highlighted rows — table.innerHTML = ''
   // above wiped it, along with every other class, on this fresh render.
-  if(selectedRowCode){
-    const selTr = table.querySelector('tr[data-code="' + CSS.escape(String(selectedRowCode)) + '"]');
-    if(selTr) selTr.classList.add('row-selected');
-  }
+  if(selectedRowCodes.size) paintSelectedRows();
   const rangeEnd = Math.min(items.length, pageStart + pageItems.length);
   gridTotalPages = totalPages;
   document.getElementById('gridRowCount').textContent = items.length === 0 ? '0 of ' + ITEMS.length + ' items'
