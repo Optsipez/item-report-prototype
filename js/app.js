@@ -1287,7 +1287,6 @@ function buildBranchTable(wrapEl, item){
   const branch = BRANCH_BY_ITEM[item['Item Code']];
   if(!branch){ wrapEl.innerHTML = '<p class="foot-note">No branch-level data found for this item.</p>'; return; }
   const codes = Object.keys(branch).sort((a, b) => branchRank(a) - branchRank(b));
-  const sold = BRANCH_SOLD_BY_ITEM[item['Item Code']];
 
   // 13 rolling month headers, newest first — same order as the grid's Sold/
   // Stock by Month columns.
@@ -1297,10 +1296,10 @@ function buildBranchTable(wrapEl, item){
   const monthHeaderHtml = monthLabels.map(l => '<th class="branch-month">' + l + '</th>').join('');
 
   let html = '<table class="matrix branch-matrix"><thead><tr>' +
-    '<th class="branch-sno">Sort Order</th><th>Branch Code</th><th>SOH</th><th>Sold</th>' +
+    '<th class="branch-sno">Sort Order</th><th>Branch Code</th><th>SOH</th><th title="Total sold over the 13 months shown">Sold</th>' +
     monthHeaderHtml + '</tr></thead><tbody>';
 
-  let sno = 0, prevGroup = null;
+  let sno = 0, prevGroup = null, soldTotal = 0;
   codes.forEach(c => {
     const group = branchGroupIndex(c);
     if(group !== prevGroup){
@@ -1309,16 +1308,18 @@ function buildBranchTable(wrapEl, item){
     }
     sno++;
     const soh = branch[c];
-    const soldV = sold ? sold[c] : null;
+    // Sold = the sum of the 13 month columns beside it, so the two always agree.
+    const monthVals = monthWindow.map(w => branchMonthlySold(item['Item Code'], c, w));
+    const soldV = monthVals[0] == null ? null : monthVals.reduce((a, v) => a + v, 0);
+    if(soldV != null) soldTotal += soldV;
     html += '<tr class="' + branchColorClass(c) + '">';
     html += '<td class="branch-sno">' + sno + '</td>';
     html += '<td>' + c + '</td>';
     html += '<td class="' + (soh === 0 ? 'zero' : (soh < 0 ? 'neg' : '')) + '">' + soh + '</td>';
     html += soldV == null
-      ? '<td class="zero" title="Awaiting branch-level sales data">—</td>'
+      ? '<td class="zero" title="No branch-level sales history for this item">—</td>'
       : '<td class="' + (soldV === 0 ? 'zero' : (soldV < 0 ? 'neg' : '')) + '">' + soldV + '</td>';
-    html += monthWindow.map(w => {
-      const v = branchMonthlySold(item['Item Code'], c, w);
+    html += monthVals.map(v => {
       return v == null
         ? '<td class="branch-month zero" title="No branch-level sales history for this item">—</td>'
         : '<td class="branch-month' + (v === 0 ? ' zero' : (v < 0 ? ' neg' : '')) + '">' + v + '</td>';
@@ -1327,10 +1328,10 @@ function buildBranchTable(wrapEl, item){
   });
 
   const sohTotal = codes.reduce((a, c) => a + branch[c], 0);
-  const soldTotal = sold ? codes.reduce((a, c) => a + (sold[c] || 0), 0) : null;
+  const hasSold = !!BRANCH_MONTHLY_SOLD_BY_ITEM[item['Item Code']];
   html += '<tr class="branch-total"><td></td><td><strong>Total</strong></td>' +
     '<td><strong>' + sohTotal + '</strong></td>' +
-    '<td><strong>' + (soldTotal == null ? '—' : soldTotal) + '</strong></td>' +
+    '<td><strong>' + (hasSold ? soldTotal : '—') + '</strong></td>' +
     '<td class="branch-month"></td>'.repeat(monthLabels.length) +
     '</tr>';
 
