@@ -1,15 +1,24 @@
 /* ============================================================
-   DASHBOARD — the landing page after login. A rotating personal greeting,
-   two doors into the data pages (All Products / Item Lookup), and a set of
-   headline numbers worked out from the same data the rest of the app uses.
+   DASHBOARD — the landing page after login. Built for the purchasing team:
+   it answers "what do I need to do today?" before "how are we doing?".
 
-   Everything is computed here from ITEMS / BRANCH_MONTHLY_SOLD_BY_ITEM, so it
-   stays in step with the grid. "Recent" means the 12 months ending at the
-   last month that actually has sales in the data (not the calendar month, so
-   it doesn't show empty trailing months as a collapse).
+   - A rotating personal greeting.
+   - A scope picker (Department / Category / Vendor Code), remembered per
+     employee, so each buyer sees their own slice instead of the whole company.
+   - Four action lists, each with a count and a button that opens exactly
+     those items in All Products:
+       Reorder now          selling, and stock + open POs cover under 4 months
+       Out of stock, no PO  selling, none in stock, nothing on order
+       Late POs             ETA already passed (vs the data date), still open
+       Overstock / slow     6+ months old and 12+ months of cover (or no sales)
+   - A trading strip, monthly sales, movers, what's landing soon, and
+     branch / category / range-or-vendor / stock-age breakdowns.
 
-   Role differences: the greeting subtitle, and vendor-based panels are only
-   shown to roles that may see vendor names (see canSeeVendorName in app.js).
+   "Selling" is real sales in the last 3 complete months of data — not the
+   grid's AVG column, which for brand-new items is only an estimate from the
+   PO. All dates are relative to DATA_AS_OF (the export date, in
+   po-data.js), not today's clock, so late/landing-soon match the snapshot.
+   Vendor names are only shown to roles allowed to see them (canSeeVendorName).
    ============================================================ */
 const DASH_GREETINGS = [
   n => 'Hi ' + n + ', good to see you.',
@@ -19,7 +28,16 @@ const DASH_GREETINGS = [
 ];
 let dashGreetingIdx = Math.floor(Math.random() * DASH_GREETINGS.length);
 // A fresh pick each time someone signs in (called from auth.js's enterApp).
-function reshuffleDashGreeting(){ dashGreetingIdx = Math.floor(Math.random() * DASH_GREETINGS.length); }
+function reshuffleDashGreeting(){
+  dashGreetingIdx = Math.floor(Math.random() * DASH_GREETINGS.length);
+  dashScope = null; dashTab = null;      // the next person gets their own remembered scope
+}
+
+const DAY = 86400000;
+const DASH_TARGET_MONTHS = 4;      // cover a reorder should restore
+let dashTab = null;                // which action list is open
+let dashScope = null;              // { dept, cat, vendor } — loaded per employee
+let dashCurrentTab = null;
 
 function dashPartOfDay(){
   const h = new Date().getHours();
@@ -38,8 +56,8 @@ function dashName(){
 }
 function dashSubtitle(){
   if(CURRENT_ROLE === 'ceo' || CURRENT_ROLE === 'admin') return 'The whole business at a glance.';
-  if(CURRENT_ROLE === 'manager') return 'How the range is performing across the team.';
-  return 'Your catalogue at a glance.';
+  if(CURRENT_ROLE === 'manager') return 'How the range is performing, and what needs chasing.';
+  return 'What needs your attention, in your area.';
 }
 const dashInt = n => Math.round(n).toLocaleString('en-US');
 function dashCompact(n){
@@ -48,177 +66,290 @@ function dashCompact(n){
   if(a >= 1e4) return Math.round(n / 1e3) + 'K';
   return dashInt(n);
 }
-
-/* The 24 months ending at the last month with any sales, oldest first. */
-function dashMonths(){
-  const last = MONTH_WINDOW[MONTH_WINDOW_LAST_DATA];
-  const out = [];
-  let y = last.year, m = last.m;
-  for(let i = 0; i < 24; i++){
-    out.push({ year: y, m });
-    if(--m < 0){ m = 11; y--; }
-  }
-  return out.reverse();
+function dashDate(iso){
+  const d = new Date(iso + 'T00:00:00');
+  return d.getDate() + ' ' + MONTHS[d.getMonth()] + " '" + String(d.getFullYear()).slice(-2);
 }
-const itemMonthUnits = (it, mo) => { const yr = it.years[String(mo.year)]; return yr ? (yr.sales[mo.m] || 0) : 0; };
+const dashAsOf = () => new Date(DATA_AS_OF + 'T00:00:00');
+const dashLink = code => 'href="#item=' + encodeURIComponent(code) + '"';
 
-function dashStats(){
-  const months = dashMonths();
-  const recent = months.slice(12), prior = months.slice(0, 12), recent3 = months.slice(21);
-  const S = {
-    recent, items: ITEMS.length, soh: 0, stockValue: 0, lowCover: 0, outSelling: 0,
-    agedUnits: 0, agedItems: 0, sold12: 0, soldPrior12: 0,
-    monthTotals: MONTH_WINDOW.map(() => 0), byCat: {}, byVendor: {}, top: [], attention: [],
-    age: {}, branch: {},
+/* ---------- scope (per employee, remembered in this browser) ---------- */
+function dashScopeKey(){ return 'dashScope:' + (CURRENT_EMPLOYEE_ID || 'anon'); }
+function dashLoadScope(){
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(dashScopeKey()) || 'null'); } catch(e){}
+  dashScope = { dept: '', cat: '', vendor: '', ...(s || {}) };
+}
+function dashSaveScope(){ try { localStorage.setItem(dashScopeKey(), JSON.stringify(dashScope)); } catch(e){} }
+const dashScopeIsSet = () => !!(dashScope.dept || dashScope.cat || dashScope.vendor);
+function dashItemInScope(it){
+  return (!dashScope.dept || it['Department Desc'] === dashScope.dept) &&
+    (!dashScope.cat || it['Category'] === dashScope.cat) &&
+    (!dashScope.vendor || String(it['Vendor Code']).toUpperCase() === dashScope.vendor.toUpperCase());
+}
+function dashLineInScope(l){   // a PO line: [po, item, desc, qty, eta, vendor, dept, cat]
+  return (!dashScope.dept || l[6] === dashScope.dept) &&
+    (!dashScope.cat || l[7] === dashScope.cat) &&
+    (!dashScope.vendor || String(l[5]).toUpperCase() === dashScope.vendor.toUpperCase());
+}
+
+/* ---------- months ---------- */
+function dashWindows(){
+  const last = MONTH_WINDOW[MONTH_WINDOW_LAST_DATA];
+  const months = [];
+  let y = last.year, m = last.m;
+  for(let i = 0; i < 24; i++){ months.push({ year: y, m }); if(--m < 0){ m = 11; y--; } }
+  months.reverse();
+  const partial = last.year === REPORT_MONTH.year && last.m === REPORT_MONTH.month;   // latest month still in progress
+  const complete = partial ? months.slice(0, 23) : months;
+  return { partial, rate: complete.slice(-3), prior: complete.slice(-6, -3), year: complete.slice(-12), lastIdx: MONTH_WINDOW_LAST_DATA };
+}
+const unitsIn = (it, wins) => wins.reduce((a, mo) => { const yr = it.years[String(mo.year)]; return a + (yr ? (yr.sales[mo.m] || 0) : 0); }, 0);
+
+/* ---------- the numbers ---------- */
+function dashCompute(){
+  const W = dashWindows();
+  const vendorName = {};
+  ITEMS.forEach(it => { vendorName[it['Vendor Code']] = it['Vendor Name']; });
+  const R = {
+    W, vendorName, items: 0, sold3: 0, prior3: 0, soh: 0, value: 0,
+    reorder: [], oos: [], over: [], overValue: 0, movers: [],
+    monthTotals: MONTH_WINDOW.map(() => 0), age: {}, branch: {}, cat: {}, range: {}, vendor: {}, codes: new Set(),
   };
-  const ranked = [];
   ITEMS.forEach(it => {
-    const soh = Number(it['SOH']) || 0;
-    S.soh += soh;
-    S.stockValue += Math.max(0, soh) * (Number(it['L-Cost (Aed)']) || 0);
-    let u12 = 0;
-    recent.forEach(mo => { u12 += itemMonthUnits(it, mo); });
-    let u3 = 0;
-    recent3.forEach(mo => { u3 += itemMonthUnits(it, mo); });
-    let up = 0;
-    prior.forEach(mo => { up += itemMonthUnits(it, mo); });
-    S.sold12 += u12; S.soldPrior12 += up;
-    MONTH_WINDOW.forEach((w, i) => { S.monthTotals[i] += itemMonthUnits(it, w); });
-    if(u12 > 0){
-      ranked.push({ it, u12 });
-      const cat = it['Category'] || 'Other';
-      S.byCat[cat] = (S.byCat[cat] || 0) + u12;
-      const v = it['Vendor Name'] || 'Unknown';
-      S.byVendor[v] = (S.byVendor[v] || 0) + u12;
+    if(!dashItemInScope(it)) return;
+    R.items++; R.codes.add(it['Item Code']);
+    const sohRaw = Number(it['SOH']) || 0, soh = Math.max(0, sohRaw), po = Number(it['PO-Qty']) || 0;
+    const cost = Number(it['L-Cost (Aed)']) || 0;
+    const s3 = unitsIn(it, W.rate), p3 = unitsIn(it, W.prior), rate = s3 / 3, s12 = unitsIn(it, W.year);
+    R.sold3 += s3; R.prior3 += p3; R.soh += soh; R.value += soh * cost;
+    MONTH_WINDOW.forEach((w, i) => { R.monthTotals[i] += unitsIn(it, [w]); });
+    if(s12 > 0){
+      const c = it['Category'] || 'Other', r = it['Range Name'] || 'Other';
+      R.cat[c] = (R.cat[c] || 0) + s12;
+      R.range[r] = (R.range[r] || 0) + s12;
+      R.vendor[it['Vendor Code']] = (R.vendor[it['Vendor Code']] || 0) + s12;
     }
-    // Genuinely selling = sold in the last 3 months of data. Cover is stock over
-    // that monthly rate (the grid's AVG is a PO estimate for brand-new items).
-    if(u3 > 0){
-      const rate = u3 / 3, cover = soh > 0 ? soh / rate : 0;
-      if(soh > 0 && cover < 3) S.lowCover++;
-      if(soh <= 0) S.outSelling++;
-      if(soh <= 0 || cover < 1.5) S.attention.push({ it, soh, u3, cover });
+    const age = soh > 0 ? stkAgeFor(it) : null;
+    if(age){
+      const g = R.age[age.label] = R.age[age.label] || { units: 0, sno: age.sno };
+      g.units += soh;
     }
-    if(soh > 0){
-      const a = stkAgeFor(it);
-      S.age[a.label] = S.age[a.label] || { n: 0, units: 0, sno: a.sno };
-      S.age[a.label].n++; S.age[a.label].units += soh;
-      if(a.sno >= 5){ S.agedUnits += soh; S.agedItems++; }
+    if(rate > 0){
+      const cover = soh / rate, coverPO = (soh + po) / rate;
+      if(sohRaw <= 0 && po <= 0) R.oos.push({ it, rate, s3 });
+      else if(cover < 3 && coverPO < DASH_TARGET_MONTHS) R.reorder.push({ it, rate, soh, po, coverPO, short: rate * DASH_TARGET_MONTHS - (soh + po) });
     }
+    if(age && age.sno >= 3 && (rate === 0 || soh / rate > 12)){
+      const tied = soh * cost;
+      R.over.push({ it, soh, cover: rate > 0 ? soh / rate : null, age: age.label, tied });
+      R.overValue += tied;
+    }
+    if(Math.max(s3, p3) >= 15) R.movers.push({ it, s3, p3, d: s3 - p3 });
   });
-  ranked.sort((a, b) => b.u12 - a.u12);
-  S.top = ranked.slice(0, 10);
-  S.attention.sort((a, b) => b.u3 - a.u3);
-  S.attention = S.attention.slice(0, 8);
-  // Branch sales over the same 12 months (items that are in the app only).
-  const inApp = new Set(ITEMS.map(i => i['Item Code']));
+  R.reorder.sort((a, b) => b.short - a.short);
+  R.oos.sort((a, b) => b.rate - a.rate);
+  R.over.sort((a, b) => b.tied - a.tied);
+  R.risers = R.movers.filter(x => x.d > 0).sort((a, b) => b.d - a.d).slice(0, 5);
+  R.fallers = R.movers.filter(x => x.d < 0).sort((a, b) => a.d - b.d).slice(0, 5);
+
+  // branch sales over the last 12 complete months, for items in scope
   Object.keys(BRANCH_MONTHLY_SOLD_BY_ITEM).forEach(code => {
-    if(!inApp.has(code)) return;
+    if(!R.codes.has(code)) return;
     const byBranch = BRANCH_MONTHLY_SOLD_BY_ITEM[code];
     Object.keys(byBranch).forEach(b => {
       let t = 0;
-      recent.forEach(mo => { const a = byBranch[b][String(mo.year)]; if(a) t += a[mo.m] || 0; });
-      if(t) S.branch[b] = (S.branch[b] || 0) + t;
+      W.year.forEach(mo => { const a = byBranch[b][String(mo.year)]; if(a) t += a[mo.m] || 0; });
+      if(t) R.branch[b] = (R.branch[b] || 0) + t;
     });
   });
-  return S;
+
+  // open purchase orders in scope, grouped by PO
+  const asOf = DATA_AS_OF, groups = {};
+  PO_LINES.filter(dashLineInScope).forEach(l => {
+    const g = groups[l[0]] = groups[l[0]] || { po: l[0], vendor: l[5], eta: l[4], units: 0, lines: 0, codes: new Set() };
+    g.units += l[3]; g.lines++; g.codes.add(l[1]); if(l[4] < g.eta) g.eta = l[4];
+  });
+  const pos = Object.values(groups);
+  const daysFrom = eta => Math.round((new Date(eta + 'T00:00:00') - dashAsOf()) / DAY);
+  R.latePOs = pos.filter(p => p.eta < asOf).map(p => ({ ...p, late: -daysFrom(p.eta) })).sort((a, b) => b.late - a.late);
+  R.soonPOs = pos.filter(p => p.eta >= asOf && daysFrom(p.eta) <= 30).map(p => ({ ...p, in: daysFrom(p.eta) })).sort((a, b) => a.in - b.in);
+  R.onOrderUnits = pos.reduce((a, p) => a + p.units, 0);
+  R.lateUnits = R.latePOs.reduce((a, p) => a + p.units, 0);
+  R.soonUnits = R.soonPOs.reduce((a, p) => a + p.units, 0);
+  // units due per month, from the data date forward, next 6 months
+  const start = dashAsOf();
+  R.inbound = [];
+  for(let i = 0; i < 6; i++){
+    const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
+    R.inbound.push({ label: MONTHS[d.getMonth()] + "'" + String(d.getFullYear()).slice(-2), key: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), units: 0 });
+  }
+  pos.forEach(p => { const b = R.inbound.find(x => x.key === p.eta.slice(0, 7)); if(b) b.units += p.units; });
+  return R;
 }
 
-function dashBarList(rows, opts){
-  opts = opts || {};
+/* ---------- pieces of markup ---------- */
+function dashBarList(rows){
+  if(!rows.length) return '<p class="dash-empty">No sales in this selection.</p>';
   const max = Math.max(1, ...rows.map(r => r.value));
   return '<div class="dash-bars">' + rows.map(r =>
-    '<div class="dash-bar-row"' + (r.title ? ' title="' + dashEsc(r.title) + '"' : '') + '>' +
-      '<span class="dash-bar-k">' + dashEsc(r.label) + '</span>' +
+    '<div class="dash-bar-row"><span class="dash-bar-k" title="' + dashEsc(r.label) + '">' + dashEsc(r.label) + '</span>' +
       '<span class="dash-bar-track"><span class="dash-bar-fill" style="width:' + Math.max(2, r.value / max * 100).toFixed(1) + '%;background:' + (r.color || 'var(--stock)') + '"></span></span>' +
-      '<span class="dash-bar-v">' + dashInt(r.value) + (r.note ? '<small>' + dashEsc(r.note) + '</small>' : '') + '</span>' +
-    '</div>').join('') + '</div>';
+      '<span class="dash-bar-v">' + dashInt(r.value) + '</span></div>').join('') + '</div>';
 }
-
-function dashTrend(S){
-  const lastIdx = MONTH_WINDOW_LAST_DATA;
-  const max = Math.max(1, ...S.monthTotals);
-  return '<div class="dash-trend">' + MONTH_WINDOW.map((w, i) => {
-    const v = S.monthTotals[i], noData = i > lastIdx;
-    const partial = i === lastIdx && w.year === REPORT_MONTH.year && w.m === REPORT_MONTH.month;   // month still in progress
-    return '<div class="dash-trend-col' + (noData ? ' nodata' : '') + (partial ? ' partial' : '') + '" title="' + dashEsc(monthColLabel(w)) + ': ' + (noData ? 'no data yet' : dashInt(v) + ' units' + (partial ? ' so far (month in progress)' : '')) + '">' +
-      '<span class="dash-trend-v">' + (noData ? '' : dashCompact(v)) + '</span>' +
-      '<span class="dash-trend-bar"><span style="height:' + (noData ? 0 : Math.max(3, v / max * 100)).toFixed(1) + '%"></span></span>' +
-      '<span class="dash-trend-k">' + dashEsc(monthColLabel(w)) + (partial ? '<small>to date</small>' : '') + '</span></div>';
-  }).join('') + '</div>';
+function dashColumns(items){   // vertical bars: [{label, value, partial, nodata, title, color}]
+  const max = Math.max(1, ...items.map(x => x.value));
+  return '<div class="dash-trend">' + items.map(x =>
+    '<div class="dash-trend-col' + (x.nodata ? ' nodata' : '') + (x.partial ? ' partial' : '') + '" title="' + dashEsc(x.title || x.label) + '">' +
+      '<span class="dash-trend-v">' + (x.nodata ? '' : dashCompact(x.value)) + '</span>' +
+      '<span class="dash-trend-bar"><span style="height:' + (x.nodata ? 0 : Math.max(3, x.value / max * 100)).toFixed(1) + '%;' + (x.color ? 'background:' + x.color : '') + '"></span></span>' +
+      '<span class="dash-trend-k">' + dashEsc(x.label) + (x.partial ? '<small>to date</small>' : '') + '</span></div>').join('') + '</div>';
 }
-
-function dashAge(S){
-  const rows = Object.keys(S.age).map(k => ({ label: k, ...S.age[k] })).sort((a, b) => a.sno - b.sno);
-  const total = rows.reduce((a, r) => a + r.units, 0) || 1;
-  // Fresher stock in cool tones, older in warm ones.
+function dashAge(R){
+  const rows = Object.keys(R.age).map(k => ({ label: k, ...R.age[k] })).sort((a, b) => a.sno - b.sno);
+  const total = rows.reduce((a, r) => a + r.units, 0);
+  if(!total) return '<p class="dash-empty">No stock on hand in this selection.</p>';
   const colours = { 0: '#38bdf8', 1: '#0ea5e9', 2: '#0284c7', 3: '#6366f1', 4: '#d97706', 5: '#e11d48', 6: '#9f1239', 7: '#7f1d1d' };
   return '<div class="dash-agebar">' + rows.map(r =>
       '<span style="width:' + (r.units / total * 100).toFixed(2) + '%;background:' + (colours[r.sno] || '#94a3b8') + '" title="' + dashEsc(r.label) + ' months: ' + dashInt(r.units) + ' units"></span>').join('') + '</div>' +
     '<div class="dash-agekey">' + rows.map(r =>
       '<span><i style="background:' + (colours[r.sno] || '#94a3b8') + '"></i>' + dashEsc(r.label) + '<b>' + Math.round(r.units / total * 100) + '%</b></span>').join('') + '</div>';
 }
+const dashItemCell = it => '<td class="l"><a ' + dashLink(it['Item Code']) + '><b>' + dashEsc(it['Item Code']) + '</b> ' + dashEsc(it['Description']) + '</a></td>';
+
+/* ---------- the four action lists ---------- */
+function dashActions(R){
+  const showVendor = canSeeVendorName();
+  const vname = c => showVendor ? (R.vendorName[c] || c) : c;
+  const poTable = (rows, kind) => '<table class="dash-table"><thead><tr><th class="l po">PO</th><th class="l vend">Vendor</th><th>Lines</th><th>Units</th><th>ETA</th><th>' + (kind === 'late' ? 'Late by' : 'Due') + '</th></tr></thead><tbody>' +
+    rows.slice(0, 10).map(p =>
+      '<tr><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l muted" title="' + dashEsc(vname(p.vendor)) + '">' + dashEsc(vname(p.vendor)) + '</td>' +
+      '<td>' + p.lines + '</td><td>' + dashInt(p.units) + '</td><td>' + dashEsc(dashDate(p.eta)) + '</td>' +
+      '<td class="' + (kind === 'late' ? 'bad' : '') + '">' + (kind === 'late' ? p.late + ' d' : 'in ' + p.in + ' d') + '</td></tr>').join('') + '</tbody></table>';
+
+  const lateCodes = new Set(); R.latePOs.forEach(p => p.codes.forEach(c => lateCodes.add(c)));
+  const tabs = [
+    { id: 'reorder', title: 'Reorder now', n: R.reorder.length, sub: 'selling, cover incl. POs under ' + DASH_TARGET_MONTHS + ' mo', tone: 'warn',
+      note: 'Short by = units needed to reach ' + DASH_TARGET_MONTHS + ' months of cover at the recent selling pace, after counting stock and open POs.',
+      table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>Sold / mo</th><th>Stock</th><th>On PO</th><th>Cover</th><th>Short by</th></tr></thead><tbody>' +
+        R.reorder.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + '<td>' + x.rate.toFixed(1) + '</td><td>' + dashInt(x.soh) + '</td><td>' + dashInt(x.po) + '</td><td class="warn">' + x.coverPO.toFixed(1) + ' mo</td><td><b>' + dashInt(x.short) + '</b></td></tr>').join('') + '</tbody></table>',
+      codes: R.reorder.map(x => x.it['Item Code']), sort: null },
+    { id: 'oos', title: 'Out of stock, no PO', n: R.oos.length, sub: 'selling, none on hand, nothing on order', tone: 'bad',
+      note: 'Sold in the last 3 months, no stock, and no open PO: the items losing sales right now.',
+      table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th class="l vend">Vendor</th><th>Sold / mo</th><th>Sold (3 mo)</th></tr></thead><tbody>' +
+        R.oos.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + '<td class="l muted">' + dashEsc(vname(x.it['Vendor Code'])) + '</td><td>' + x.rate.toFixed(1) + '</td><td>' + dashInt(x.s3) + '</td></tr>').join('') + '</tbody></table>',
+      codes: R.oos.map(x => x.it['Item Code']), sort: null },
+    { id: 'late', title: 'Late POs', n: R.latePOs.length, sub: dashInt(R.lateUnits) + ' units past ETA', tone: 'bad',
+      note: 'Open POs whose ETA was before ' + dashDate(DATA_AS_OF) + ' (the data date) and are still not received.',
+      table: poTable(R.latePOs, 'late'), codes: [...lateCodes], sort: null },
+    { id: 'over', title: 'Overstock / slow', n: R.over.length, sub: 'AED ' + dashCompact(R.overValue) + ' tied up', tone: '',
+      note: 'Stock 6+ months old with over 12 months of cover at the recent pace, or no sales at all. Value = stock x landed cost.',
+      table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>Stock</th><th>Cover</th><th>Age</th><th>Tied up (AED)</th></tr></thead><tbody>' +
+        R.over.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + '<td>' + dashInt(x.soh) + '</td><td>' + (x.cover == null ? 'no sales' : x.cover.toFixed(0) + ' mo') + '</td><td>' + dashEsc(x.age) + '</td><td><b>' + dashInt(x.tied) + '</b></td></tr>').join('') + '</tbody></table>',
+      codes: R.over.map(x => x.it['Item Code']), sort: [{ field: 'SOH', dir: 'desc' }] },
+  ];
+  if(!tabs.some(t => t.id === dashTab)) dashTab = (tabs.find(t => t.n > 0) || tabs[0]).id;
+  const cur = tabs.find(t => t.id === dashTab);
+  dashCurrentTab = cur;
+  return '<div class="dash-tiles">' + tabs.map(t =>
+      '<button type="button" class="dash-tile' + (t.id === dashTab ? ' on' : '') + (t.n && t.tone ? ' ' + t.tone : '') + '" data-tab="' + t.id + '">' +
+        '<span class="dash-tile-k">' + t.title + '</span><span class="dash-tile-v">' + dashInt(t.n) + '</span><span class="dash-tile-n">' + dashEsc(t.sub) + '</span></button>').join('') + '</div>' +
+    '<section class="dash-card dash-detail"><div class="dash-detail-head"><h3>' + cur.title + ' <span>' + dashInt(cur.n) + (cur.id === 'late' ? ' POs' : ' items') + (cur.n > 10 ? ', top 10 shown' : '') + '</span></h3>' +
+      (cur.n ? '<button type="button" class="dash-btn" id="dashOpenAll">Open ' + (cur.id === 'late' ? 'their ' + dashInt(cur.codes.length) + ' items' : 'all ' + dashInt(cur.n)) + ' in All Products &rarr;</button>' : '') + '</div>' +
+      '<p class="dash-note">' + dashEsc(cur.note) + '</p>' +
+      (cur.n ? cur.table : '<p class="dash-empty">Nothing here for this selection. Good.</p>') + '</section>';
+}
+
+function dashMoverTable(rows, up){
+  if(!rows.length) return '<p class="dash-empty">No big movers.</p>';
+  return '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>Before</th><th>Now</th><th>Change</th></tr></thead><tbody>' +
+    rows.map(x => '<tr>' + dashItemCell(x.it) + '<td>' + dashInt(x.p3) + '</td><td>' + dashInt(x.s3) + '</td><td class="' + (up ? 'good' : 'bad') + '">' + (up ? '+' : '') + dashInt(x.d) + '</td></tr>').join('') + '</tbody></table>';
+}
+
+function dashScopeBar(){
+  const uniq = f => [...new Set(ITEMS.map(i => i[f]).filter(Boolean))].sort();
+  const opt = (arr, cur) => '<option value="">All</option>' + arr.map(v => '<option' + (v === cur ? ' selected' : '') + '>' + dashEsc(v) + '</option>').join('');
+  return '<div class="dash-scope"><span class="dash-scope-t">Show me</span>' +
+    '<label>Department<select id="dashDept">' + opt(uniq('Department Desc'), dashScope.dept) + '</select></label>' +
+    '<label>Category<select id="dashCat">' + opt(uniq('Category'), dashScope.cat) + '</select></label>' +
+    '<label>Vendor code<input id="dashVendor" list="dashVendorList" value="' + dashEsc(dashScope.vendor) + '" placeholder="All" autocomplete="off"></label>' +
+    '<datalist id="dashVendorList">' + uniq('Vendor Code').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>' +
+    (dashScopeIsSet() ? '<button type="button" class="dash-btn ghost" id="dashReset">Show everything</button>' : '') + '</div>';
+}
 
 function renderDashboard(){
   const root = document.getElementById('dashRoot');
   if(!root) return;
-  const S = dashStats();
+  if(!dashScope) dashLoadScope();
+  const R = dashCompute(), W = R.W;
   const showVendor = canSeeVendorName();
-  const name = dashEsc(dashName());
-  const delta = S.soldPrior12 > 0 ? (S.sold12 - S.soldPrior12) / S.soldPrior12 * 100 : null;
-  const asOf = monthColLabel(S.recent[S.recent.length - 1]);
-  const sellThrough = S.sold12 + S.soh > 0 ? S.sold12 / (S.sold12 + S.soh) * 100 : 0;
-  const link = code => 'href="#item=' + encodeURIComponent(code) + '"';
+  const delta = R.prior3 > 0 ? (R.sold3 - R.prior3) / R.prior3 * 100 : null;
+  const cover = R.sold3 > 0 ? R.soh / (R.sold3 / 3) : null;
+  const sellThrough = R.sold3 + R.soh > 0 ? R.sold3 / (R.sold3 + R.soh) * 100 : 0;
+  const winLabel = monthColLabel(W.rate[0]) + '–' + monthColLabel(W.rate[2]);
+  const kpi = (k, v, n, tone) => '<div class="dash-kpi' + (tone ? ' ' + tone : '') + '"><span class="dash-kpi-k">' + k + '</span><span class="dash-kpi-v">' + v + '</span><span class="dash-kpi-n">' + n + '</span></div>';
 
-  const kpi = (label, value, note, tone) =>
-    '<div class="dash-kpi' + (tone ? ' ' + tone : '') + '"><span class="dash-kpi-k">' + label + '</span><span class="dash-kpi-v">' + value + '</span>' +
-    (note ? '<span class="dash-kpi-n">' + note + '</span>' : '') + '</div>';
+  const trend = MONTH_WINDOW.map((w, i) => {
+    const nodata = i > W.lastIdx, partial = i === W.lastIdx && W.partial;
+    return { label: monthColLabel(w), value: R.monthTotals[i], nodata, partial, title: monthColLabel(w) + ': ' + (nodata ? 'no data yet' : dashInt(R.monthTotals[i]) + ' units' + (partial ? ' so far (month in progress)' : '')) };
+  });
+  const inbound = R.inbound.map(b => ({ label: b.label, value: b.units, color: 'var(--stock)', title: b.label + ': ' + dashInt(b.units) + ' units due' }));
+  const branches = Object.keys(R.branch).map(k => ({ label: k, value: R.branch[k], color: 'var(--pos)' })).sort((a, b) => b.value - a.value).slice(0, 8);
+  const splitField = dashScope.cat ? 'range' : 'cat';
+  const split = Object.keys(R[splitField]).map(k => ({ label: k, value: R[splitField][k] })).sort((a, b) => b.value - a.value).slice(0, 8);
+  const lastRows = (showVendor
+    ? Object.keys(R.vendor).map(k => ({ label: R.vendorName[k] || k, value: R.vendor[k], color: 'var(--primary)' }))
+    : Object.keys(R.range).map(k => ({ label: k, value: R.range[k], color: 'var(--primary)' }))
+  ).sort((a, b) => b.value - a.value);
 
-  const topRows = S.top.map((r, i) =>
-    '<tr><td class="rk">' + (i + 1) + '</td><td class="l"><a ' + link(r.it['Item Code']) + '><b>' + dashEsc(r.it['Item Code']) + '</b> ' + dashEsc(r.it['Description']) + '</a></td>' +
-    (showVendor ? '<td class="l muted">' + dashEsc(r.it['Vendor Name']) + '</td>' : '') +
-    '<td>' + dashInt(r.u12) + '</td><td>' + dashInt(Number(r.it['SOH']) || 0) + '</td></tr>').join('');
-  const attnRows = S.attention.map(r =>
-    '<tr><td class="l"><a ' + link(r.it['Item Code']) + '><b>' + dashEsc(r.it['Item Code']) + '</b> ' + dashEsc(r.it['Description']) + '</a></td>' +
-    '<td>' + dashInt(r.soh) + '</td><td>' + dashInt(r.u3) + '</td><td class="' + (r.soh <= 0 ? 'bad' : 'warn') + '">' + (r.soh <= 0 ? 'Out' : r.cover.toFixed(1) + ' mo') + '</td></tr>').join('');
-
-  const cats = Object.keys(S.byCat).map(k => ({ label: k, value: S.byCat[k] })).sort((a, b) => b.value - a.value).slice(0, 6);
-  const branches = Object.keys(S.branch).map(k => ({ label: k, value: S.branch[k], color: 'var(--pos)' })).sort((a, b) => b.value - a.value).slice(0, 8);
-  const vendors = Object.keys(S.byVendor).map(k => ({ label: k, value: S.byVendor[k], color: 'var(--primary)' })).sort((a, b) => b.value - a.value).slice(0, 8);
+  const scopeParts = [dashScope.dept, dashScope.cat, dashScope.vendor && 'Vendor ' + dashScope.vendor].filter(Boolean);
+  const scopeLine = (scopeParts.length ? scopeParts.join(' · ') + ' · ' : 'All ') + dashInt(R.items) + ' items';
 
   root.innerHTML =
     '<div class="dash-hero"><div>' +
       '<div class="dash-date">' + dashEsc(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + '</div>' +
-      '<h1 class="dash-greet">' + DASH_GREETINGS[dashGreetingIdx](name) + '</h1>' +
-      '<p class="dash-sub">' + dashSubtitle() + '</p></div></div>' +
-
-    '<div class="dash-actions">' +
-      '<a class="dash-action" href="#products"><span class="dash-action-t">All Products</span><span class="dash-action-d">Browse, filter and sort all ' + dashInt(S.items) + ' items in one grid.</span><span class="dash-action-go">Open &rarr;</span></a>' +
-      '<a class="dash-action" href="#lookup"><span class="dash-action-t">Item Lookup</span><span class="dash-action-d">Pull the full report for a single item, with branch and weekly sales.</span><span class="dash-action-go">Open &rarr;</span></a>' +
-    '</div>' +
-
+      '<h1 class="dash-greet">' + DASH_GREETINGS[dashGreetingIdx](dashEsc(dashName())) + '</h1>' +
+      '<p class="dash-sub">' + dashSubtitle() + ' <span class="dash-asof">Data as of ' + dashEsc(dashDate(DATA_AS_OF)) + '.</span></p></div>' +
+      '<div class="dash-links"><a class="dash-btn" href="#products">All Products &rarr;</a><a class="dash-btn ghost" href="#lookup">Item Lookup &rarr;</a></div></div>' +
+    dashScopeBar() +
+    '<h2 class="dash-h">Needs attention <span>' + dashEsc(scopeLine) + '</span></h2>' + dashActions(R) +
+    '<h2 class="dash-h">How it’s trading <span>last 3 complete months (' + dashEsc(winLabel) + ') vs the 3 before</span></h2>' +
     '<div class="dash-kpis">' +
-      kpi('Items in range', dashInt(S.items), 'active catalogue') +
-      kpi('Stock on hand', dashCompact(S.soh), 'units, all locations') +
-      kpi('Sold, last 12 months', dashCompact(S.sold12), delta == null ? 'to ' + asOf : (delta >= 0 ? '&#9650; ' : '&#9660; ') + Math.abs(delta).toFixed(0) + '% vs the 12 before &middot; to ' + asOf, delta == null ? '' : (delta >= 0 ? 'up' : 'down')) +
-      kpi('Sell-through', sellThrough.toFixed(0) + '%', 'sold &divide; (sold + stock)') +
-      kpi('Stock value', 'AED ' + dashCompact(S.stockValue), 'at landed cost') +
-      kpi('Low cover', dashInt(S.lowCover), 'selling items, under 3 months of stock', S.lowCover ? 'warn' : '') +
-      kpi('Out of stock, selling', dashInt(S.outSelling), 'sold in the last 3 months, none in stock', S.outSelling ? 'down' : '') +
-      kpi('Aged stock', dashInt(S.agedUnits), 'units over 12 months old &middot; ' + dashInt(S.agedItems) + ' items') +
+      kpi('Units sold', dashCompact(R.sold3), delta == null ? 'no prior period' : (delta >= 0 ? '&#9650; ' : '&#9660; ') + Math.abs(delta).toFixed(0) + '% vs the 3 before', delta == null ? '' : (delta >= 0 ? 'up' : 'down')) +
+      kpi('Stock cover', cover == null ? '—' : cover.toFixed(1) + ' mo', 'stock ÷ monthly sales pace', cover != null && (cover < 2 ? 'down' : cover > 9 ? 'warn' : '')) +
+      kpi('Sell-through', sellThrough.toFixed(0) + '%', 'sold ÷ (sold + stock)') +
+      kpi('Stock value', 'AED ' + dashCompact(R.value), 'at landed cost') +
+      kpi('On order', dashCompact(R.onOrderUnits), dashInt(R.soonUnits) + ' due within 30 days' + (R.lateUnits ? ' · ' + dashCompact(R.lateUnits) + ' late' : ''), R.lateUnits ? 'warn' : '') +
     '</div>' +
-
     '<div class="dash-grid">' +
-      '<section class="dash-card wide"><h3>Units sold by month <span>all items</span></h3>' + dashTrend(S) + '</section>' +
-      '<section class="dash-card"><h3>Top sellers <span>last 12 months</span></h3>' +
-        '<table class="dash-table"><thead><tr><th></th><th class="l item">Item</th>' + (showVendor ? '<th class="l vend">Vendor</th>' : '') + '<th>Sold</th><th>Stock</th></tr></thead><tbody>' + topRows + '</tbody></table></section>' +
-      '<section class="dash-card"><h3>Needs attention <span>selling fast, stock nearly gone</span></h3>' +
-        (attnRows ? '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>Stock</th><th>Sold (3 mo)</th><th>Cover</th></tr></thead><tbody>' + attnRows + '</tbody></table>' : '<p class="dash-empty">Nothing running short right now.</p>') + '</section>' +
+      '<section class="dash-card wide"><h3>Units sold by month <span>' + dashEsc(scopeLine) + '</span></h3>' + dashColumns(trend) + '</section>' +
+      '<section class="dash-card"><h3>Rising <span>units vs the 3 months before</span></h3>' + dashMoverTable(R.risers, true) + '</section>' +
+      '<section class="dash-card"><h3>Falling <span>units vs the 3 months before</span></h3>' + dashMoverTable(R.fallers, false) + '</section>' +
+      '<section class="dash-card"><h3>Landing soon <span>next 30 days, ' + dashInt(R.soonUnits) + ' units</span></h3>' +
+        (R.soonPOs.length ? '<table class="dash-table"><thead><tr><th class="l po">PO</th><th class="l vend">Vendor</th><th>Units</th><th>ETA</th></tr></thead><tbody>' +
+          R.soonPOs.slice(0, 8).map(p => '<tr><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l muted">' + dashEsc(showVendor ? (R.vendorName[p.vendor] || p.vendor) : p.vendor) + '</td><td>' + dashInt(p.units) + '</td><td>' + dashEsc(dashDate(p.eta)) + ' <small>(' + p.in + ' d)</small></td></tr>').join('') + '</tbody></table>'
+          : '<p class="dash-empty">No POs due in the next 30 days.</p>') + '</section>' +
+      '<section class="dash-card"><h3>Units due by month <span>all open POs</span></h3>' + dashColumns(inbound) + '</section>' +
       '<section class="dash-card"><h3>Sales by branch <span>last 12 months</span></h3>' + dashBarList(branches) + '</section>' +
-      '<section class="dash-card"><h3>Sales by category <span>last 12 months</span></h3>' + dashBarList(cats) + '</section>' +
-      '<section class="dash-card' + (showVendor ? '' : ' wide') + '"><h3>Stock age <span>share of units on hand</span></h3>' + dashAge(S) + '</section>' +
-      (showVendor ? '<section class="dash-card"><h3>Top vendors <span>last 12 months</span></h3>' + dashBarList(vendors) + '</section>' : '') +
+      '<section class="dash-card"><h3>Sales by ' + (splitField === 'cat' ? 'category' : 'range') + ' <span>last 12 months</span></h3>' + dashBarList(split) + '</section>' +
+      '<section class="dash-card"><h3>Top ' + (showVendor ? 'vendors' : 'ranges') + ' <span>last 12 months</span></h3>' + dashBarList(lastRows.slice(0, 8)) + '</section>' +
+      '<section class="dash-card"><h3>Stock age <span>share of units on hand</span></h3>' + dashAge(R) + '</section>' +
     '</div>';
+
+  // wiring
+  const $ = id => document.getElementById(id);
+  root.querySelectorAll('.dash-tile').forEach(b => b.addEventListener('click', () => { dashTab = b.dataset.tab; renderDashboard(); }));
+  const open = $('dashOpenAll');
+  if(open) open.addEventListener('click', () => {
+    const c = dashCurrentTab;
+    openGridFocus(c.title + (scopeParts.length ? ' – ' + scopeParts.join(' · ') : ''), c.codes, c.sort);
+  });
+  const change = () => { dashScope = { dept: $('dashDept').value, cat: $('dashCat').value, vendor: $('dashVendor').value.trim() }; dashSaveScope(); renderDashboard(); };
+  $('dashDept').addEventListener('change', change);
+  $('dashCat').addEventListener('change', change);
+  $('dashVendor').addEventListener('change', change);
+  const reset = $('dashReset');
+  if(reset) reset.addEventListener('click', () => { dashScope = { dept: '', cat: '', vendor: '' }; dashSaveScope(); renderDashboard(); });
 }
 // app.js can run its first route before this file has loaded; cover that.
 if(document.getElementById('viewDash') && document.getElementById('viewDash').classList.contains('active')) renderDashboard();

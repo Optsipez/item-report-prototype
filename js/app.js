@@ -1768,7 +1768,8 @@ function gridQuerySignature(){
   const sort = gridSort.map(s => s.field + s.dir).join(',');
   const group = gridGroup ? gridGroup.field : '';
   const dept = DEPT_STOCK_MIN_GROUPS.map(g => g.inputId + '=' + (deptStockMin[g.inputId] ?? '')).join(',');
-  return [filters, sort, group, dept, srQtyInclOman, statsWindow].join('~~');
+  const focus = gridFocus ? gridFocus.label + ':' + gridFocus.codes.size : '';
+  return [filters, sort, group, dept, srQtyInclOman, statsWindow, focus].join('~~');
 }
 function groupKeyFor(val){
   return String(val == null ? '' : val).trim().toUpperCase();
@@ -2427,8 +2428,25 @@ DEPT_STOCK_MIN_GROUPS.forEach(group => {
 /* The Furniture/Accessory boxes no longer remove rows at all — see
    applyDeptStockMin below, which instead zeroes out and reddens the specific
    below-threshold month cells in the grid's own Stock by Month columns. */
+/* "Focus": a specific set of items handed over by the dashboard (e.g. "Reorder
+   now", 37 items) so All Products shows exactly those, on top of any filters.
+   Shows as a removable chip in the filter bar; cleared by its x or Clear all. */
+let gridFocus = null;   // { label, codes: Set of item codes } or null
+function openGridFocus(label, codes, sort){
+  gridFocus = { label, codes: new Set(codes) };
+  if(sort) gridSort = sort;
+  navigate('products');
+  renderFilterChips();
+  if(document.getElementById('viewAll').classList.contains('active')) renderGrid();
+}
+function clearGridFocus(){
+  gridFocus = null;
+  renderFilterChips();
+  renderGrid();
+}
 function getFilteredItems(){
   return ITEMS.filter(item => {
+    if(gridFocus && !gridFocus.codes.has(item['Item Code'])) return false;
     for(const key of Object.keys(activeFilters)){
       const selected = activeFilters[key];
       if(selected.size === 0) continue;
@@ -2830,6 +2848,16 @@ function renderFilterChips(){
   if(!wrap) return;
   const checked = [...document.querySelectorAll('.filter-opt input:checked')];
   wrap.innerHTML = '';
+  if(gridFocus){
+    const fc = document.createElement('button');
+    fc.type = 'button';
+    fc.className = 'chip chip-focus';
+    fc.innerHTML = '<span class="chip-k">Focus</span><span class="chip-v"></span><span class="chip-x" aria-hidden="true">&times;</span>';
+    fc.querySelector('.chip-v').textContent = gridFocus.label + ' (' + gridFocus.codes.size + ')';
+    fc.title = 'Remove focus and show all items again';
+    fc.addEventListener('click', clearGridFocus);
+    wrap.appendChild(fc);
+  }
   checked.forEach(cb => {
     const opt = cb.closest('.filter-opt');
     const chip = document.createElement('button');
@@ -2842,7 +2870,7 @@ function renderFilterChips(){
     chip.addEventListener('click', () => { cb.checked = false; cb.dispatchEvent(new Event('change')); });
     wrap.appendChild(chip);
   });
-  if(checked.length > 1){
+  if(checked.length + (gridFocus ? 1 : 0) > 1){
     const clr = document.createElement('button');
     clr.type = 'button';
     clr.className = 'chip chip-clear';
@@ -2850,7 +2878,7 @@ function renderFilterChips(){
     clr.addEventListener('click', () => document.getElementById('clearFiltersBtn').click());
     wrap.appendChild(clr);
   }
-  wrap.hidden = checked.length === 0;
+  wrap.hidden = checked.length === 0 && !gridFocus;
 }
 
 // Faceted filtering: an option stays enabled only if choosing it would still
@@ -2886,6 +2914,7 @@ function updateFilterAvailability(){
   });
 }
 document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+  gridFocus = null;
   Object.keys(activeFilters).forEach(k => activeFilters[k].clear());
   document.querySelectorAll('.filter-opt input').forEach(cb => { cb.checked = false; cb.closest('.filter-opt').classList.remove('checked'); });
   // Also clear whatever's typed into each filter's own search box (Vendor
