@@ -648,22 +648,28 @@ const railLookup = document.getElementById('railLookup');
 const railAll = document.getElementById('railAll');
 const viewLookup = document.getElementById('viewLookup');
 const viewAll = document.getElementById('viewAll');
+const navDash = document.getElementById('navDash');
+const viewDash = document.getElementById('viewDash');
 
 function setView(view){
-  const isLookup = view === 'lookup';
+  const isLookup = view === 'lookup', isDash = view === 'dashboard', isAll = view === 'all';
+  navDash.classList.toggle('active', isDash);
   navLookup.classList.toggle('active', isLookup);
-  navAll.classList.toggle('active', !isLookup);
+  navAll.classList.toggle('active', isAll);
   railLookup.classList.toggle('active', isLookup);
-  railAll.classList.toggle('active', !isLookup);
+  railAll.classList.toggle('active', isAll);
+  viewDash.classList.toggle('active', isDash);
   viewLookup.classList.toggle('active', isLookup);
-  viewAll.classList.toggle('active', !isLookup);
+  viewAll.classList.toggle('active', isAll);
+  // The dashboard is full-width: no filter rail, no rail-sized left margin.
+  document.body.classList.toggle('view-dashboard', isDash);
   // .main's left padding is trimmed to 22px (not the usual 32px) specifically
   // for the grid's frozen columns (see the comment on .main in styles.css) —
   // Item Lookup has no such column to align with, so that tight padding just
   // read as its title/text crowding the rail's edge. .flush restores the
   // fuller padding for this view only, leaving the grid's alignment alone.
-  document.querySelector('.main').classList.toggle('flush', isLookup);
-  if(!isLookup) renderGrid();
+  document.querySelector('.main').classList.toggle('flush', isLookup || isDash);
+  if(isAll) renderGrid();
   if(typeof syncTopbarWidth === 'function') syncTopbarWidth();
 }
 
@@ -722,11 +728,17 @@ function routeFromHash(){
   const h = decodeURIComponent(location.hash.replace(/^#/, ''));
   if(h.indexOf('item=') === 0) return { view: 'lookup', code: h.slice(5) };
   if(h === 'lookup') return { view: 'lookup', code: null };
+  // No hash = a fresh visit or a just-signed-in user: land on the dashboard.
+  if(h === '' || h === 'dashboard') return { view: 'dashboard' };
   return { view: 'all' };
 }
 
 function applyRoute(route){
-  if(route.view === 'lookup'){
+  if(route.view === 'dashboard'){
+    setView('dashboard');
+    if(typeof renderDashboard === 'function') renderDashboard();
+    window.scrollTo({ top: 0, left: 0 });
+  } else if(route.view === 'lookup'){
     if(route.code){
       const item = ITEMS.find(i => i['Item Code'] === route.code);
       if(item){
@@ -774,6 +786,8 @@ window.addEventListener('hashchange', () => applyRoute(routeFromHash()));
 navLookup.addEventListener('click', () =>
   navigate(selectedItem ? 'item=' + encodeURIComponent(selectedItem['Item Code']) : 'lookup'));
 navAll.addEventListener('click', () => navigate('products'));
+navDash.addEventListener('click', () => navigate('dashboard'));
+document.querySelector('.topbar .brand').addEventListener('click', () => navigate('dashboard'));
 
 /* ============================================================
    ITEM LOOKUP (search + report) — unchanged behaviour

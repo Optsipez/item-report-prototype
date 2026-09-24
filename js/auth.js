@@ -120,7 +120,11 @@ function enterApp(emp){
   // CURRENT_ROLE still null, which activeColumnLayout() treats as
   // full access) — re-render now that the real role is known, so e.g.
   // a Buyer's hidden Vendor Name column actually takes effect.
-  if(typeof renderGrid === 'function') renderGrid();
+  // Only the view that is actually showing needs redrawing (the dashboard
+  // is the default landing page; the grid is only built when opened).
+  if(typeof reshuffleDashGreeting === 'function') reshuffleDashGreeting();
+  if(typeof renderDashboard === 'function' && document.getElementById('viewDash').classList.contains('active')) renderDashboard();
+  if(typeof renderGrid === 'function' && document.getElementById('viewAll').classList.contains('active')) renderGrid();
   // The Item Lookup report may already be showing (e.g. a #item= link).
   if(typeof selectedItem !== 'undefined' && selectedItem && typeof renderReport === 'function') renderReport(selectedItem);
 }
