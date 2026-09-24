@@ -148,6 +148,9 @@ function enterApp(emp){
   if(logoutBtn){
     logoutBtn.addEventListener('click', () => {
       clearSession();
+      // Drop the #item=... / #lookup part of the address too, otherwise the
+      // next person to sign in lands on whatever product the last one left.
+      try { history.replaceState(null, '', location.pathname + location.search); } catch(e){}
       location.reload();
     });
   }
