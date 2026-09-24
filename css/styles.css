@@ -276,6 +276,14 @@ button{font-family:inherit;}
   font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.08em;
   color:var(--ink-faint);margin:0 0 var(--sp-3);font-weight:600;
 }
+/* All Products' filter rail gets a soft tinted background instead of plain
+   white, so the filters read as their own distinct area (the white filter
+   cards sit on top of it). Scoped with :has() so Item Lookup's rail, which
+   shares the .rail element, stays as it was. Headings/counts use a darker
+   text color here because the default faint grey is too pale on a tint. */
+.rail:has(#railAll.active){background:#d9e6f5;}
+.rail:has(#railAll.active) h2,
+.rail:has(#railAll.active) .filters-head .count{color:var(--ink-soft);}
 .rail-panel{display:none;}
 .rail-panel.active{display:flex;flex-direction:column;flex:1;min-height:0;overflow-y:auto;}
 
