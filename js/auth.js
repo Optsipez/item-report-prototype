@@ -17,23 +17,23 @@
    'ceo'.
    ============================================================ */
 const EMPLOYEES = [
-  { id: '3068', name: '', password: 'Buy@2267', role: 'buyer' },
-  { id: '3067', name: '', password: 'Buy@2267', role: 'buyer' },
-  { id: '3055', name: '', password: 'Buy@2267', role: 'buyer' },
-  { id: '3066', name: '', password: 'Buy@2267', role: 'buyer' },
-  { id: '7191', name: '', password: 'Buy@2267', role: 'buyer' },
-  { id: '3065', name: '', password: 'Buy@2267', role: 'buyer' },
-  { id: '7448', name: '', password: 'Buy@2267', role: 'buyer' },
-  { id: '3014', name: '', password: 'Buy@2267', role: 'buyer' },
-  { id: '3060', name: '', password: 'Buy@2267', role: 'buyer' },
-  { id: '3039', name: '', password: 'Buy@2267', role: 'buyer' },
-  { id: '3035', name: '', password: 'Buy@2267', role: 'buyer' },
-  { id: '3082', name: '', password: 'Buy@2267', role: 'buyer' },
-  { id: '4027', name: '', password: 'Buy@2267', role: 'buyer' },
+  { id: '3068', name: 'Dyan', password: 'Buy@2267', role: 'buyer' },
+  { id: '3067', name: 'Zindy', password: 'Buy@2267', role: 'buyer' },
+  { id: '3055', name: 'Manily', password: 'Buy@2267', role: 'buyer' },
+  { id: '3066', name: 'Fred', password: 'Buy@2267', role: 'buyer' },
+  { id: '7191', name: 'Cris', password: 'Buy@2267', role: 'buyer' },
+  { id: '3065', name: 'Angel', password: 'Buy@2267', role: 'buyer' },
+  { id: '7448', name: 'Priyanka', password: 'Buy@2267', role: 'buyer' },
+  { id: '3014', name: 'Jenny', password: 'Buy@2267', role: 'buyer' },
+  { id: '3060', name: 'Alka', password: 'Buy@2267', role: 'buyer' },
+  { id: '3039', name: 'Jane', password: 'Buy@2267', role: 'buyer' },
+  { id: '3035', name: 'Chell', password: 'Buy@2267', role: 'buyer' },
+  { id: '3082', name: 'Marifor', password: 'Buy@2267', role: 'buyer' },
+  { id: '4027', name: 'Yahya', password: 'Buy@2267', role: 'buyer' },
   // add/remove Buyer IDs here, same password as the ones above
-  { id: '3111', name: '', password: 'Jav@1923', role: 'manager' },
-  { id: 'CEO', name: '', password: 'Suood@2986', role: 'ceo' },
-  { id: 'admin', name: '', password: 'Admin0306', role: 'admin' },
+  { id: '3111', name: 'Javaid', password: 'Jav@1923', role: 'manager' },
+  { id: 'CEO', name: 'CEO', password: 'CEO@2986', role: 'ceo' },
+  { id: 'admin', name: 'Admin', password: 'Admin0306', role: 'admin' },
 ];
 
 let CURRENT_ROLE = null;
