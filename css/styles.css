@@ -621,6 +621,10 @@ table.branch-matrix tbody tr.branch-blue:hover td{background:#a1c6e6;}
 table.branch-matrix tbody tr.branch-grey td{background:#d9d9d9;}
 table.branch-matrix tbody tr.branch-grey:hover td{background:#c7c7c7;}
 table.branch-matrix tbody tr.branch-sep td{border-bottom:none;padding:4px 0;}
+/* Bold vertical dividers between Sort Order | Branch Code | SOH | Sold (the
+   first three column edges). Skips the blank spacer rows between groups, whose
+   single cell spans the whole width. */
+table.branch-matrix tr:not(.branch-sep) > :nth-child(-n+3){border-right:2px solid var(--ink-soft);}
 table.branch-matrix tbody tr.branch-total td{border-top:1px solid var(--line-strong);border-bottom:none;}
 
 /* Combined Stock/Sold/Remaining-stock blocks, one per calendar year, shown
