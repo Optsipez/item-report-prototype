@@ -284,6 +284,8 @@ button{font-family:inherit;}
 .rail:has(#railAll.active){background:#d9e6f5;}
 .rail:has(#railAll.active) h2,
 .rail:has(#railAll.active) .filters-head .count{color:var(--ink-soft);}
+/* Hidden for buyers only -- auth.js puts .role-buyer on <body>. */
+body.role-buyer .vendor-name-only{display:none !important;}
 .rail-panel{display:none;}
 .rail-panel.active{display:flex;flex-direction:column;flex:1;min-height:0;overflow-y:auto;}
 

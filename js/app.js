@@ -1339,6 +1339,10 @@ function buildBranchTable(wrapEl, item){
   wrapEl.innerHTML = html;
 }
 
+// Buyers never see Vendor Name anywhere (grid column, Item Lookup header,
+// Overview card) -- managers, CEO and admin do. CURRENT_ROLE is from auth.js.
+function canSeeVendorName(){ return CURRENT_ROLE !== 'buyer'; }
+
 function renderReport(item){
   emptyState.style.display = 'none';
   report.classList.add('visible');
@@ -1346,7 +1350,7 @@ function renderReport(item){
   document.getElementById('hCode').textContent = item['Item Code'];
   document.getElementById('hDesc').textContent = item['Description'];
   document.getElementById('hPlan').textContent = 'Plan ' + item['Current Plan Code'];
-  document.getElementById('hVendor').textContent = item['Vendor Name'];
+  document.getElementById('hVendor').textContent = canSeeVendorName() ? item['Vendor Name'] : '';
   document.getElementById('hOrigin').textContent = 'Made in: ' + item['Country Of Origin'];
   document.getElementById('hColor').textContent = item['Item Color Name'];
   document.getElementById('hSwatchDot').style.background = colorToHex(item['Item Color Name']);
@@ -1386,7 +1390,7 @@ function renderReport(item){
   document.getElementById('oPuda').textContent = item['PUDA Desc'] + ' (' + item['PUDA Code'] + ')';
 
   document.getElementById('oVendorCode').textContent = item['Vendor Code'];
-  document.getElementById('oVendorName').textContent = item['Vendor Name'];
+  document.getElementById('oVendorName').textContent = canSeeVendorName() ? item['Vendor Name'] : '';
   document.getElementById('oOrigin').textContent = item['Country Of Origin'];
 
   buildYearMatrices(document.getElementById('yearMatrices'), item);
@@ -1532,7 +1536,7 @@ const ALL_GROUP_KEYS = COLUMN_LAYOUT.filter(e => e.type === 'group').map(e => e.
 // here once rather than in every render function that touches columns.
 // CURRENT_ROLE comes from js/auth.js (loaded before this file).
 function activeColumnLayout(){
-  if(CURRENT_ROLE !== 'buyer') return COLUMN_LAYOUT;
+  if(canSeeVendorName()) return COLUMN_LAYOUT;
   return COLUMN_LAYOUT.map(entry => {
     if(entry.type !== 'group') return entry;
     return Object.assign({}, entry, { cols: entry.cols.filter(c => c.field !== 'Vendor Name') });

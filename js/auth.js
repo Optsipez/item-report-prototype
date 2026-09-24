@@ -90,6 +90,8 @@ function hideLoginOverlay(){
   const overlay = document.getElementById('loginOverlay');
   if(overlay) overlay.hidden = true;
 }
+// Lets CSS hide role-restricted bits (see .vendor-name-only in styles.css).
+function applyRoleClass(){ document.body.classList.toggle('role-buyer', CURRENT_ROLE === 'buyer'); }
 function updateTopbarUser(){
   const label = document.getElementById('topbarUserLabel');
   if(!label || !CURRENT_ROLE) return;
@@ -113,17 +115,21 @@ function enterApp(emp){
   CURRENT_EMPLOYEE_NAME = emp.name || '';
   hideLoginOverlay();
   updateTopbarUser();
+  applyRoleClass();
   // app.js already ran its first render before login happened (with
   // CURRENT_ROLE still null, which activeColumnLayout() treats as
   // full access) — re-render now that the real role is known, so e.g.
   // a Buyer's hidden Vendor Name column actually takes effect.
   if(typeof renderGrid === 'function') renderGrid();
+  // The Item Lookup report may already be showing (e.g. a #item= link).
+  if(typeof selectedItem !== 'undefined' && selectedItem && typeof renderReport === 'function') renderReport(selectedItem);
 }
 
 (function initAuth(){
   if(restoreSession()){
     hideLoginOverlay();
     updateTopbarUser();
+    applyRoleClass();
   } else {
     showLoginOverlay();
   }
