@@ -7,18 +7,22 @@
      employee, so each buyer sees their own slice instead of the whole company.
    - Four action lists, each with a count and a button that opens exactly
      those items in All Products:
-       Reorder now          selling, and stock + open POs cover under 4 months
+       Reorder now          stock + open POs run out before a NEW order could
+                            arrive (the vendor's real lead time, from past
+                            receipts), ranked by monthly sales value at risk
        Out of stock, no PO  selling, none in stock, nothing on order
        Late POs             ETA already passed (vs the data date), still open
-       Overstock / slow     6+ months old and 12+ months of cover (or no sales)
-   - A trading strip, monthly sales, movers, what's landing soon, and
-     branch / category / range-or-vendor / stock-age breakdowns.
+       Overstock / slow     6+ months old and 12+ months of cover (or no sales),
+                            with price and margin so a markdown can be judged
+   - How the scope is trading, monthly sales, rising/falling items, what is
+     landing soon, which vendors to chase, units due by month, branch sales.
 
    "Selling" is real sales in the last 3 complete months of data — not the
    grid's AVG column, which for brand-new items is only an estimate from the
-   PO. All dates are relative to DATA_AS_OF (the export date, in
-   po-data.js), not today's clock, so late/landing-soon match the snapshot.
-   Vendor names are only shown to roles allowed to see them (canSeeVendorName).
+   PO. Lead times come from js/lead-times.js (measured from past receipts,
+   median per vendor). All dates are relative to DATA_AS_OF (the export date,
+   in po-data.js), not today's clock. Vendor names are only shown to roles
+   allowed to see them (canSeeVendorName).
    ============================================================ */
 const DASH_GREETINGS = [
   n => 'Hi ' + n + ', good to see you.',
@@ -34,10 +38,11 @@ function reshuffleDashGreeting(){
 }
 
 const DAY = 86400000;
-const DASH_TARGET_MONTHS = 4;      // cover a reorder should restore
+const DASH_BUFFER_MONTHS = 1;      // safety stock on top of the lead time when suggesting a quantity
 let dashTab = null;                // which action list is open
 let dashScope = null;              // { dept, cat, vendor } — loaded per employee
 let dashCurrentTab = null;
+let dashReorderView = 'vendor';   // 'vendor' (who to order from) or 'item'
 
 function dashPartOfDay(){
   const h = new Date().getHours();
@@ -93,6 +98,13 @@ function dashLineInScope(l){   // a PO line: [po, item, desc, qty, eta, vendor, 
     (!dashScope.vendor || String(l[5]).toUpperCase() === dashScope.vendor.toUpperCase());
 }
 
+/* ---------- lead time: the vendor's own measured median, else the overall one ---------- */
+function dashLeadDays(vendorCode){
+  const v = LEAD_TIMES.vendors[vendorCode];
+  return v && v[1] >= LEAD_TIMES.MIN_LEAD_RECEIPTS ? v[0] : LEAD_TIMES.overall;
+}
+const dashDaysToMonths = d => d / 30.4;
+
 /* ---------- months ---------- */
 function dashWindows(){
   const last = MONTH_WINDOW[MONTH_WINDOW_LAST_DATA];
@@ -114,40 +126,48 @@ function dashCompute(){
   const R = {
     W, vendorName, items: 0, sold3: 0, prior3: 0, soh: 0, value: 0,
     reorder: [], oos: [], over: [], overValue: 0, movers: [],
-    monthTotals: MONTH_WINDOW.map(() => 0), age: {}, branch: {}, cat: {}, range: {}, vendor: {}, codes: new Set(),
+    monthTotals: MONTH_WINDOW.map(() => 0), branch: {}, codes: new Set(),
   };
   ITEMS.forEach(it => {
     if(!dashItemInScope(it)) return;
     R.items++; R.codes.add(it['Item Code']);
     const sohRaw = Number(it['SOH']) || 0, soh = Math.max(0, sohRaw), po = Number(it['PO-Qty']) || 0;
     const cost = Number(it['L-Cost (Aed)']) || 0;
-    const s3 = unitsIn(it, W.rate), p3 = unitsIn(it, W.prior), rate = s3 / 3, s12 = unitsIn(it, W.year);
+    const price = Number(it['Now (Aed)']) || Number(it['Was (Aed)']) || 0;
+    const s3 = unitsIn(it, W.rate), p3 = unitsIn(it, W.prior), rate = s3 / 3;
     R.sold3 += s3; R.prior3 += p3; R.soh += soh; R.value += soh * cost;
     MONTH_WINDOW.forEach((w, i) => { R.monthTotals[i] += unitsIn(it, [w]); });
-    if(s12 > 0){
-      const c = it['Category'] || 'Other', r = it['Range Name'] || 'Other';
-      R.cat[c] = (R.cat[c] || 0) + s12;
-      R.range[r] = (R.range[r] || 0) + s12;
-      R.vendor[it['Vendor Code']] = (R.vendor[it['Vendor Code']] || 0) + s12;
+    if(rate > 0){
+      if(sohRaw <= 0 && po <= 0) R.oos.push({ it, rate, s3 });
+      else {
+        // Runs out before a fresh order could land? Stock + what's already on order,
+        // against the vendor's real lead time.
+        const leadDays = dashLeadDays(it['Vendor Code']), leadMo = dashDaysToMonths(leadDays);
+        const coverPO = (soh + po) / rate;
+        if(coverPO < leadMo){
+          R.reorder.push({ it, rate, soh, po, coverPO, leadDays, atRisk: rate * price,
+            order: rate * (leadMo + DASH_BUFFER_MONTHS) - (soh + po) });
+        }
+      }
     }
     const age = soh > 0 ? stkAgeFor(it) : null;
-    if(age){
-      const g = R.age[age.label] = R.age[age.label] || { units: 0, sno: age.sno };
-      g.units += soh;
-    }
-    if(rate > 0){
-      const cover = soh / rate, coverPO = (soh + po) / rate;
-      if(sohRaw <= 0 && po <= 0) R.oos.push({ it, rate, s3 });
-      else if(cover < 3 && coverPO < DASH_TARGET_MONTHS) R.reorder.push({ it, rate, soh, po, coverPO, short: rate * DASH_TARGET_MONTHS - (soh + po) });
-    }
     if(age && age.sno >= 3 && (rate === 0 || soh / rate > 12)){
       const tied = soh * cost;
-      R.over.push({ it, soh, cover: rate > 0 ? soh / rate : null, age: age.label, tied });
+      R.over.push({ it, soh, cover: rate > 0 ? soh / rate : null, age: age.label, tied, price, margin: marginPct(price, cost) });
       R.overValue += tied;
     }
     if(Math.max(s3, p3) >= 15) R.movers.push({ it, s3, p3, d: s3 - p3 });
   });
-  R.reorder.sort((a, b) => b.short - a.short);
+  R.reorder.sort((a, b) => b.atRisk - a.atRisk);
+  // Buyers place orders per vendor, so also group the reorder list that way.
+  const rv = {};
+  R.reorder.forEach(x => {
+    const v = x.it['Vendor Code'];
+    const g = rv[v] = rv[v] || { vendor: v, items: 0, atRisk: 0, units: 0, leadDays: x.leadDays };
+    g.items++; g.atRisk += x.atRisk; g.units += Math.max(0, x.order);
+  });
+  R.reorderVendors = Object.values(rv).sort((a, b) => b.atRisk - a.atRisk);
+  R.reorderAtRisk = R.reorder.reduce((a, x) => a + x.atRisk, 0);
   R.oos.sort((a, b) => b.rate - a.rate);
   R.over.sort((a, b) => b.tied - a.tied);
   R.risers = R.movers.filter(x => x.d > 0).sort((a, b) => b.d - a.d).slice(0, 5);
@@ -177,6 +197,13 @@ function dashCompute(){
   R.onOrderUnits = pos.reduce((a, p) => a + p.units, 0);
   R.lateUnits = R.latePOs.reduce((a, p) => a + p.units, 0);
   R.soonUnits = R.soonPOs.reduce((a, p) => a + p.units, 0);
+  // vendors with the most late stock — who to chase
+  const chase = {};
+  R.latePOs.forEach(p => {
+    const c = chase[p.vendor] = chase[p.vendor] || { vendor: p.vendor, pos: 0, units: 0, worst: 0 };
+    c.pos++; c.units += p.units; c.worst = Math.max(c.worst, p.late);
+  });
+  R.chase = Object.values(chase).sort((a, b) => b.units - a.units);
   // units due per month, from the data date forward, next 6 months
   const start = dashAsOf();
   R.inbound = [];
@@ -205,47 +232,40 @@ function dashColumns(items){   // vertical bars: [{label, value, partial, nodata
       '<span class="dash-trend-bar"><span style="height:' + (x.nodata ? 0 : Math.max(3, x.value / max * 100)).toFixed(1) + '%;' + (x.color ? 'background:' + x.color : '') + '"></span></span>' +
       '<span class="dash-trend-k">' + dashEsc(x.label) + (x.partial ? '<small>to date</small>' : '') + '</span></div>').join('') + '</div>';
 }
-function dashAge(R){
-  const rows = Object.keys(R.age).map(k => ({ label: k, ...R.age[k] })).sort((a, b) => a.sno - b.sno);
-  const total = rows.reduce((a, r) => a + r.units, 0);
-  if(!total) return '<p class="dash-empty">No stock on hand in this selection.</p>';
-  const colours = { 0: '#38bdf8', 1: '#0ea5e9', 2: '#0284c7', 3: '#6366f1', 4: '#d97706', 5: '#e11d48', 6: '#9f1239', 7: '#7f1d1d' };
-  return '<div class="dash-agebar">' + rows.map(r =>
-      '<span style="width:' + (r.units / total * 100).toFixed(2) + '%;background:' + (colours[r.sno] || '#94a3b8') + '" title="' + dashEsc(r.label) + ' months: ' + dashInt(r.units) + ' units"></span>').join('') + '</div>' +
-    '<div class="dash-agekey">' + rows.map(r =>
-      '<span><i style="background:' + (colours[r.sno] || '#94a3b8') + '"></i>' + dashEsc(r.label) + '<b>' + Math.round(r.units / total * 100) + '%</b></span>').join('') + '</div>';
-}
 const dashItemCell = it => '<td class="l"><a ' + dashLink(it['Item Code']) + '><b>' + dashEsc(it['Item Code']) + '</b> ' + dashEsc(it['Description']) + '</a></td>';
 
 /* ---------- the four action lists ---------- */
 function dashActions(R){
   const showVendor = canSeeVendorName();
   const vname = c => showVendor ? (R.vendorName[c] || c) : c;
-  const poTable = (rows, kind) => '<table class="dash-table"><thead><tr><th class="l po">PO</th><th class="l vend">Vendor</th><th>Lines</th><th>Units</th><th>ETA</th><th>' + (kind === 'late' ? 'Late by' : 'Due') + '</th></tr></thead><tbody>' +
+  const poTable = rows => '<table class="dash-table"><thead><tr><th class="l po">PO</th><th class="l vend">Vendor</th><th>Lines</th><th>Units</th><th>ETA</th><th>Late by</th></tr></thead><tbody>' +
     rows.slice(0, 10).map(p =>
       '<tr><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l muted" title="' + dashEsc(vname(p.vendor)) + '">' + dashEsc(vname(p.vendor)) + '</td>' +
-      '<td>' + p.lines + '</td><td>' + dashInt(p.units) + '</td><td>' + dashEsc(dashDate(p.eta)) + '</td>' +
-      '<td class="' + (kind === 'late' ? 'bad' : '') + '">' + (kind === 'late' ? p.late + ' d' : 'in ' + p.in + ' d') + '</td></tr>').join('') + '</tbody></table>';
+      '<td>' + p.lines + '</td><td>' + dashInt(p.units) + '</td><td>' + dashEsc(dashDate(p.eta)) + '</td><td class="bad">' + p.late + ' d</td></tr>').join('') + '</tbody></table>';
 
   const lateCodes = new Set(); R.latePOs.forEach(p => p.codes.forEach(c => lateCodes.add(c)));
+  const overallMo = dashDaysToMonths(LEAD_TIMES.overall);
   const tabs = [
-    { id: 'reorder', title: 'Reorder now', n: R.reorder.length, sub: 'selling, cover incl. POs under ' + DASH_TARGET_MONTHS + ' mo', tone: 'warn',
-      note: 'Short by = units needed to reach ' + DASH_TARGET_MONTHS + ' months of cover at the recent selling pace, after counting stock and open POs.',
-      table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>Sold / mo</th><th>Stock</th><th>On PO</th><th>Cover</th><th>Short by</th></tr></thead><tbody>' +
-        R.reorder.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + '<td>' + x.rate.toFixed(1) + '</td><td>' + dashInt(x.soh) + '</td><td>' + dashInt(x.po) + '</td><td class="warn">' + x.coverPO.toFixed(1) + ' mo</td><td><b>' + dashInt(x.short) + '</b></td></tr>').join('') + '</tbody></table>',
+    { id: 'reorder', title: 'Reorder now', n: R.reorder.length, sub: R.reorderVendors.length + ' vendors \u00b7 AED ' + dashCompact(R.reorderAtRisk) + '/mo sales at risk', tone: 'warn',
+      note: 'Selling items whose stock plus open POs will run out sooner than the vendor’s lead time (measured from past receipts; ' + Math.round(overallMo * 10) / 10 + ' months typical). Ranked by monthly sales value at risk. Order now = quantity to cover the lead time plus ' + DASH_BUFFER_MONTHS + ' month of safety stock. Buyers order per vendor, so the vendor view shows who to order from first; click a vendor to see its items.',
+      table: dashReorderView === 'vendor'
+        ? '<table class="dash-table"><thead><tr><th class="l vend">Vendor</th><th>Items to order</th><th>Lead time</th><th>Units to order</th><th>Sales at risk / mo</th></tr></thead><tbody>' +
+          R.reorderVendors.slice(0, 10).map(g => '<tr class="dash-pick" data-vendor="' + dashEsc(g.vendor) + '" data-goto="reorder" title="Show this vendor\u2019s items"><td class="l"><b>' + dashEsc(vname(g.vendor)) + '</b></td><td>' + g.items + '</td><td>' + dashInt(g.leadDays) + ' d</td><td>' + dashInt(g.units) + '</td><td><b>AED ' + dashCompact(g.atRisk) + '</b></td></tr>').join('') + '</tbody></table>'
+        : '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>Sold / mo</th><th>Stock</th><th>On PO</th><th>Cover</th><th>Lead time</th><th>Order now</th><th>At risk / mo</th></tr></thead><tbody>' +
+        R.reorder.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + '<td>' + x.rate.toFixed(1) + '</td><td>' + dashInt(x.soh) + '</td><td>' + dashInt(x.po) + '</td><td class="warn">' + x.coverPO.toFixed(1) + ' mo</td><td>' + dashInt(x.leadDays) + ' d</td><td><b>' + dashInt(Math.max(0, x.order)) + '</b></td><td>AED ' + dashCompact(x.atRisk) + '</td></tr>').join('') + '</tbody></table>',
       codes: R.reorder.map(x => x.it['Item Code']), sort: null },
     { id: 'oos', title: 'Out of stock, no PO', n: R.oos.length, sub: 'selling, none on hand, nothing on order', tone: 'bad',
       note: 'Sold in the last 3 months, no stock, and no open PO: the items losing sales right now.',
-      table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th class="l vend">Vendor</th><th>Sold / mo</th><th>Sold (3 mo)</th></tr></thead><tbody>' +
-        R.oos.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + '<td class="l muted">' + dashEsc(vname(x.it['Vendor Code'])) + '</td><td>' + x.rate.toFixed(1) + '</td><td>' + dashInt(x.s3) + '</td></tr>').join('') + '</tbody></table>',
+      table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th class="l vend">Vendor</th><th>Sold / mo</th><th>Sold (3 mo)</th><th>Lead time</th></tr></thead><tbody>' +
+        R.oos.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + '<td class="l muted">' + dashEsc(vname(x.it['Vendor Code'])) + '</td><td>' + x.rate.toFixed(1) + '</td><td>' + dashInt(x.s3) + '</td><td>' + dashInt(dashLeadDays(x.it['Vendor Code'])) + ' d</td></tr>').join('') + '</tbody></table>',
       codes: R.oos.map(x => x.it['Item Code']), sort: null },
     { id: 'late', title: 'Late POs', n: R.latePOs.length, sub: dashInt(R.lateUnits) + ' units past ETA', tone: 'bad',
       note: 'Open POs whose ETA was before ' + dashDate(DATA_AS_OF) + ' (the data date) and are still not received.',
-      table: poTable(R.latePOs, 'late'), codes: [...lateCodes], sort: null },
+      table: poTable(R.latePOs), codes: [...lateCodes], sort: null },
     { id: 'over', title: 'Overstock / slow', n: R.over.length, sub: 'AED ' + dashCompact(R.overValue) + ' tied up', tone: '',
-      note: 'Stock 6+ months old with over 12 months of cover at the recent pace, or no sales at all. Value = stock x landed cost.',
-      table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>Stock</th><th>Cover</th><th>Age</th><th>Tied up (AED)</th></tr></thead><tbody>' +
-        R.over.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + '<td>' + dashInt(x.soh) + '</td><td>' + (x.cover == null ? 'no sales' : x.cover.toFixed(0) + ' mo') + '</td><td>' + dashEsc(x.age) + '</td><td><b>' + dashInt(x.tied) + '</b></td></tr>').join('') + '</tbody></table>',
+      note: 'Stock 6+ months old with over 12 months of cover at the recent pace, or no sales at all. Largest first. Margin = (price − landed cost) ÷ price at today’s price, so it is also roughly how deep a markdown can go before selling at cost.',
+      table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>Stock</th><th>Cover</th><th>Age</th><th>Tied up (AED)</th><th>Price</th><th>Margin</th></tr></thead><tbody>' +
+        R.over.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + '<td>' + dashInt(x.soh) + '</td><td>' + (x.cover == null ? 'no sales' : x.cover.toFixed(0) + ' mo') + '</td><td>' + dashEsc(x.age) + '</td><td><b>' + dashInt(x.tied) + '</b></td><td>' + (x.price ? dashInt(x.price) : '—') + '</td><td class="' + (x.margin != null && x.margin < 0.15 ? 'bad' : '') + '">' + (x.margin == null ? '—' : Math.round(x.margin * 100) + '%') + '</td></tr>').join('') + '</tbody></table>',
       codes: R.over.map(x => x.it['Item Code']), sort: [{ field: 'SOH', dir: 'desc' }] },
   ];
   if(!tabs.some(t => t.id === dashTab)) dashTab = (tabs.find(t => t.n > 0) || tabs[0]).id;
@@ -254,7 +274,8 @@ function dashActions(R){
   return '<div class="dash-tiles">' + tabs.map(t =>
       '<button type="button" class="dash-tile' + (t.id === dashTab ? ' on' : '') + (t.n && t.tone ? ' ' + t.tone : '') + '" data-tab="' + t.id + '">' +
         '<span class="dash-tile-k">' + t.title + '</span><span class="dash-tile-v">' + dashInt(t.n) + '</span><span class="dash-tile-n">' + dashEsc(t.sub) + '</span></button>').join('') + '</div>' +
-    '<section class="dash-card dash-detail"><div class="dash-detail-head"><h3>' + cur.title + ' <span>' + dashInt(cur.n) + (cur.id === 'late' ? ' POs' : ' items') + (cur.n > 10 ? ', top 10 shown' : '') + '</span></h3>' +
+    '<section class="dash-card dash-detail"><div class="dash-detail-head"><h3>' + cur.title + ' <span>' + (cur.id === 'reorder' && dashReorderView === 'vendor' ? dashInt(R.reorderVendors.length) + ' vendors, ' + dashInt(cur.n) + ' items' + (R.reorderVendors.length > 10 ? ', top 10 vendors shown' : '') : dashInt(cur.n) + (cur.id === 'late' ? ' POs' : ' items') + (cur.n > 10 ? ', top 10 shown' : '')) + '</span></h3>' +
+      (cur.id === 'reorder' && cur.n ? '<span class="dash-seg"><button type="button" data-rv="vendor" class="' + (dashReorderView === 'vendor' ? 'on' : '') + '">By vendor</button><button type="button" data-rv="item" class="' + (dashReorderView === 'item' ? 'on' : '') + '">By item</button></span>' : '') +
       (cur.n ? '<button type="button" class="dash-btn" id="dashOpenAll">Open ' + (cur.id === 'late' ? 'their ' + dashInt(cur.codes.length) + ' items' : 'all ' + dashInt(cur.n)) + ' in All Products &rarr;</button>' : '') + '</div>' +
       '<p class="dash-note">' + dashEsc(cur.note) + '</p>' +
       (cur.n ? cur.table : '<p class="dash-empty">Nothing here for this selection. Good.</p>') + '</section>';
@@ -283,9 +304,10 @@ function renderDashboard(){
   if(!dashScope) dashLoadScope();
   const R = dashCompute(), W = R.W;
   const showVendor = canSeeVendorName();
+  const vname = c => showVendor ? (R.vendorName[c] || c) : c;
   const delta = R.prior3 > 0 ? (R.sold3 - R.prior3) / R.prior3 * 100 : null;
   const cover = R.sold3 > 0 ? R.soh / (R.sold3 / 3) : null;
-  const sellThrough = R.sold3 + R.soh > 0 ? R.sold3 / (R.sold3 + R.soh) * 100 : 0;
+  const typicalLead = dashDaysToMonths(LEAD_TIMES.overall);
   const winLabel = monthColLabel(W.rate[0]) + '–' + monthColLabel(W.rate[2]);
   const kpi = (k, v, n, tone) => '<div class="dash-kpi' + (tone ? ' ' + tone : '') + '"><span class="dash-kpi-k">' + k + '</span><span class="dash-kpi-v">' + v + '</span><span class="dash-kpi-n">' + n + '</span></div>';
 
@@ -295,12 +317,6 @@ function renderDashboard(){
   });
   const inbound = R.inbound.map(b => ({ label: b.label, value: b.units, color: 'var(--stock)', title: b.label + ': ' + dashInt(b.units) + ' units due' }));
   const branches = Object.keys(R.branch).map(k => ({ label: k, value: R.branch[k], color: 'var(--pos)' })).sort((a, b) => b.value - a.value).slice(0, 8);
-  const splitField = dashScope.cat ? 'range' : 'cat';
-  const split = Object.keys(R[splitField]).map(k => ({ label: k, value: R[splitField][k] })).sort((a, b) => b.value - a.value).slice(0, 8);
-  const lastRows = (showVendor
-    ? Object.keys(R.vendor).map(k => ({ label: R.vendorName[k] || k, value: R.vendor[k], color: 'var(--primary)' }))
-    : Object.keys(R.range).map(k => ({ label: k, value: R.range[k], color: 'var(--primary)' }))
-  ).sort((a, b) => b.value - a.value);
 
   const scopeParts = [dashScope.dept, dashScope.cat, dashScope.vendor && 'Vendor ' + dashScope.vendor].filter(Boolean);
   const scopeLine = (scopeParts.length ? scopeParts.join(' · ') + ' · ' : 'All ') + dashInt(R.items) + ' items';
@@ -316,10 +332,9 @@ function renderDashboard(){
     '<h2 class="dash-h">How it’s trading <span>last 3 complete months (' + dashEsc(winLabel) + ') vs the 3 before</span></h2>' +
     '<div class="dash-kpis">' +
       kpi('Units sold', dashCompact(R.sold3), delta == null ? 'no prior period' : (delta >= 0 ? '&#9650; ' : '&#9660; ') + Math.abs(delta).toFixed(0) + '% vs the 3 before', delta == null ? '' : (delta >= 0 ? 'up' : 'down')) +
-      kpi('Stock cover', cover == null ? '—' : cover.toFixed(1) + ' mo', 'stock ÷ monthly sales pace', cover != null && (cover < 2 ? 'down' : cover > 9 ? 'warn' : '')) +
-      kpi('Sell-through', sellThrough.toFixed(0) + '%', 'sold ÷ (sold + stock)') +
-      kpi('Stock value', 'AED ' + dashCompact(R.value), 'at landed cost') +
-      kpi('On order', dashCompact(R.onOrderUnits), dashInt(R.soonUnits) + ' due within 30 days' + (R.lateUnits ? ' · ' + dashCompact(R.lateUnits) + ' late' : ''), R.lateUnits ? 'warn' : '') +
+      kpi('Stock cover', cover == null ? '—' : cover.toFixed(1) + ' mo', 'vs ' + typicalLead.toFixed(1) + ' mo typical vendor lead time', cover != null && cover < typicalLead ? 'down' : '') +
+      kpi('On order', dashCompact(R.onOrderUnits), dashInt(R.soonUnits) + ' due within 30 days', '') +
+      kpi('Late on order', dashCompact(R.lateUnits), dashInt(R.latePOs.length) + ' POs past ETA', R.lateUnits ? 'warn' : '') +
     '</div>' +
     '<div class="dash-grid">' +
       '<section class="dash-card wide"><h3>Units sold by month <span>' + dashEsc(scopeLine) + '</span></h3>' + dashColumns(trend) + '</section>' +
@@ -327,18 +342,26 @@ function renderDashboard(){
       '<section class="dash-card"><h3>Falling <span>units vs the 3 months before</span></h3>' + dashMoverTable(R.fallers, false) + '</section>' +
       '<section class="dash-card"><h3>Landing soon <span>next 30 days, ' + dashInt(R.soonUnits) + ' units</span></h3>' +
         (R.soonPOs.length ? '<table class="dash-table"><thead><tr><th class="l po">PO</th><th class="l vend">Vendor</th><th>Units</th><th>ETA</th></tr></thead><tbody>' +
-          R.soonPOs.slice(0, 8).map(p => '<tr><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l muted">' + dashEsc(showVendor ? (R.vendorName[p.vendor] || p.vendor) : p.vendor) + '</td><td>' + dashInt(p.units) + '</td><td>' + dashEsc(dashDate(p.eta)) + ' <small>(' + p.in + ' d)</small></td></tr>').join('') + '</tbody></table>'
+          R.soonPOs.slice(0, 8).map(p => '<tr><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l muted">' + dashEsc(vname(p.vendor)) + '</td><td>' + dashInt(p.units) + '</td><td>' + dashEsc(dashDate(p.eta)) + ' <small>(' + p.in + ' d)</small></td></tr>').join('') + '</tbody></table>'
           : '<p class="dash-empty">No POs due in the next 30 days.</p>') + '</section>' +
+      '<section class="dash-card"><h3>Vendors to chase <span>most late units, click to filter</span></h3>' +
+        (R.chase.length ? '<table class="dash-table"><thead><tr><th class="l vend">Vendor</th><th>Late POs</th><th>Late units</th><th>Worst</th><th>Usual lead</th></tr></thead><tbody>' +
+          R.chase.slice(0, 8).map(c => '<tr class="dash-pick" data-vendor="' + dashEsc(c.vendor) + '" data-goto="late" title="Show only this vendor"><td class="l"><b>' + dashEsc(vname(c.vendor)) + '</b></td><td>' + c.pos + '</td><td>' + dashInt(c.units) + '</td><td class="bad">' + c.worst + ' d</td><td>' + dashInt(dashLeadDays(c.vendor)) + ' d</td></tr>').join('') + '</tbody></table>'
+          : '<p class="dash-empty">No late POs. Good.</p>') + '</section>' +
       '<section class="dash-card"><h3>Units due by month <span>all open POs</span></h3>' + dashColumns(inbound) + '</section>' +
       '<section class="dash-card"><h3>Sales by branch <span>last 12 months</span></h3>' + dashBarList(branches) + '</section>' +
-      '<section class="dash-card"><h3>Sales by ' + (splitField === 'cat' ? 'category' : 'range') + ' <span>last 12 months</span></h3>' + dashBarList(split) + '</section>' +
-      '<section class="dash-card"><h3>Top ' + (showVendor ? 'vendors' : 'ranges') + ' <span>last 12 months</span></h3>' + dashBarList(lastRows.slice(0, 8)) + '</section>' +
-      '<section class="dash-card"><h3>Stock age <span>share of units on hand</span></h3>' + dashAge(R) + '</section>' +
     '</div>';
 
   // wiring
   const $ = id => document.getElementById(id);
   root.querySelectorAll('.dash-tile').forEach(b => b.addEventListener('click', () => { dashTab = b.dataset.tab; renderDashboard(); }));
+  root.querySelectorAll('.dash-pick').forEach(tr => tr.addEventListener('click', () => {
+    dashScope = { ...dashScope, vendor: tr.dataset.vendor }; dashSaveScope();
+    dashTab = tr.dataset.goto || 'late';
+    if(dashTab === 'reorder') dashReorderView = 'item';   // now that one vendor is picked, show its items
+    renderDashboard();
+  }));
+  root.querySelectorAll('.dash-seg button').forEach(b => b.addEventListener('click', () => { dashReorderView = b.dataset.rv; renderDashboard(); }));
   const open = $('dashOpenAll');
   if(open) open.addEventListener('click', () => {
     const c = dashCurrentTab;

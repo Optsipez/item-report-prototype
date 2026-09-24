@@ -296,7 +296,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .dash-date{font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint);font-weight:600;margin-bottom:6px;}
 .dash-greet{margin:0;font-size:30px;line-height:1.15;letter-spacing:-.02em;font-weight:650;color:var(--ink);}
 .dash-sub{margin:6px 0 0;font-size:var(--fs-md);color:var(--ink-soft);}
-.dash-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--sp-4);margin-bottom:var(--sp-5);}
+.dash-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-4);margin-bottom:var(--sp-5);}
 .dash-kpi{display:flex;flex-direction:column;gap:2px;padding:var(--sp-4) var(--sp-5);background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-xs);}
 .dash-kpi-k{font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.06em;font-weight:600;color:var(--ink-faint);}
 .dash-kpi-v{font-size:26px;font-weight:650;letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums;}
@@ -388,8 +388,14 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .dash-tile-n{font-size:var(--fs-xs);color:var(--ink-soft);}
 .dash-detail{margin-bottom:var(--sp-2);}
 .dash-detail-head{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);margin-bottom:var(--sp-2);}
-.dash-detail-head h3{margin:0;}
+.dash-detail-head h3{margin:0;flex:1;}
+.dash-seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:var(--r-sm);overflow:hidden;}
+.dash-seg button{background:var(--panel);border:0;padding:6px 12px;font-size:var(--fs-sm);font-weight:600;color:var(--ink-soft);cursor:pointer;font-family:inherit;}
+.dash-seg button + button{border-left:1px solid var(--line-strong);}
+.dash-seg button.on{background:var(--primary);color:var(--on-primary);}
 .dash-note{margin:0 0 var(--sp-4);font-size:var(--fs-sm);color:var(--ink-soft);}
+.dash-table tr.dash-pick{cursor:pointer;}
+.dash-table tr.dash-pick:hover td{background:var(--primary-weak);}
 .dash-table td.good{color:var(--pos);font-weight:650;}
 .dash-table .mono{font-family:'IBM Plex Mono',monospace;font-weight:600;}
 .dash-table small{color:var(--ink-faint);}
