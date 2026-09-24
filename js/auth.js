@@ -7,6 +7,9 @@
    lightweight gate to keep casual/wrong-department access out and
    route each role to the right view — nothing more.
 
+   Each entry can carry a display name (shown in the top bar as
+   "ID · Name"); leave it '' to show the role instead.
+
    EDIT EMPLOYEES BELOW with the real employee IDs and passwords
    before real use — these are placeholders. Every Buyer ID shares one
    password; Manager 1 and CEO each have their own. Role names used
@@ -14,27 +17,28 @@
    'ceo'.
    ============================================================ */
 const EMPLOYEES = [
-  { id: '3068', password: 'Buy@2267', role: 'buyer' },
-  { id: '3067', password: 'Buy@2267', role: 'buyer' },
-  { id: '3055', password: 'Buy@2267', role: 'buyer' },
-  { id: '3066', password: 'Buy@2267', role: 'buyer' },
-  { id: '7191', password: 'Buy@2267', role: 'buyer' },
-  { id: '3065', password: 'Buy@2267', role: 'buyer' },
-  { id: '7448', password: 'Buy@2267', role: 'buyer' },
-  { id: '3014', password: 'Buy@2267', role: 'buyer' },
-  { id: '3060', password: 'Buy@2267', role: 'buyer' },
-  { id: '3039', password: 'Buy@2267', role: 'buyer' },
-  { id: '3035', password: 'Buy@2267', role: 'buyer' },
-  { id: '3082', password: 'Buy@2267', role: 'buyer' },
-  { id: '4027', password: 'Buy@2267', role: 'buyer' },
+  { id: '3068', name: '', password: 'Buy@2267', role: 'buyer' },
+  { id: '3067', name: '', password: 'Buy@2267', role: 'buyer' },
+  { id: '3055', name: '', password: 'Buy@2267', role: 'buyer' },
+  { id: '3066', name: '', password: 'Buy@2267', role: 'buyer' },
+  { id: '7191', name: '', password: 'Buy@2267', role: 'buyer' },
+  { id: '3065', name: '', password: 'Buy@2267', role: 'buyer' },
+  { id: '7448', name: '', password: 'Buy@2267', role: 'buyer' },
+  { id: '3014', name: '', password: 'Buy@2267', role: 'buyer' },
+  { id: '3060', name: '', password: 'Buy@2267', role: 'buyer' },
+  { id: '3039', name: '', password: 'Buy@2267', role: 'buyer' },
+  { id: '3035', name: '', password: 'Buy@2267', role: 'buyer' },
+  { id: '3082', name: '', password: 'Buy@2267', role: 'buyer' },
+  { id: '4027', name: '', password: 'Buy@2267', role: 'buyer' },
   // add/remove Buyer IDs here, same password as the ones above
-  { id: '3111', password: 'Jav@1923', role: 'manager' },
-  { id: 'CEO', password: 'Suood@2986', role: 'ceo' },
-  { id: 'admin', password: 'Admin0306', role: 'admin' },
+  { id: '3111', name: '', password: 'Jav@1923', role: 'manager' },
+  { id: 'CEO', name: '', password: 'Suood@2986', role: 'ceo' },
+  { id: 'admin', name: '', password: 'Admin0306', role: 'admin' },
 ];
 
 let CURRENT_ROLE = null;
 let CURRENT_EMPLOYEE_ID = null;
+let CURRENT_EMPLOYEE_NAME = '';
 
 function findEmployee(id){
   const norm = String(id || '').trim().toUpperCase();
@@ -43,7 +47,7 @@ function findEmployee(id){
 }
 
 function saveSession(emp){
-  try { sessionStorage.setItem('empSession', JSON.stringify({ id: emp.id, role: emp.role })); } catch(e){}
+  try { sessionStorage.setItem('empSession', JSON.stringify({ id: emp.id, name: emp.name || '', role: emp.role })); } catch(e){}
 }
 function clearSession(){
   try { sessionStorage.removeItem('empSession'); } catch(e){}
@@ -61,6 +65,7 @@ function restoreSession(){
   if(!saved || !saved.id || !saved.role) return false;
   CURRENT_ROLE = saved.role;
   CURRENT_EMPLOYEE_ID = saved.id;
+  CURRENT_EMPLOYEE_NAME = saved.name || '';
   return true;
 }
 
@@ -89,7 +94,8 @@ function updateTopbarUser(){
   const label = document.getElementById('topbarUserLabel');
   if(!label || !CURRENT_ROLE) return;
   const roleLabel = CURRENT_ROLE === 'ceo' ? 'CEO' : CURRENT_ROLE === 'manager' ? 'Manager' : CURRENT_ROLE === 'admin' ? 'Admin' : 'Buyer';
-  label.textContent = CURRENT_EMPLOYEE_ID + ' · ' + roleLabel;
+  // Shows the person's name when one is set in EMPLOYEES, else their role.
+  label.textContent = CURRENT_EMPLOYEE_ID + ' · ' + (CURRENT_EMPLOYEE_NAME || roleLabel);
 }
 // Applies a successful login WITHOUT reloading the page. Used to reload
 // here and rely on restoreSession() picking the session back up from
@@ -104,6 +110,7 @@ function updateTopbarUser(){
 function enterApp(emp){
   CURRENT_ROLE = emp.role;
   CURRENT_EMPLOYEE_ID = emp.id;
+  CURRENT_EMPLOYEE_NAME = emp.name || '';
   hideLoginOverlay();
   updateTopbarUser();
   // app.js already ran its first render before login happened (with
