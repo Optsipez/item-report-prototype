@@ -44,6 +44,15 @@ for(let i = ITEMS.length - 1; i >= 0; i--){
   if(isHiddenItem(ITEMS[i])) ITEMS.splice(i, 1);
 }
 
+/* Size Master / Fabric / Price Point come from js/item-attrs.js (Stock Data sheet);
+   copy them onto each item so they behave like any other field. */
+ITEMS.forEach(it => {
+  const a = (typeof ITEM_ATTRS !== 'undefined' && ITEM_ATTRS[it['Item Code']]) || [];
+  it['Size Master'] = a[0] || '';
+  it['Fabric'] = a[1] || '';
+  it['Price Point'] = a[2] || '';
+});
+
 /* ============================================================
    AVG — "U-FNL AVG" demand figure
    ------------------------------------------------------------
@@ -1573,6 +1582,9 @@ const COLUMN_LAYOUT = [
       { field:'Lifestyle', label:'Lifestyle', fmt:'lifestyle' },
       { field:'Vendor Name', label:'Vendor Name' },
       { field:'Country Of Origin', label:'Origin' },
+      { field:'Size Master', label:'Size Master' },
+      { field:'Fabric', label:'Fabric' },
+      { field:'Price Point', label:'Price Point' },
       { field:'Currency Code', label:'Currency' } ] },
   { type:'group', key:'fob', title:'FOB Cost', short:'FOB', cols:[
       { field:'First FOB', label:'First FOB', fmt:'money2' },
