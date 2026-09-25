@@ -205,14 +205,22 @@
           <div class="grid-actions">
             <button id="collapseAllBtn">Collapse all sections</button>
             <button id="expandAllBtn">Expand all sections</button>
-            <label class="dept-stock-filter" title="Furniture-department rows stay visible; any Stock by Month cell with SOME stock below this number is flagged — shown as a red 0 instead of the real figure">
-              <span class="dsf-label">Furniture ≥</span>
-              <input type="number" id="minStockFurniture" placeholder="—" inputmode="numeric">
-            </label>
-            <label class="dept-stock-filter" title="Accessory-department rows stay visible; any Stock by Month cell with SOME stock below this number is flagged — shown as a red 0 instead of the real figure">
-              <span class="dsf-label">Accessory ≥</span>
-              <input type="number" id="minStockAccessory" placeholder="—" inputmode="numeric">
-            </label>
+            <div class="date-field" id="dateFromField" title="From date: type it as DD-MMM-YY (for example 05-Mar-26) or pick it from the calendar">
+              <span class="dsf-label">From</span>
+              <input type="text" id="dateFrom" class="date-text" placeholder="DD-MMM-YY" maxlength="11" autocomplete="off" spellcheck="false" aria-label="From date: type it as DD-MMM-YY (for example 05-Mar-26) or pick it from the calendar">
+              <button type="button" class="cal-btn" id="dateFromBtn" aria-label="Open calendar for from date" title="Pick from a calendar">
+                <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>
+              </button>
+              <input type="date" class="cal-native" id="dateFromNative" tabindex="-1" aria-hidden="true">
+            </div>
+            <div class="date-field" id="dateToField" title="To date: type it as DD-MMM-YY (for example 05-Mar-26) or pick it from the calendar">
+              <span class="dsf-label">To</span>
+              <input type="text" id="dateTo" class="date-text" placeholder="DD-MMM-YY" maxlength="11" autocomplete="off" spellcheck="false" aria-label="To date: type it as DD-MMM-YY (for example 05-Mar-26) or pick it from the calendar">
+              <button type="button" class="cal-btn" id="dateToBtn" aria-label="Open calendar for to date" title="Pick from a calendar">
+                <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>
+              </button>
+              <input type="date" class="cal-native" id="dateToNative" tabindex="-1" aria-hidden="true">
+            </div>
             <button id="omanToggleBtn" type="button" class="oman-toggle"></button>
             <label class="stats-window-field" title="Recalculate AVG, YTD Sold (renamed to match), and Total Received Qty over a shorter trailing window instead of the full history — the window is always that many months back PLUS the current month.">
               <span class="dsf-label">Window</span>

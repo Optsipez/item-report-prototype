@@ -1781,9 +1781,8 @@ function gridQuerySignature(){
   const filters = Object.keys(activeFilters).sort().map(k => k + ':' + Array.from(activeFilters[k]).sort().join(',')).join('|');
   const sort = gridSort.map(s => s.field + s.dir).join(',');
   const group = gridGroup ? gridGroup.field : '';
-  const dept = DEPT_STOCK_MIN_GROUPS.map(g => g.inputId + '=' + (deptStockMin[g.inputId] ?? '')).join(',');
   const focus = gridFocus ? gridFocus.label + ':' + gridFocus.codes.size : '';
-  return [filters, sort, group, dept, srQtyInclOman, statsWindow, focus].join('~~');
+  return [filters, sort, group, srQtyInclOman, statsWindow, focus].join('~~');
 }
 function groupKeyFor(val){
   return String(val == null ? '' : val).trim().toUpperCase();
@@ -2381,21 +2380,9 @@ function buildGridBody(items, cols, pageStart){
         if(isMonthly){
           const raw = cellValueForItem(item, col.field);
           const num = raw === null || raw === undefined ? 0 : raw;
-          // Furniture/Accessory boxes: a month that DID have stock, just less
-          // than what was typed, displays as a red "0" — flagged as
-          // below-minimum rather than genuinely empty (which stays a plain
-          // dash, unrelated "zero" styling, untouched).
-          const min = col.field.startsWith('__stock_') ? deptStockMinForItem(item) : undefined;
-          const belowMin = min !== undefined && num > 0 && num < min;
-          if(belowMin){
-            td.textContent = '0';
-            td.classList.add('below-min');
-            td.title = 'Actual stock received: ' + num + ' — below the minimum of ' + min;
-          } else {
-            td.textContent = num === 0 ? '—' : num;
-            if(num === 0) td.classList.add('zero');
-            if(num < 0) td.classList.add('neg');
-          }
+          td.textContent = num === 0 ? '—' : num;
+          if(num === 0) td.classList.add('zero');
+          if(num < 0) td.classList.add('neg');
           if(col.group === 'soldby' || col.group === 'soldby-old'){
             const w = MONTH_WINDOW[+col.field.slice(7)];
             makeWeeklyCell(td, item, w ? { year: w.year, month: w.m } : undefined);
@@ -2413,35 +2400,91 @@ function buildGridBody(items, cols, pageStart){
   return tbody;
 }
 
-/* Per-department minimum-stock filters (toolbar, next to Collapse/Expand all).
-   Each box only ever looks at items in its own fixed set of department
-   codes — a row in neither list is never touched by either box. Checked
-   against "Stock by month" (same rolling 13-month window as the 13-mo Trend
-   column and Total Received Qty), not the total SOH: if ANY of those 13
-   monthly values is below what's typed, the item is hidden. */
-const DEPT_STOCK_MIN_GROUPS = [
-  { inputId: 'minStockFurniture', codes: ['10', '11', '12', '13', '14', '15', '17'] },
-  { inputId: 'minStockAccessory', codes: ['01', '02', '03', '04', '05', '06', '07', '08', '09', '18', '19', '20'] },
-];
-const deptStockMin = {};   // inputId -> number, or absent when that box is empty
-function parseDeptStockMin(raw){
-  const n = Number(raw);
-  return raw === '' || !isFinite(n) ? null : n;
+/* From / To date fields (toolbar, next to Collapse/Expand all). Each accepts a typed date in
+   DD-MMM-YY (05-Mar-26; also 5 mar 2026, 05/Mar/26 -- month always as a word so 03/05 can
+   never be read two ways) or one picked from the calendar button. Typed text is checked when
+   you leave the box or press Enter and rewritten in the standard form; a bad date turns the
+   box red. The chosen dates are kept in gridDateRange (Date at local midnight, or null) and
+   announced with a 'gridDateRangeChange' event -- nothing in the grid uses them yet. */
+const gridDateRange = { from: null, to: null };
+const MONTH_FULL = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+function formatDMY(d){
+  return String(d.getDate()).padStart(2, '0') + '-' + MONTHS[d.getMonth()] + '-' + String(d.getFullYear()).slice(-2);
 }
-DEPT_STOCK_MIN_GROUPS.forEach(group => {
-  const el = document.getElementById(group.inputId);
-  if(!el) return;
-  el.addEventListener('input', () => {
-    const n = parseDeptStockMin(el.value);
-    if(n === null) delete deptStockMin[group.inputId]; else deptStockMin[group.inputId] = n;
-    el.closest('.dept-stock-filter').classList.toggle('dsf-active', n !== null);
-    renderGrid();
-  });
-});
+function dateToISO(d){
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+// -> { empty:true } | { date:Date } | { error:true }
+function parseDMY(raw){
+  const t = String(raw || '').trim();
+  if(!t) return { empty: true };
+  const m = t.match(/^(\d{1,2})[-\/. ]+([A-Za-z]{3,9})[-\/. ]+(\d{2}|\d{4})$/);
+  if(!m) return { error: true };
+  const word = m[2].toLowerCase();
+  const mon = MONTH_FULL.findIndex(n => n.slice(0, 3) === word.slice(0, 3) && n.startsWith(word));
+  if(mon < 0) return { error: true };
+  const day = +m[1];
+  const yr = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+  const d = new Date(yr, mon, day);
+  if(d.getFullYear() !== yr || d.getMonth() !== mon || d.getDate() !== day) return { error: true };   // e.g. 31-Feb
+  return { date: d };
+}
+(function setupDateRange(){
+  const fields = {
+    from: { text: document.getElementById('dateFrom'), btn: document.getElementById('dateFromBtn'), native: document.getElementById('dateFromNative'), box: document.getElementById('dateFromField'), name: 'From' },
+    to:   { text: document.getElementById('dateTo'),   btn: document.getElementById('dateToBtn'),   native: document.getElementById('dateToNative'),   box: document.getElementById('dateToField'),   name: 'To' },
+  };
+  if(!fields.from.text || !fields.to.text) return;
+  const tipDefault = { from: fields.from.box.title, to: fields.to.box.title };
 
-/* The Furniture/Accessory boxes no longer remove rows at all — see
-   applyDeptStockMin below, which instead zeroes out and reddens the specific
-   below-threshold month cells in the grid's own Stock by Month columns. */
+  function refresh(){
+    const f = gridDateRange.from, t = gridDateRange.to;
+    const backwards = f && t && f > t;
+    ['from', 'to'].forEach(k => {
+      const fld = fields[k], val = gridDateRange[k];
+      const bad = fld.box.dataset.bad === '1' || backwards;
+      fld.box.classList.toggle('invalid', !!bad);
+      fld.box.classList.toggle('dsf-active', !!val && !bad);
+      fld.box.title = fld.box.dataset.bad === '1' ? 'Not a valid date. Use DD-MMM-YY, for example 05-Mar-26.'
+        : backwards ? 'The From date is after the To date.' : tipDefault[k];
+      fld.native.value = val ? dateToISO(val) : '';
+    });
+    // the calendar itself only offers dates that make a sensible range
+    fields.from.native.max = t ? dateToISO(t) : '';
+    fields.to.native.min = f ? dateToISO(f) : '';
+  }
+  function announce(){
+    document.dispatchEvent(new CustomEvent('gridDateRangeChange', { detail: { from: gridDateRange.from, to: gridDateRange.to } }));
+  }
+  function commit(k, result){
+    const fld = fields[k];
+    fld.box.dataset.bad = result.error ? '1' : '0';
+    gridDateRange[k] = result.date || null;
+    fld.text.value = result.date ? formatDMY(result.date) : (result.error ? fld.text.value : '');
+    refresh();
+    announce();
+  }
+  ['from', 'to'].forEach(k => {
+    const fld = fields[k];
+    const fromText = () => { const r = parseDMY(fld.text.value); if(String(fld.text.value).trim() || gridDateRange[k]) commit(k, r); };
+    fld.text.addEventListener('blur', fromText);
+    fld.text.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); fromText(); } });
+    fld.text.addEventListener('input', () => { fld.box.dataset.bad = '0'; fld.box.classList.remove('invalid'); });
+    fld.btn.addEventListener('click', () => {
+      refresh();
+      try { fld.native.showPicker(); }
+      catch(e){ try { fld.native.focus(); fld.native.click(); } catch(e2){} }
+    });
+    fld.native.addEventListener('change', () => {
+      const v = fld.native.value;
+      if(!v){ commit(k, { empty: true }); return; }
+      const [y, mo, d] = v.split('-').map(Number);
+      commit(k, { date: new Date(y, mo - 1, d) });
+    });
+  });
+  refresh();
+})();
+
 /* "Focus": a specific set of items handed over by the dashboard (e.g. "Reorder
    now", 37 items) so All Products shows exactly those, on top of any filters.
    Shows as a removable chip in the filter bar; cleared by its x or Clear all. */
@@ -2468,13 +2511,6 @@ function getFilteredItems(){
     }
     return true;
   });
-}
-/* Is this item's Department Code covered by one of the Furniture/Accessory
-   boxes, and does that box currently have a number typed in? Returns the
-   threshold to check against, or undefined if neither applies. */
-function deptStockMinForItem(item){
-  const group = DEPT_STOCK_MIN_GROUPS.find(g => g.codes.includes(item['Department Code']));
-  return group ? deptStockMin[group.inputId] : undefined;
 }
 
 /* Splits the (already filtered/sorted) item list into pages, WITHOUT ever
