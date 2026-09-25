@@ -496,7 +496,10 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
   transition:border-color var(--t-fast),color var(--t-fast),background var(--t-fast);
 }
 .clear-filters:hover{border-color:var(--primary-line);color:var(--primary);background:var(--primary-weak);}
-#filterBlocks{display:flex;flex-direction:column;flex:1;}
+/* min-height:0 is essential: without it the container grows to fit every filter's full option
+   list (hundreds of vendor codes) instead of sharing the panel's height between filters.
+   Each .filter-block below has its own minimum, and the panel scrolls if they don't all fit. */
+#filterBlocks{display:flex;flex-direction:column;flex:1;min-height:0;}
 /* Each filter is its own small card — subtle border + lift, rather than a
    bare stacked list — with a lift on hover so the rail reads as a set of
    distinct, considered panels instead of one flat block of checkboxes. */
