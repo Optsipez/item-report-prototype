@@ -289,6 +289,7 @@ function dashActions(R){
       (cur.n ? cur.table : '<p class="dash-empty">Nothing here for this selection. Good.</p>') + '</section>';
 }
 
+const dashPOCodes = pos => { const s = new Set(); pos.forEach(p => p.codes.forEach(c => s.add(c))); return s; };
 function dashMoverTable(rows, up, total){
   if(!rows.length) return '<p class="dash-empty">No big movers.</p>';
   return '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>Before</th><th>Now</th><th>Change</th></tr></thead><tbody>' +
@@ -351,11 +352,13 @@ function renderDashboard(){
       '<section class="dash-card"><h3>Falling <span>units vs the 3 months before</span></h3>' + dashMoverTable(R.fallers, false, R.fallersAll.length) + '</section>' +
       '<section class="dash-card"><h3>Landing soon <span>next 30 days, ' + dashInt(R.soonUnits) + ' units</span></h3>' +
         (R.soonPOs.length ? '<table class="dash-table"><thead><tr><th class="l po">PO</th><th class="l vend">Vendor</th><th>Units</th><th>ETA</th></tr></thead><tbody>' +
-          R.soonPOs.slice(0, 8).map(p => '<tr><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l muted">' + dashEsc(vname(p.vendor)) + '</td><td>' + dashInt(p.units) + '</td><td>' + dashEsc(dashDate(p.eta)) + ' <small>(' + p.in + ' d)</small></td></tr>').join('') + '</tbody></table>'
+          R.soonPOs.slice(0, 8).map(p => '<tr><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l muted">' + dashEsc(vname(p.vendor)) + '</td><td>' + dashInt(p.units) + '</td><td>' + dashEsc(dashDate(p.eta)) + ' <small>(' + p.in + ' d)</small></td></tr>').join('') + '</tbody></table>' +
+            '<button type="button" class="dash-btn ghost dash-more" data-list="soon">See all ' + dashInt(R.soonPOs.length) + ' POs (' + dashInt(dashPOCodes(R.soonPOs).size) + ' items) &rarr;</button>'
           : '<p class="dash-empty">No POs due in the next 30 days.</p>') + '</section>' +
       '<section class="dash-card"><h3>Vendors to chase <span>most late units, click to filter</span></h3>' +
         (R.chase.length ? '<table class="dash-table"><thead><tr><th class="l vend">Vendor</th><th>Late POs</th><th>Late units</th><th>Worst</th><th>Usual lead</th></tr></thead><tbody>' +
-          R.chase.slice(0, 8).map(c => '<tr class="dash-pick" data-vendor="' + dashEsc(c.vendor) + '" data-goto="late" title="Show only this vendor"><td class="l"><b>' + dashEsc(vname(c.vendor)) + '</b></td><td>' + c.pos + '</td><td>' + dashInt(c.units) + '</td><td class="bad">' + c.worst + ' d</td><td>' + dashInt(dashLeadDays(c.vendor)) + ' d</td></tr>').join('') + '</tbody></table>'
+          R.chase.slice(0, 8).map(c => '<tr class="dash-pick" data-vendor="' + dashEsc(c.vendor) + '" data-goto="late" title="Show only this vendor"><td class="l"><b>' + dashEsc(vname(c.vendor)) + '</b></td><td>' + c.pos + '</td><td>' + dashInt(c.units) + '</td><td class="bad">' + c.worst + ' d</td><td>' + dashInt(dashLeadDays(c.vendor)) + ' d</td></tr>').join('') + '</tbody></table>' +
+            '<button type="button" class="dash-btn ghost dash-more" data-list="chase">See all ' + dashInt(R.chase.length) + ' vendors (' + dashInt(dashPOCodes(R.latePOs).size) + ' items) &rarr;</button>'
           : '<p class="dash-empty">No late POs. Good.</p>') + '</section>' +
       '<section class="dash-card"><h3>Units due by month <span>all open POs</span></h3>' + dashColumns(inbound) + '</section>' +
       '<section class="dash-card"><h3>Sales by branch <span>last 12 months</span></h3>' + dashBarList(branches) + '</section>' +
@@ -372,8 +375,14 @@ function renderDashboard(){
   }));
   root.querySelectorAll('.dash-seg button').forEach(b => b.addEventListener('click', () => { dashReorderView = b.dataset.rv; renderDashboard(); }));
   root.querySelectorAll('.dash-more').forEach(b => b.addEventListener('click', () => {
+    const suffix = scopeParts.length ? ' – ' + scopeParts.join(' · ') : '';
+    if(b.dataset.list){
+      const soon = b.dataset.list === 'soon';
+      openGridFocus((soon ? 'Landing soon' : 'Late vendors') + suffix, dashPOCodes(soon ? R.soonPOs : R.latePOs), null);
+      return;
+    }
     const up = b.dataset.movers === 'up', list = up ? R.risersAll : R.fallersAll;
-    openGridFocus((up ? 'Rising' : 'Falling') + (scopeParts.length ? ' – ' + scopeParts.join(' · ') : ''), list.map(x => x.it['Item Code']), null);
+    openGridFocus((up ? 'Rising' : 'Falling') + suffix, list.map(x => x.it['Item Code']), null);
   }));
   const open = $('dashOpenAll');
   if(open) open.addEventListener('click', () => {
