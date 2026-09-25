@@ -1591,7 +1591,7 @@ const COLUMN_LAYOUT = [
       { field:'Previous FOB Cost', label:'Prev FOB', fmt:'money2' },
       { field:'Latest FOB Cost', label:'Latest FOB', fmt:'money2' } ] },
   { type:'group', key:'logi', title:'Receipts &amp; Sales', short:'Rcv/Sold', cols:[
-      { field:'Lrcv Date', label:'Lrcv Date', fmt:'lrcvDate' },
+      { field:'Lrcv Date', label:'Lrcv Date', fmt:'lrcvDate', sortable:true },
       { field:'Lrcv Qty', label:'Lrcv Qty' },
       { field:'Last Sold Date', label:'Last Sold Date', fmt:'lastSoldDate' } ] },
   // Displayed current month first, then backwards (newest -> oldest); MONTH_WINDOW
@@ -1900,6 +1900,10 @@ function sortValueFor(field, item){
   if(field === 'PUDA Code') return String(item[field] || '').toLowerCase().slice(-3);
   if(field === 'Current Plan Code') return PLAN_CODE_RANK[String(item[field] || '').trim().toUpperCase()] ?? 0;
   if(field === 'STK Age') return item['__stkAgeSno'] ?? 0;
+  if(field === 'Lrcv Date'){                          // "DD-MM-YYYY" -> YYYYMMDD; no date -> null (always sorts last)
+    const m = String(item[field] || '').match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    return m ? Number(m[3] + m[2] + m[1]) : null;
+  }
   return Number(item[field]) || 0;
 }
 function sortGridItems(items){
@@ -1915,6 +1919,8 @@ function sortGridItems(items){
     for(const s of sorts){                            // primary -> secondary -> ...
       const va = sortValueFor(s.field, a), vb = sortValueFor(s.field, b);
       if(va === vb) continue;
+      if(va === null) return 1;                       // blanks (e.g. no Lrcv Date) go last either way
+      if(vb === null) return -1;
       const cmp = va < vb ? -1 : 1;
       return s.dir === 'asc' ? cmp : -cmp;
     }
