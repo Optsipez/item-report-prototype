@@ -352,7 +352,7 @@ function renderDashboard(){
       '<section class="dash-card"><h3>Falling <span>units vs the 3 months before</span></h3>' + dashMoverTable(R.fallers, false, R.fallersAll.length) + '</section>' +
       '<section class="dash-card"><h3>Landing soon <span>next 30 days, ' + dashInt(R.soonUnits) + ' units</span></h3>' +
         (R.soonPOs.length ? '<table class="dash-table"><thead><tr><th class="l po">PO</th><th class="l vend">Vendor</th><th>Units</th><th>ETA</th></tr></thead><tbody>' +
-          R.soonPOs.slice(0, 8).map(p => '<tr><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l muted">' + dashEsc(vname(p.vendor)) + '</td><td>' + dashInt(p.units) + '</td><td>' + dashEsc(dashDate(p.eta)) + ' <small>(' + p.in + ' d)</small></td></tr>').join('') + '</tbody></table>' +
+          R.soonPOs.slice(0, 8).map(p => '<tr class="dash-pick dash-po" data-po="' + dashEsc(p.po) + '" title="Show the items on this PO"><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l muted">' + dashEsc(vname(p.vendor)) + '</td><td>' + dashInt(p.units) + '</td><td>' + dashEsc(dashDate(p.eta)) + ' <small>(' + p.in + ' d)</small></td></tr>').join('') + '</tbody></table>' +
             '<button type="button" class="dash-btn ghost dash-more" data-list="soon">See all ' + dashInt(R.soonPOs.length) + ' POs (' + dashInt(dashPOCodes(R.soonPOs).size) + ' items) &rarr;</button>'
           : '<p class="dash-empty">No POs due in the next 30 days.</p>') + '</section>' +
       '<section class="dash-card"><h3>Vendors to chase <span>most late units, click to filter</span></h3>' +
@@ -367,7 +367,11 @@ function renderDashboard(){
   // wiring
   const $ = id => document.getElementById(id);
   root.querySelectorAll('.dash-tile').forEach(b => b.addEventListener('click', () => { dashTab = b.dataset.tab; renderDashboard(); }));
-  root.querySelectorAll('.dash-pick').forEach(tr => tr.addEventListener('click', () => {
+  root.querySelectorAll('.dash-po').forEach(tr => tr.addEventListener('click', () => {
+    const p = R.soonPOs.find(x => x.po === tr.dataset.po);
+    if(p) openGridFocus(p.po, p.codes, null);
+  }));
+  root.querySelectorAll('.dash-pick:not(.dash-po)').forEach(tr => tr.addEventListener('click', () => {
     dashScope = { ...dashScope, vendor: tr.dataset.vendor }; dashSaveScope();
     dashTab = tr.dataset.goto || 'late';
     if(dashTab === 'reorder') dashReorderView = 'item';   // now that one vendor is picked, show its items
