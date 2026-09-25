@@ -320,7 +320,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .dash-trend-col.partial .dash-trend-bar span{background:repeating-linear-gradient(135deg,var(--pos) 0 6px,#34d399 6px 12px);}
 .dash-trend-k small{display:block;font-size:10.5px;color:var(--ink-faint);text-align:center;}
 .dash-trend-v{font-size:var(--fs-2xs);color:var(--ink-soft);font-variant-numeric:tabular-nums;height:14px;}
-.dash-trend-k{font-size:var(--fs-2xs);color:var(--ink-faint);white-space:nowrap;}
+.dash-trend-k{font-size:var(--fs-2xs);color:var(--ink-faint);white-space:nowrap;height:2.6em;text-align:center;}
 .dash-bars{display:flex;flex-direction:column;gap:10px;}
 .dash-bar-row{display:grid;grid-template-columns:110px minmax(0,1fr) 64px;align-items:center;gap:var(--sp-3);font-size:var(--fs-sm);}
 .dash-bar-k{color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
