@@ -168,7 +168,8 @@ function dashCompute(){
   const rv = {};
   R.reorder.forEach(x => {
     const v = x.it['Vendor Code'];
-    const g = rv[v] = rv[v] || { vendor: v, items: 0, atRisk: 0, units: 0, leadDays: x.leadDays };
+    const g = rv[v] = rv[v] || { vendor: v, items: 0, atRisk: 0, units: 0, leadDays: x.leadDays, plans: new Set() };
+    g.plans.add(dashPlan(x.it));
     g.items++; g.atRisk += x.atRisk; g.units += Math.max(0, x.order);
   });
   R.reorderVendors = Object.values(rv).sort((a, b) => b.atRisk - a.atRisk);
@@ -256,8 +257,8 @@ function dashActions(R){
     { id: 'reorder', title: 'Reorder now', n: R.reorder.length, sub: R.reorderVendors.length + ' vendors \u00b7 AED ' + dashCompact(R.reorderAtRisk) + '/mo sales at risk', tone: 'warn',
       note: 'Selling items (Plan Codes A, K, C and P only) whose stock plus open POs will run out sooner than the vendor’s lead time (measured from past receipts; ' + Math.round(overallMo * 10) / 10 + ' months typical). Ranked by monthly sales value at risk. Order now = quantity to cover the lead time plus ' + DASH_BUFFER_MONTHS + ' month of safety stock. Buyers order per vendor, so the vendor view shows who to order from first; click a vendor to see its items.',
       table: dashReorderView === 'vendor'
-        ? '<table class="dash-table"><thead><tr><th class="l vend">Vendor</th><th>Items to order</th><th>Lead time</th><th>Units to order</th><th>Sales at risk / mo</th></tr></thead><tbody>' +
-          R.reorderVendors.slice(0, 10).map(g => '<tr class="dash-pick" data-vendor="' + dashEsc(g.vendor) + '" data-goto="reorder" title="Show this vendor\u2019s items"><td class="l"><b>' + dashEsc(vname(g.vendor)) + '</b></td><td>' + g.items + '</td><td>' + dashInt(g.leadDays) + ' d</td><td>' + dashInt(g.units) + '</td><td><b>AED ' + dashCompact(g.atRisk) + '</b></td></tr>').join('') + '</tbody></table>'
+        ? '<table class="dash-table"><thead><tr><th class="l vend">Vendor</th><th>CPC</th><th>Items to order</th><th>Lead time</th><th>Units to order</th><th>Sales at risk / mo</th></tr></thead><tbody>' +
+          R.reorderVendors.slice(0, 10).map(g => '<tr class="dash-pick" data-vendor="' + dashEsc(g.vendor) + '" data-goto="reorder" title="Show this vendor\u2019s items"><td class="l"><b>' + dashEsc(vname(g.vendor)) + '</b></td><td class="plan-cell dash-cpc">' + ['A', 'K', 'C', 'P'].filter(p => g.plans.has(p)).join(' ') + '</td><td>' + g.items + '</td><td>' + dashInt(g.leadDays) + ' d</td><td>' + dashInt(g.units) + '</td><td><b>AED ' + dashCompact(g.atRisk) + '</b></td></tr>').join('') + '</tbody></table>'
         : '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>CPC</th><th>Sold / mo</th><th>Stock</th><th>On PO</th><th>Cover</th><th>Lead time</th><th>Order now</th><th>At risk / mo</th></tr></thead><tbody>' +
         R.reorder.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + dashPlanCell(x.it) + '<td>' + x.rate.toFixed(1) + '</td><td>' + dashInt(x.soh) + '</td><td>' + dashInt(x.po) + '</td><td class="warn">' + x.coverPO.toFixed(1) + ' mo</td><td>' + dashInt(x.leadDays) + ' d</td><td><b>' + dashInt(Math.max(0, x.order)) + '</b></td><td>AED ' + dashCompact(x.atRisk) + '</td></tr>').join('') + '</tbody></table>',
       codes: R.reorder.map(x => x.it['Item Code']), sort: null },
