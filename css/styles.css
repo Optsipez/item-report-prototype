@@ -496,16 +496,16 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
   transition:border-color var(--t-fast),color var(--t-fast),background var(--t-fast);
 }
 .clear-filters:hover{border-color:var(--primary-line);color:var(--primary);background:var(--primary-weak);}
-/* min-height:0 is essential: without it the container grows to fit every filter's full option
-   list (hundreds of vendor codes) instead of sharing the panel's height between filters.
-   Each .filter-block below has its own minimum, and the panel scrolls if they don't all fit. */
-#filterBlocks{display:flex;flex-direction:column;flex:1;min-height:0;}
+/* The filters share the panel's height in exactly equal rows (a grid, so no leftover pixels
+   push the panel into a stray few-pixel scroll), and never grow to fit their own option
+   lists -- min-height:0 / minmax(0,1fr) is essential: without it the container grows to fit every
+   filter's full option list (hundreds of vendor codes) instead of sharing the height. */
+#filterBlocks{display:grid;grid-auto-rows:minmax(0,1fr);gap:var(--sp-2);flex:1;min-height:0;}
 /* Each filter is its own small card — subtle border + lift, rather than a
    bare stacked list — with a lift on hover so the rail reads as a set of
    distinct, considered panels instead of one flat block of checkboxes. */
 .filter-block{
-  flex:1;min-height:96px;display:flex;flex-direction:column;
-  margin-bottom:var(--sp-2);
+  min-height:0;display:flex;flex-direction:column;
   background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);
   padding:5px 8px 6px;box-shadow:var(--sh-xs);
   transition:box-shadow var(--t-fast),border-color var(--t-fast);
@@ -1413,7 +1413,8 @@ table.grid tbody td.fz-range{box-shadow:none;transition:box-shadow var(--t-med);
 .report.visible .tabs{animation:fadeIn .4s ease both;animation-delay:.14s;}
 
 /* filter rail — gentle reveal on load */
-.filter-block{animation:fadeUp .32s ease both;}
+/* fade only -- a slide-up here briefly made the filter panel 8px taller than its box (a flash of scrollbar) */
+.filter-block{animation:fadeIn .32s ease both;}
 .filter-block:nth-child(2){animation-delay:.03s}
 .filter-block:nth-child(3){animation-delay:.06s}
 .filter-block:nth-child(4){animation-delay:.09s}
