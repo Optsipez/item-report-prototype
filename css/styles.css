@@ -1539,3 +1539,4 @@ table.year-matrix tr.year-row td{animation:popIn .22s cubic-bezier(.16,1,.3,1) b
   :root{--rail-w:420px;--fz-sno:100px;--fz-item:110px;--fz-desc:280px;--fz-vendor:112px;--fz-range:140px;
         --fs-2xs:14px;--fs-xs:15px;--fs-sm:16px;--fs-base:17.5px;--fs-md:19px;--fs-lg:21px;--fs-xl:25px;--fs-2xl:32px;}
 }
+.dash-table td.dash-cpc{text-align:center;font-weight:650;color:var(--i-700);}

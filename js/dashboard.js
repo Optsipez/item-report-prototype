@@ -119,6 +119,11 @@ function dashWindows(){
 const unitsIn = (it, wins) => wins.reduce((a, mo) => { const yr = it.years[String(mo.year)]; return a + (yr ? (yr.sales[mo.m] || 0) : 0); }, 0);
 
 /* ---------- the numbers ---------- */
+/* Reorder / Out of stock only look at these Plan Codes (CPC); the rest never show. */
+const DASH_PLAN_CODES = new Set(['A', 'K', 'C', 'P']);
+const dashPlan = it => String(it['Current Plan Code'] || '').trim().toUpperCase();
+const dashPlanCell = it => '<td class="plan-cell dash-cpc">' + dashEsc(dashPlan(it)) + '</td>';
+
 function dashCompute(){
   const W = dashWindows();
   const vendorName = {};
@@ -137,7 +142,7 @@ function dashCompute(){
     const s3 = unitsIn(it, W.rate), p3 = unitsIn(it, W.prior), rate = s3 / 3;
     R.sold3 += s3; R.prior3 += p3; R.soh += soh; R.value += soh * cost;
     MONTH_WINDOW.forEach((w, i) => { R.monthTotals[i] += unitsIn(it, [w]); });
-    if(rate > 0){
+    if(rate > 0 && DASH_PLAN_CODES.has(dashPlan(it))){
       if(sohRaw <= 0 && po <= 0) R.oos.push({ it, rate, s3 });
       else {
         // Runs out before a fresh order could land? Stock + what's already on order,
@@ -249,17 +254,17 @@ function dashActions(R){
   const overallMo = dashDaysToMonths(LEAD_TIMES.overall);
   const tabs = [
     { id: 'reorder', title: 'Reorder now', n: R.reorder.length, sub: R.reorderVendors.length + ' vendors \u00b7 AED ' + dashCompact(R.reorderAtRisk) + '/mo sales at risk', tone: 'warn',
-      note: 'Selling items whose stock plus open POs will run out sooner than the vendor’s lead time (measured from past receipts; ' + Math.round(overallMo * 10) / 10 + ' months typical). Ranked by monthly sales value at risk. Order now = quantity to cover the lead time plus ' + DASH_BUFFER_MONTHS + ' month of safety stock. Buyers order per vendor, so the vendor view shows who to order from first; click a vendor to see its items.',
+      note: 'Selling items (Plan Codes A, K, C and P only) whose stock plus open POs will run out sooner than the vendor’s lead time (measured from past receipts; ' + Math.round(overallMo * 10) / 10 + ' months typical). Ranked by monthly sales value at risk. Order now = quantity to cover the lead time plus ' + DASH_BUFFER_MONTHS + ' month of safety stock. Buyers order per vendor, so the vendor view shows who to order from first; click a vendor to see its items.',
       table: dashReorderView === 'vendor'
         ? '<table class="dash-table"><thead><tr><th class="l vend">Vendor</th><th>Items to order</th><th>Lead time</th><th>Units to order</th><th>Sales at risk / mo</th></tr></thead><tbody>' +
           R.reorderVendors.slice(0, 10).map(g => '<tr class="dash-pick" data-vendor="' + dashEsc(g.vendor) + '" data-goto="reorder" title="Show this vendor\u2019s items"><td class="l"><b>' + dashEsc(vname(g.vendor)) + '</b></td><td>' + g.items + '</td><td>' + dashInt(g.leadDays) + ' d</td><td>' + dashInt(g.units) + '</td><td><b>AED ' + dashCompact(g.atRisk) + '</b></td></tr>').join('') + '</tbody></table>'
-        : '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>Sold / mo</th><th>Stock</th><th>On PO</th><th>Cover</th><th>Lead time</th><th>Order now</th><th>At risk / mo</th></tr></thead><tbody>' +
-        R.reorder.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + '<td>' + x.rate.toFixed(1) + '</td><td>' + dashInt(x.soh) + '</td><td>' + dashInt(x.po) + '</td><td class="warn">' + x.coverPO.toFixed(1) + ' mo</td><td>' + dashInt(x.leadDays) + ' d</td><td><b>' + dashInt(Math.max(0, x.order)) + '</b></td><td>AED ' + dashCompact(x.atRisk) + '</td></tr>').join('') + '</tbody></table>',
+        : '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>CPC</th><th>Sold / mo</th><th>Stock</th><th>On PO</th><th>Cover</th><th>Lead time</th><th>Order now</th><th>At risk / mo</th></tr></thead><tbody>' +
+        R.reorder.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + dashPlanCell(x.it) + '<td>' + x.rate.toFixed(1) + '</td><td>' + dashInt(x.soh) + '</td><td>' + dashInt(x.po) + '</td><td class="warn">' + x.coverPO.toFixed(1) + ' mo</td><td>' + dashInt(x.leadDays) + ' d</td><td><b>' + dashInt(Math.max(0, x.order)) + '</b></td><td>AED ' + dashCompact(x.atRisk) + '</td></tr>').join('') + '</tbody></table>',
       codes: R.reorder.map(x => x.it['Item Code']), sort: null },
     { id: 'oos', title: 'Out of stock, no PO', n: R.oos.length, sub: 'selling, none on hand, nothing on order', tone: 'bad',
-      note: 'Sold in the last 3 months, no stock, and no open PO: the items losing sales right now.',
-      table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th class="l vend">Vendor</th><th>Sold / mo</th><th>Sold (3 mo)</th><th>Lead time</th></tr></thead><tbody>' +
-        R.oos.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + '<td class="l muted">' + dashEsc(vname(x.it['Vendor Code'])) + '</td><td>' + x.rate.toFixed(1) + '</td><td>' + dashInt(x.s3) + '</td><td>' + dashInt(dashLeadDays(x.it['Vendor Code'])) + ' d</td></tr>').join('') + '</tbody></table>',
+      note: 'Sold in the last 3 months, no stock, and no open PO: the items losing sales right now. Plan Codes A, K, C and P only.',
+      table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>CPC</th><th class="l vend">Vendor</th><th>Sold / mo</th><th>Sold (3 mo)</th><th>Lead time</th></tr></thead><tbody>' +
+        R.oos.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + dashPlanCell(x.it) + '<td class="l muted">' + dashEsc(vname(x.it['Vendor Code'])) + '</td><td>' + x.rate.toFixed(1) + '</td><td>' + dashInt(x.s3) + '</td><td>' + dashInt(dashLeadDays(x.it['Vendor Code'])) + ' d</td></tr>').join('') + '</tbody></table>',
       codes: R.oos.map(x => x.it['Item Code']), sort: null },
     { id: 'late', title: 'Late POs', n: R.latePOs.length, sub: dashInt(R.lateUnits) + ' units past ETA', tone: 'bad',
       note: 'Open POs whose ETA was before ' + dashDate(DATA_AS_OF) + ' (the data date) and are still not received.',
