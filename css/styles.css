@@ -360,6 +360,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .dash-btn:hover{background:var(--primary-hover);border-color:var(--primary-hover);}
 .dash-btn.ghost{background:var(--panel);color:var(--ink);border-color:var(--line-strong);}
 .dash-btn.ghost:hover{border-color:var(--primary-line);color:var(--primary-hover);background:var(--primary-weak);}
+.dash-more{margin-top:var(--sp-3);align-self:flex-start;}
 .dash-asof{color:var(--ink-faint);font-size:var(--fs-sm);}
 .dash-scope{
   display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--sp-4);padding:var(--sp-4) var(--sp-5);margin-bottom:var(--sp-5);

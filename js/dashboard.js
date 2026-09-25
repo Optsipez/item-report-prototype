@@ -172,6 +172,8 @@ function dashCompute(){
   R.over.sort((a, b) => b.tied - a.tied);
   R.risers = R.movers.filter(x => x.d > 0).sort((a, b) => b.d - a.d).slice(0, 5);
   R.fallers = R.movers.filter(x => x.d < 0).sort((a, b) => a.d - b.d).slice(0, 5);
+  R.risersAll = R.movers.filter(x => x.d > 0).sort((a, b) => b.d - a.d);
+  R.fallersAll = R.movers.filter(x => x.d < 0).sort((a, b) => a.d - b.d);
 
   // branch sales over the last 12 complete months, for items in scope
   Object.keys(BRANCH_MONTHLY_SOLD_BY_ITEM).forEach(code => {
@@ -281,10 +283,11 @@ function dashActions(R){
       (cur.n ? cur.table : '<p class="dash-empty">Nothing here for this selection. Good.</p>') + '</section>';
 }
 
-function dashMoverTable(rows, up){
+function dashMoverTable(rows, up, total){
   if(!rows.length) return '<p class="dash-empty">No big movers.</p>';
   return '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>Before</th><th>Now</th><th>Change</th></tr></thead><tbody>' +
-    rows.map(x => '<tr>' + dashItemCell(x.it) + '<td>' + dashInt(x.p3) + '</td><td>' + dashInt(x.s3) + '</td><td class="' + (up ? 'good' : 'bad') + '">' + (up ? '+' : '') + dashInt(x.d) + '</td></tr>').join('') + '</tbody></table>';
+    rows.map(x => '<tr>' + dashItemCell(x.it) + '<td>' + dashInt(x.p3) + '</td><td>' + dashInt(x.s3) + '</td><td class="' + (up ? 'good' : 'bad') + '">' + (up ? '+' : '') + dashInt(x.d) + '</td></tr>').join('') + '</tbody></table>' +
+    '<button type="button" class="dash-btn ghost dash-more" data-movers="' + (up ? 'up' : 'down') + '">See all ' + dashInt(total) + ' ' + (up ? 'rising' : 'falling') + ' items &rarr;</button>';
 }
 
 function dashScopeBar(){
@@ -338,8 +341,8 @@ function renderDashboard(){
     '</div>' +
     '<div class="dash-grid">' +
       '<section class="dash-card wide"><h3>Units sold by month <span>' + dashEsc(scopeLine) + '</span></h3>' + dashColumns(trend) + '</section>' +
-      '<section class="dash-card"><h3>Rising <span>units vs the 3 months before</span></h3>' + dashMoverTable(R.risers, true) + '</section>' +
-      '<section class="dash-card"><h3>Falling <span>units vs the 3 months before</span></h3>' + dashMoverTable(R.fallers, false) + '</section>' +
+      '<section class="dash-card"><h3>Rising <span>units vs the 3 months before</span></h3>' + dashMoverTable(R.risers, true, R.risersAll.length) + '</section>' +
+      '<section class="dash-card"><h3>Falling <span>units vs the 3 months before</span></h3>' + dashMoverTable(R.fallers, false, R.fallersAll.length) + '</section>' +
       '<section class="dash-card"><h3>Landing soon <span>next 30 days, ' + dashInt(R.soonUnits) + ' units</span></h3>' +
         (R.soonPOs.length ? '<table class="dash-table"><thead><tr><th class="l po">PO</th><th class="l vend">Vendor</th><th>Units</th><th>ETA</th></tr></thead><tbody>' +
           R.soonPOs.slice(0, 8).map(p => '<tr><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l muted">' + dashEsc(vname(p.vendor)) + '</td><td>' + dashInt(p.units) + '</td><td>' + dashEsc(dashDate(p.eta)) + ' <small>(' + p.in + ' d)</small></td></tr>').join('') + '</tbody></table>'
@@ -362,6 +365,10 @@ function renderDashboard(){
     renderDashboard();
   }));
   root.querySelectorAll('.dash-seg button').forEach(b => b.addEventListener('click', () => { dashReorderView = b.dataset.rv; renderDashboard(); }));
+  root.querySelectorAll('.dash-more').forEach(b => b.addEventListener('click', () => {
+    const up = b.dataset.movers === 'up', list = up ? R.risersAll : R.fallersAll;
+    openGridFocus((up ? 'Rising' : 'Falling') + (scopeParts.length ? ' – ' + scopeParts.join(' · ') : ''), list.map(x => x.it['Item Code']), null);
+  }));
   const open = $('dashOpenAll');
   if(open) open.addEventListener('click', () => {
     const c = dashCurrentTab;
