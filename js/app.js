@@ -110,20 +110,26 @@ function trailingStock(item, anchorYear, anchorMonth, n){
    A fixed white reference line sits at the exact vertical centre and never
    moves, purely so a glance shows whether Sold's fill has risen past the
    halfway point (i.e. Sold > Stock) or not. Click opens the full
-   period-by-period breakdown in the popup. */
+   period-by-period breakdown in the popup.
+   The two totals are ytdSold()/totalReceivedQty() themselves, not a
+   separate sum over monthlySeries/monthlyStockSeries — those two already
+   agree at every stats-window setting except 'all', where ytdSold is a true
+   calendar year-to-date (Jan through the current month) rather than a
+   trailing 13-month sum. Using the same functions the YTD Sold and Total
+   Received Qty columns use keeps this tile's numbers identical to theirs,
+   instead of silently showing a different, larger "Sold" total. */
 function trendMiniBar(item){
   const n = statsWindowMonthCount();
-  const sold = monthlySeries(item, n), stock = monthlyStockSeries(item, n);
-  const stockTotal = stock.reduce((a, b) => a + b, 0);
-  const soldTotal = sold.reduce((a, b) => a + b, 0);
+  const stockTotal = totalReceivedQty(item);
+  const soldTotal = ytdSold(item);
   const clickHint = ' — click for the full ' + n + '-month breakdown';
   const denom = stockTotal + soldTotal;
   if(denom === 0) return '<span class="spark-empty" title="No stock or sales activity' + clickHint + '">—</span>';
   const sellThrough = Math.round((soldTotal / denom) * 100);
   const salePct = (soldTotal / denom * 100).toFixed(1);
   const stockPct = (100 - salePct).toFixed(1);
-  const title = 'Stock ' + stockTotal.toLocaleString('en-US') + '  ·  Sold ' + soldTotal.toLocaleString('en-US') +
-    '  ·  ' + sellThrough + '% sell-through (' + n + '-month total)' + clickHint;
+  const title = 'Total Received Qty ' + stockTotal.toLocaleString('en-US') + '  ·  ' + ytdSoldLabel() + ' ' + soldTotal.toLocaleString('en-US') +
+    '  ·  ' + sellThrough + '% sell-through' + clickHint;
   // A number you can actually read at a glance, plus the stacked bar as a
   // secondary visual cue — collapsed to just a thin two-colour block (no
   // label) it was unreadable; the split alone doesn't say what it's a split
@@ -379,14 +385,13 @@ function sparkLabel(){
 function sparkTip(){
   const n = statsWindowMonthCount();
   const periods = (n - 1) / 3;
-  const windowSlice = MONTH_WINDOW.slice(MONTH_WINDOW.length - n);
-  return n + '-month trend, ' +
-    monthColLabel(windowSlice[0]) + ' to ' + monthColLabel(MONTH_WINDOW[MONTH_WINDOW_LAST_DATA]) +
-    ' — a small bar, Stock (gold) filling down from the top and Sold (blue)\n' +
-    'filling up from the bottom, meeting at Sold\'s share of the two — always\n' +
-    'fully coloured, never empty. A fixed white line marks the exact centre:\n' +
-    'when the blue rises past it, Sold has overtaken Stock over the ' + n + ' months.\n' +
-    'The actual totals and sell-through rate (Sold ÷ (Stock + Sold)) are in the tooltip.\n' +
+  return 'Total Received Qty vs ' + ytdSoldLabel() + ' — a small bar, Received (gold) filling\n' +
+    'down from the top and Sold (blue) filling up from the bottom, meeting at\n' +
+    'Sold\'s share of the two — always fully coloured, never empty. A fixed\n' +
+    'white line marks the exact centre: when the blue rises past it, Sold has\n' +
+    'overtaken Received. The two totals are exactly ' + ytdSoldLabel() + ' and Total Received\n' +
+    'Qty from their own columns, so this bar always agrees with them.\n' +
+    'The actual totals and sell-through rate (Sold ÷ (Received + Sold)) are in the tooltip.\n' +
     'Click for a full breakdown: the current month, then ' + periods + ' 3-month period' + (periods === 1 ? '' : 's') + '\n' +
     'going backwards, each with its own bar, totals, and sell-through %.';
 }
