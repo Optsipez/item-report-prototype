@@ -42,7 +42,6 @@ const DASH_BUFFER_MONTHS = 1;      // safety stock on top of the lead time when 
 let dashTab = null;                // which action list is open
 let dashScope = null;              // { dept, cat, vendor } — loaded per employee
 let dashCurrentTab = null;
-let dashReorderView = 'vendor';   // 'vendor' (who to order from) or 'item'
 
 function dashPartOfDay(){
   const h = new Date().getHours();
@@ -255,12 +254,9 @@ function dashActions(R){
   const overallMo = dashDaysToMonths(LEAD_TIMES.overall);
   const tabs = [
     { id: 'reorder', title: 'Reorder now', n: R.reorder.length, sub: R.reorderVendors.length + ' vendors \u00b7 AED ' + dashCompact(R.reorderAtRisk) + '/mo sales at risk', tone: 'warn',
-      note: 'Selling items (Plan Codes A, K, C and P only) whose stock plus open POs will run out sooner than the vendor’s lead time (measured from past receipts; ' + Math.round(overallMo * 10) / 10 + ' months typical). Ranked by monthly sales value at risk. Order now = quantity to cover the lead time plus ' + DASH_BUFFER_MONTHS + ' month of safety stock. Buyers order per vendor, so the vendor view shows who to order from first; click a vendor to see its items.',
-      table: dashReorderView === 'vendor'
-        ? '<table class="dash-table"><thead><tr><th class="l vend">Vendor</th><th>CPC</th><th>Items to order</th><th>Lead time</th><th>Units to order</th><th>Sales at risk / mo</th></tr></thead><tbody>' +
-          R.reorderVendors.slice(0, 10).map(g => '<tr class="dash-pick" data-vendor="' + dashEsc(g.vendor) + '" data-goto="reorder" title="Show this vendor\u2019s items"><td class="l"><b>' + dashEsc(vname(g.vendor)) + '</b></td><td class="plan-cell dash-cpc">' + ['A', 'K', 'C', 'P'].filter(p => g.plans.has(p)).join(' ') + '</td><td>' + g.items + '</td><td>' + dashInt(g.leadDays) + ' d</td><td>' + dashInt(g.units) + '</td><td><b>AED ' + dashCompact(g.atRisk) + '</b></td></tr>').join('') + '</tbody></table>'
-        : '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>CPC</th><th>Sold / mo</th><th>Stock</th><th>On PO</th><th>Cover</th><th>Lead time</th><th>Order now</th><th>At risk / mo</th></tr></thead><tbody>' +
-        R.reorder.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + dashPlanCell(x.it) + '<td>' + x.rate.toFixed(1) + '</td><td>' + dashInt(x.soh) + '</td><td>' + dashInt(x.po) + '</td><td class="warn">' + x.coverPO.toFixed(1) + ' mo</td><td>' + dashInt(x.leadDays) + ' d</td><td><b>' + dashInt(Math.max(0, x.order)) + '</b></td><td>AED ' + dashCompact(x.atRisk) + '</td></tr>').join('') + '</tbody></table>',
+      note: 'Selling items (Plan Codes A, K, C and P only) whose stock plus open POs will run out sooner than the vendor’s lead time (measured from past receipts; ' + Math.round(overallMo * 10) / 10 + ' months typical). Ranked by monthly sales value at risk. Order now = quantity to cover the lead time plus ' + DASH_BUFFER_MONTHS + ' month of safety stock. Buyers order per vendor; click a vendor to open its items in All Products.',
+      table: '<table class="dash-table"><thead><tr><th class="l vend">Vendor</th><th>CPC</th><th>Items to order</th><th>Lead time</th><th>Units to order</th><th>Sales at risk / mo</th></tr></thead><tbody>' +
+          R.reorderVendors.slice(0, 10).map(g => '<tr class="dash-pick" data-vendor="' + dashEsc(g.vendor) + '" data-goto="reorder" title="Open this vendor’s items in All Products"><td class="l"><b>' + dashEsc(vname(g.vendor)) + '</b></td><td class="plan-cell dash-cpc">' + ['A', 'K', 'C', 'P'].filter(p => g.plans.has(p)).join(' ') + '</td><td>' + g.items + '</td><td>' + dashInt(g.leadDays) + ' d</td><td>' + dashInt(g.units) + '</td><td><b>AED ' + dashCompact(g.atRisk) + '</b></td></tr>').join('') + '</tbody></table>',
       codes: R.reorder.map(x => x.it['Item Code']), sort: null },
     { id: 'oos', title: 'Out of stock, no PO', n: R.oos.length, sub: 'selling, none on hand, nothing on order', tone: 'bad',
       note: 'Sold in the last 3 months, no stock, and no open PO: the items losing sales right now. Plan Codes A, K, C and P only.',
@@ -282,8 +278,7 @@ function dashActions(R){
   return '<div class="dash-tiles">' + tabs.map(t =>
       '<button type="button" class="dash-tile' + (t.id === dashTab ? ' on' : '') + (t.n && t.tone ? ' ' + t.tone : '') + '" data-tab="' + t.id + '">' +
         '<span class="dash-tile-k">' + t.title + '</span><span class="dash-tile-v">' + dashInt(t.n) + '</span><span class="dash-tile-n">' + dashEsc(t.sub) + '</span></button>').join('') + '</div>' +
-    '<section class="dash-card dash-detail"><div class="dash-detail-head"><h3>' + cur.title + ' <span>' + (cur.id === 'reorder' && dashReorderView === 'vendor' ? dashInt(R.reorderVendors.length) + ' vendors, ' + dashInt(cur.n) + ' items' + (R.reorderVendors.length > 10 ? ', top 10 vendors shown' : '') : dashInt(cur.n) + (cur.id === 'late' ? ' POs' : ' items') + (cur.n > 10 ? ', top 10 shown' : '')) + '</span></h3>' +
-      (cur.id === 'reorder' && cur.n ? '<span class="dash-seg"><button type="button" data-rv="vendor" class="' + (dashReorderView === 'vendor' ? 'on' : '') + '">By vendor</button><button type="button" data-rv="item" class="' + (dashReorderView === 'item' ? 'on' : '') + '">By item</button></span>' : '') +
+    '<section class="dash-card dash-detail"><div class="dash-detail-head"><h3>' + cur.title + ' <span>' + (cur.id === 'reorder' ? dashInt(R.reorderVendors.length) + ' vendors, ' + dashInt(cur.n) + ' items' + (R.reorderVendors.length > 10 ? ', top 10 vendors shown' : '') : dashInt(cur.n) + (cur.id === 'late' ? ' POs' : ' items') + (cur.n > 10 ? ', top 10 shown' : '')) + '</span></h3>' +
       (cur.n ? '<button type="button" class="dash-btn" id="dashOpenAll">Open ' + (cur.id === 'late' ? 'their ' + dashInt(cur.codes.length) + ' items' : 'all ' + dashInt(cur.n)) + ' in All Products &rarr;</button>' : '') + '</div>' +
       '<p class="dash-note">' + dashEsc(cur.note) + '</p>' +
       (cur.n ? cur.table : '<p class="dash-empty">Nothing here for this selection. Good.</p>') + '</section>';
@@ -372,12 +367,17 @@ function renderDashboard(){
     if(p) openGridFocus(p.po, p.codes, null);
   }));
   root.querySelectorAll('.dash-pick:not(.dash-po)').forEach(tr => tr.addEventListener('click', () => {
+    if(tr.dataset.goto === 'reorder'){
+      // Reorder is grouped by vendor only; clicking one opens its items
+      // straight into All Products instead of a second dashboard drill-down.
+      const items = R.reorder.filter(x => x.it['Vendor Code'] === tr.dataset.vendor).map(x => x.it['Item Code']);
+      openGridFocus('Reorder now – ' + vname(tr.dataset.vendor), items, null);
+      return;
+    }
     dashScope = { ...dashScope, vendor: tr.dataset.vendor }; dashSaveScope();
     dashTab = tr.dataset.goto || 'late';
-    if(dashTab === 'reorder') dashReorderView = 'item';   // now that one vendor is picked, show its items
     renderDashboard();
   }));
-  root.querySelectorAll('.dash-seg button').forEach(b => b.addEventListener('click', () => { dashReorderView = b.dataset.rv; renderDashboard(); }));
   root.querySelectorAll('.dash-more').forEach(b => b.addEventListener('click', () => {
     const suffix = scopeParts.length ? ' – ' + scopeParts.join(' · ') : '';
     if(b.dataset.list){
