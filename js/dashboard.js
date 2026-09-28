@@ -78,20 +78,45 @@ const dashAsOf = () => new Date(DATA_AS_OF + 'T00:00:00');
 const dashLink = code => 'href="#item=' + encodeURIComponent(code) + '"';
 
 /* ---------- scope (per employee, remembered in this browser) ---------- */
+// Same seven fields the All Products filter panel offers (FILTER_FIELD_MAP
+// in app.js), so the dashboard can be scoped by anything All Products can
+// be filtered by. dept/cat/vendor came first; range/group/puda/plan match
+// it up to full parity.
+const DASH_SCOPE_DEFAULTS = { dept: '', cat: '', vendor: '', range: '', group: '', puda: '', plan: '' };
 function dashScopeKey(){ return 'dashScope:' + (CURRENT_EMPLOYEE_ID || 'anon'); }
 function dashLoadScope(){
   let s = null;
   try { s = JSON.parse(localStorage.getItem(dashScopeKey()) || 'null'); } catch(e){}
-  dashScope = { dept: '', cat: '', vendor: '', ...(s || {}) };
+  dashScope = { ...DASH_SCOPE_DEFAULTS, ...(s || {}) };
 }
 function dashSaveScope(){ try { localStorage.setItem(dashScopeKey(), JSON.stringify(dashScope)); } catch(e){} }
-const dashScopeIsSet = () => !!(dashScope.dept || dashScope.cat || dashScope.vendor);
+const dashScopeIsSet = () => Object.keys(DASH_SCOPE_DEFAULTS).some(k => dashScope[k]);
+// PO_LINES carries only [po, item, desc, qty, eta, vendor, dept, cat] — no
+// Range Name/Group Desc/PUDA Desc/Plan Code, so a PO line's own item is
+// looked up here for those four.
+const DASH_ITEM_BY_CODE = (() => {
+  const m = {};
+  ITEMS.forEach(it => { m[it['Item Code']] = it; });
+  return m;
+})();
 function dashItemInScope(it){
   return (!dashScope.dept || it['Department Desc'] === dashScope.dept) &&
     (!dashScope.cat || it['Category'] === dashScope.cat) &&
-    (!dashScope.vendor || String(it['Vendor Code']).toUpperCase() === dashScope.vendor.toUpperCase());
+    (!dashScope.vendor || String(it['Vendor Code']).toUpperCase() === dashScope.vendor.toUpperCase()) &&
+    (!dashScope.range || it['Range Name'] === dashScope.range) &&
+    (!dashScope.group || it['Group Desc'] === dashScope.group) &&
+    (!dashScope.puda || it['PUDA Desc'] === dashScope.puda) &&
+    (!dashScope.plan || String(it['Current Plan Code']).toUpperCase() === dashScope.plan.toUpperCase());
 }
 function dashLineInScope(l){   // a PO line: [po, item, desc, qty, eta, vendor, dept, cat]
+  if(dashScope.range || dashScope.group || dashScope.puda || dashScope.plan){
+    const it = DASH_ITEM_BY_CODE[l[1]];
+    if(!it) return false;
+    if(dashScope.range && it['Range Name'] !== dashScope.range) return false;
+    if(dashScope.group && it['Group Desc'] !== dashScope.group) return false;
+    if(dashScope.puda && it['PUDA Desc'] !== dashScope.puda) return false;
+    if(dashScope.plan && String(it['Current Plan Code']).toUpperCase() !== dashScope.plan.toUpperCase()) return false;
+  }
   return (!dashScope.dept || l[6] === dashScope.dept) &&
     (!dashScope.cat || l[7] === dashScope.cat) &&
     (!dashScope.vendor || String(l[5]).toUpperCase() === dashScope.vendor.toUpperCase());
@@ -295,11 +320,21 @@ function dashMoverTable(rows, up, total){
 function dashScopeBar(){
   const uniq = f => [...new Set(ITEMS.map(i => i[f]).filter(Boolean))].sort();
   const opt = (arr, cur) => '<option value="">All</option>' + arr.map(v => '<option' + (v === cur ? ' selected' : '') + '>' + dashEsc(v) + '</option>').join('');
+  // Range Name / Group Desc / PUDA Desc run into the hundreds or thousands of
+  // values (matching FILTER_SEARCHABLE in app.js) — a plain <select> with
+  // that many options is unusable, so these get the same searchable
+  // text+datalist combo as Vendor code instead of a dropdown list.
+  const search = (id, field, label) => '<label>' + label + '<input id="' + id + '" list="' + id + 'List" value="' + dashEsc(dashScope[field]) + '" placeholder="All" autocomplete="off"></label>' +
+    '<datalist id="' + id + 'List">' + uniq(field === 'range' ? 'Range Name' : field === 'group' ? 'Group Desc' : 'PUDA Desc').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>';
   return '<div class="dash-scope"><span class="dash-scope-t">Show me</span>' +
     '<label>Department<select id="dashDept">' + opt(uniq('Department Desc'), dashScope.dept) + '</select></label>' +
     '<label>Category<select id="dashCat">' + opt(uniq('Category'), dashScope.cat) + '</select></label>' +
     '<label>Vendor code<input id="dashVendor" list="dashVendorList" value="' + dashEsc(dashScope.vendor) + '" placeholder="All" autocomplete="off"></label>' +
     '<datalist id="dashVendorList">' + uniq('Vendor Code').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>' +
+    search('dashRange', 'range', 'Range Name') +
+    search('dashGroup', 'group', 'Group Desc') +
+    search('dashPuda', 'puda', 'PUDA Desc') +
+    '<label>Plan<select id="dashPlan">' + opt(uniq('Current Plan Code'), dashScope.plan) + '</select></label>' +
     (dashScopeIsSet() ? '<button type="button" class="dash-btn ghost" id="dashReset">Show everything</button>' : '') + '</div>';
 }
 
@@ -323,7 +358,10 @@ function renderDashboard(){
   const inbound = R.inbound.map(b => ({ label: b.label, value: b.units, color: 'var(--stock)', title: b.label + ': ' + dashInt(b.units) + ' units due' }));
   const branches = Object.keys(R.branch).map(k => ({ label: k, value: R.branch[k], color: 'var(--pos)' })).sort((a, b) => b.value - a.value).slice(0, 8);
 
-  const scopeParts = [dashScope.dept, dashScope.cat, dashScope.vendor && 'Vendor ' + dashScope.vendor].filter(Boolean);
+  const scopeParts = [
+    dashScope.dept, dashScope.cat, dashScope.vendor && 'Vendor ' + dashScope.vendor,
+    dashScope.range, dashScope.group, dashScope.puda, dashScope.plan && 'Plan ' + dashScope.plan,
+  ].filter(Boolean);
   const scopeLine = (scopeParts.length ? scopeParts.join(' · ') + ' · ' : 'All ') + dashInt(R.items) + ' items';
 
   root.innerHTML =
@@ -393,12 +431,17 @@ function renderDashboard(){
     const c = dashCurrentTab;
     openGridFocus(c.title + (scopeParts.length ? ' – ' + scopeParts.join(' · ') : ''), c.codes, c.sort);
   });
-  const change = () => { dashScope = { dept: $('dashDept').value, cat: $('dashCat').value, vendor: $('dashVendor').value.trim() }; dashSaveScope(); renderDashboard(); };
-  $('dashDept').addEventListener('change', change);
-  $('dashCat').addEventListener('change', change);
-  $('dashVendor').addEventListener('change', change);
+  const change = () => {
+    dashScope = {
+      dept: $('dashDept').value, cat: $('dashCat').value, vendor: $('dashVendor').value.trim(),
+      range: $('dashRange').value.trim(), group: $('dashGroup').value.trim(),
+      puda: $('dashPuda').value.trim(), plan: $('dashPlan').value,
+    };
+    dashSaveScope(); renderDashboard();
+  };
+  ['dashDept', 'dashCat', 'dashVendor', 'dashRange', 'dashGroup', 'dashPuda', 'dashPlan'].forEach(id => $(id).addEventListener('change', change));
   const reset = $('dashReset');
-  if(reset) reset.addEventListener('click', () => { dashScope = { dept: '', cat: '', vendor: '' }; dashSaveScope(); renderDashboard(); });
+  if(reset) reset.addEventListener('click', () => { dashScope = { ...DASH_SCOPE_DEFAULTS }; dashSaveScope(); renderDashboard(); });
 }
 // app.js can run its first route before this file has loaded; cover that.
 if(document.getElementById('viewDash') && document.getElementById('viewDash').classList.contains('active')) renderDashboard();
