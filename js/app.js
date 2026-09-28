@@ -1393,6 +1393,31 @@ function buildBranchTable(wrapEl, item){
     html += '</tr>';
   });
 
+  // Oman -- M-MOMAN / M-WHOMN / M-Tot Pending Order Qty. Not per-UAE-store
+  // SOH (they come from SR_QTY_OMAN_BY_ITEM, not BRANCH_BY_ITEM) and have no
+  // monthly sales history of their own, so they get their own small group
+  // below the UAE stores rather than folding into the branch-rank list
+  // above, with their own colour so they read as a different kind of row.
+  // Not included in the Total row below -- that stays the UAE store SOH
+  // total, unchanged -- these are just shown for reference alongside it.
+  const oman = SR_QTY_OMAN_BY_ITEM[item['Item Code']] || { pend: 0, moman: 0, whomn: 0 };
+  const omanRows = [
+    { label: 'M-MOMAN', v: oman.moman },
+    { label: 'M-WHOMN', v: oman.whomn },
+    { label: 'M-Tot Pend Qty', v: oman.pend },   // M-Tot Pending Order Qty, short form
+  ];
+  html += '<tr class="branch-sep" aria-hidden="true"><td colspan="' + colCount + '"></td></tr>';
+  omanRows.forEach((r, oi) => {
+    sno++;
+    html += '<tr class="branch-oman' + (oi === 0 ? ' branch-first' : '') + (oi === omanRows.length - 1 ? ' branch-last' : '') + '">';
+    html += '<td class="branch-sno">' + sno + '</td>';
+    html += '<td>' + r.label + '</td>';
+    html += '<td class="' + (r.v === 0 ? 'zero' : (r.v < 0 ? 'neg' : '')) + '">' + r.v + '</td>';
+    html += '<td class="zero" title="Oman quantity — no monthly sales history">—</td>';
+    html += '<td class="branch-month zero" title="Oman quantity — no monthly sales history">—</td>'.repeat(monthLabels.length);
+    html += '</tr>';
+  });
+
   const sohTotal = codes.reduce((a, c) => a + branch[c], 0);
   const hasSold = !!BRANCH_MONTHLY_SOLD_BY_ITEM[item['Item Code']];
   html += '<tr class="branch-total"><td></td><td><strong>Total</strong></td>' +

@@ -744,6 +744,8 @@ table.branch-matrix tbody tr.branch-blue td{background:#bdd7ee;}
 table.branch-matrix tbody tr.branch-blue:hover td{background:#a1c6e6;}
 table.branch-matrix tbody tr.branch-grey td{background:#d9d9d9;}
 table.branch-matrix tbody tr.branch-grey:hover td{background:#c7c7c7;}
+table.branch-matrix tbody tr.branch-oman td{background:#d9c2e9;}
+table.branch-matrix tbody tr.branch-oman:hover td{background:#c7a5dc;}
 /* The 13 rolling sales months use the same green as All Products' Sold by
    Month block (header tint + light cell tint) instead of the group fill, so a
    sales column looks the same in both places. [class] keeps these above the
