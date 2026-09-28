@@ -1203,7 +1203,7 @@ function branchWeeklyItem(item, branchCode){
   Object.keys(byYear).forEach(y => { years[y] = { sales: byYear[y] }; });
   return {
     'Item Code': item['Item Code'],
-    'Description': item['Description'] + ' — ' + branchCode,
+    'Description': item['Description'] + ' — ' + branchDisplayLabel(branchCode),
     _wobbleKey: item['Item Code'] + '|' + branchCode,
     _integerDays: true,
     years,
@@ -1330,6 +1330,12 @@ BRANCH_GROUPS.forEach((g, gi) => g.codes.forEach(c => { BRANCH_GROUP_OF[c] = gi;
 function branchRank(code){ return code in BRANCH_RANK ? BRANCH_RANK[code] : BRANCH_ORDER.length; }
 function branchGroupIndex(code){ return code in BRANCH_GROUP_OF ? BRANCH_GROUP_OF[code] : -1; }
 function branchColorClass(code){ return 'branch-' + (BRANCH_COLOR_OF[code] || 'grey'); }
+// Display only -- the raw "-DM" suffix (display-model stock, see
+// storeStockValue above) reads as jargon to buyers. Everywhere a branch
+// code is shown as text it goes through this; the raw code (with "-DM")
+// stays the lookup key everywhere else -- BRANCH_BY_ITEM, data-branch
+// attributes, branchColorClass, etc.
+function branchDisplayLabel(code){ return String(code).replace(/-DM$/, '-Disp'); }
 /* Real per-branch monthly Sold — from BRANCH_MONTHLY_SOLD_BY_ITEM (see its
    header comment in branch-monthly.js for how it was built). null means
    "this item has no branch-level sales tracking at all" (shows as — );
@@ -1377,7 +1383,7 @@ function buildBranchTable(wrapEl, item){
     const isLast = ci === codes.length - 1 || group !== branchGroupIndex(codes[ci + 1]);
     html += '<tr class="' + branchColorClass(c) + (isFirst ? ' branch-first' : '') + (isLast ? ' branch-last' : '') + '">';
     html += '<td class="branch-sno">' + sno + '</td>';
-    html += '<td>' + c + '</td>';
+    html += '<td>' + branchDisplayLabel(c) + '</td>';
     html += '<td class="' + (soh === 0 ? 'zero' : (soh < 0 ? 'neg' : '')) + '">' + soh + '</td>';
     html += soldV == null
       ? '<td class="zero" title="No branch-level sales history for this item">—</td>'
@@ -1388,7 +1394,7 @@ function buildBranchTable(wrapEl, item){
       // all empty weeks — same as All Products does for a zero-sales month.
       return v == null
         ? '<td class="branch-month wk-cell zero" data-branch="' + c + '" data-y="' + w.year + '" data-m="' + w.m + '" title="No sales recorded for this item — click for the (empty) weekly breakdown">—</td>'
-        : '<td class="branch-month wk-cell' + (v === 0 ? ' zero' : (v < 0 ? ' neg' : '')) + '" data-branch="' + c + '" data-y="' + w.year + '" data-m="' + w.m + '" title="Weekly breakdown for ' + c + ', starting ' + MONTHS[w.m] + ' ' + w.year + '">' + v + '</td>';
+        : '<td class="branch-month wk-cell' + (v === 0 ? ' zero' : (v < 0 ? ' neg' : '')) + '" data-branch="' + c + '" data-y="' + w.year + '" data-m="' + w.m + '" title="Weekly breakdown for ' + branchDisplayLabel(c) + ', starting ' + MONTHS[w.m] + ' ' + w.year + '">' + v + '</td>';
     }).join('');
     html += '</tr>';
   });
