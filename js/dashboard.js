@@ -356,7 +356,7 @@ function renderDashboard(){
     return { label: monthColLabel(w), value: R.monthTotals[i], nodata, partial, title: monthColLabel(w) + ': ' + (nodata ? 'no data yet' : dashInt(R.monthTotals[i]) + ' units' + (partial ? ' so far (month in progress)' : '')) };
   }).reverse();   // newest month first
   const inbound = R.inbound.map(b => ({ label: b.label, value: b.units, color: 'var(--stock)', title: b.label + ': ' + dashInt(b.units) + ' units due' }));
-  const branches = Object.keys(R.branch).map(k => ({ label: k, value: R.branch[k], color: 'var(--pos)' })).sort((a, b) => b.value - a.value).slice(0, 8);
+  const branches = Object.keys(R.branch).map(k => ({ label: branchDisplayLabel(k), value: R.branch[k], color: 'var(--pos)' })).sort((a, b) => b.value - a.value).slice(0, 8);
 
   const scopeParts = [
     dashScope.dept, dashScope.cat, dashScope.vendor && 'Vendor ' + dashScope.vendor,
