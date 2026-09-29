@@ -374,9 +374,13 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .dash-scope-t{flex-basis:100%;}
 .dash-scope #dashReset{flex-basis:100%;flex-grow:0;}
 .dash-scope-t{font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--ink-faint);padding-bottom:9px;}
-.dash-scope label{flex:1 1 170px;display:flex;flex-direction:column;gap:4px;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink-faint);}
+/* 150px, not 170 -- at the dashboard's capped content width (1240px), 7
+   fields need to fit in one line: (1240 - padding - 6 gaps) / 7 ≈ 153px is
+   the most room there is, so 150 is the widest basis that still lets every
+   field land on one row instead of wrapping. */
+.dash-scope label{flex:1 1 150px;min-width:0;display:flex;flex-direction:column;gap:4px;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink-faint);}
 .dash-scope select,.dash-scope input{
-  min-width:170px;padding:8px 10px;font-size:var(--fs-base);font-family:inherit;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:500;
+  width:100%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:8px 10px;font-size:var(--fs-base);font-family:inherit;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:500;
   border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--panel);
 }
 .dash-scope select:focus,.dash-scope input:focus{outline:none;border-color:var(--primary);box-shadow:var(--ring);}
