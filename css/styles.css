@@ -363,9 +363,11 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .dash-more{margin-top:var(--sp-3);align-self:flex-start;}
 .dash-asof{color:var(--ink-faint);font-size:var(--fs-sm);}
 .dash-scope{
-  display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--sp-4);padding:var(--sp-4) var(--sp-5);margin-bottom:var(--sp-5);
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));align-items:flex-end;gap:var(--sp-4);padding:var(--sp-4) var(--sp-5);margin-bottom:var(--sp-5);
   background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-xs);
 }
+.dash-scope-t{grid-column:1/-1;}
+.dash-scope #dashReset{grid-column:1/-1;justify-self:start;}
 .dash-scope-t{font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--ink-faint);padding-bottom:9px;}
 .dash-scope label{display:flex;flex-direction:column;gap:4px;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink-faint);}
 .dash-scope select,.dash-scope input{
