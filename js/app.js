@@ -403,11 +403,6 @@ function sparkTip(){
     'going backwards, each with its own bar, totals, and sell-through %.';
 }
 
-/* Hover explainer for the YTD Sold column header. */
-const YTD_TIP =
-  'Units sold Jan – ' + MONTHS[REPORT_MONTH.month] + ' ' + REPORT_MONTH.year +
-  ' (year to date). Extends on its own as the calendar advances.';
-
 /* Plan-code-"N" items have no useful sales history (they're new), so their AVG
    is estimated from the incoming PO Qty instead — a percentage that tapers as
    the order gets bigger. Workbook rule:
@@ -530,33 +525,23 @@ function sohValue(item){
   return whSohValue(item) + srQtyValue(item);
 }
 
-/* Units sold this calendar year so far — Jan through the current month of
-   REPORT_MONTH.year. Recomputed each load, so it grows on its own as months
-   pass (and picks up the current month's sales as they land). */
+/* Units sold in the trailing window — always a rolling total anchored on the
+   current month, never a calendar year-to-date. At 'all' that's the full
+   13 months (matching the 13-mo Trend / AVG / Total Received Qty columns);
+   at 3/6/9 it's that many months plus the current one, same as everywhere
+   else the stats-window toggle applies. */
 function ytdSold(it){
   const n = statsWindowMonthCount();
-  if(n >= 13){
-    const yr = it.years[String(REPORT_MONTH.year)];
-    if(!yr) return 0;
-    let t = 0;
-    for(let m = 0; m <= REPORT_MONTH.month; m++) t += yr.sales[m] || 0;
-    return t;
-  }
-  // Not "year to date" any more at the shorter settings — see
-  // ytdSoldLabel()/ytdSoldTip(), which relabel the column so it's never
-  // shown as "YTD" while actually holding a trailing-N-months total.
   return trailingSales(it, REPORT_MONTH.year, REPORT_MONTH.month, n).reduce((a, b) => a + b, 0);
 }
-/* Column header text/tooltip for the YTD Sold field — dynamic because its
-   own meaning changes with the stats window (see ytdSold() above): true
-   calendar year-to-date only at 'all', a plain trailing-N-months total
-   otherwise, relabeled so the header is never wrong about what it's
-   showing. */
+/* Column header text/tooltip for the YTD Sold field — "N-Mo Sold" at every
+   setting (13 at 'all'), never "YTD", since it's never a calendar year-to-
+   date figure. */
 function ytdSoldLabel(){
-  return statsWindow === 'all' ? 'YTD Sold' : statsWindow + '-Mo Sold';
+  return statsWindow === 'all' ? '13-Mo Sold' : statsWindow + '-Mo Sold';
 }
 function ytdSoldTip(){
-  if(statsWindow === 'all') return YTD_TIP;
+  if(statsWindow === 'all') return 'Units sold in the trailing 13 months (the same rolling window as 13-mo Trend).';
   return 'Units sold in the trailing ' + statsWindowMonthCount() + ' months (the ' + statsWindow +
     ' months before now, plus the current month).';
 }
