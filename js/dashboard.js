@@ -463,7 +463,18 @@ function renderDashboard(){
     };
     dashSaveScope(); renderDashboard();
   };
-  ['dashDept', 'dashCat', 'dashVendor', 'dashRange', 'dashGroup', 'dashPuda', 'dashPlan'].forEach(id => $(id).addEventListener('change', change));
+  ['dashDept', 'dashCat', 'dashPlan'].forEach(id => $(id).addEventListener('change', change));
+  // The 4 free-text fields (esp. Vendor code, since it silently rewrites
+  // whatever you typed into a code) can't rely on 'change' alone -- a
+  // script-set value doesn't always carry the "dirty" flag browsers use to
+  // decide whether blur should fire it, and datalist-backed inputs are
+  // inconsistent about this across browsers. blur + Enter fire regardless,
+  // same as the From/To date fields already do above.
+  ['dashVendor', 'dashRange', 'dashGroup', 'dashPuda'].forEach(id => {
+    const el = $(id);
+    el.addEventListener('blur', change);
+    el.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); change(); } });
+  });
   const reset = $('dashReset');
   if(reset) reset.addEventListener('click', () => { dashScope = { ...DASH_SCOPE_DEFAULTS }; dashSaveScope(); renderDashboard(); });
 }
