@@ -388,6 +388,16 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    input, just ambiguous, and nothing gets filtered until it's narrowed
    down (the tooltip lists the matching codes). */
 .dash-scope input.dash-vendor-ambiguous{border-color:var(--warn);background:var(--warn-bg);}
+/* The actual click-to-pick list, floating under the box so it doesn't push
+   the other fields around. */
+.dash-vendor-field{position:relative;}
+.dash-vendor-options{position:absolute;top:100%;left:0;right:0;z-index:30;margin-top:4px;
+  background:var(--panel);border:1px solid var(--warn);border-radius:var(--r-sm);box-shadow:var(--sh-md);
+  padding:4px;display:flex;flex-direction:column;gap:1px;max-height:220px;overflow-y:auto;}
+.dash-vendor-opt{display:block;width:100%;text-align:left;padding:6px 8px;border:0;background:none;border-radius:var(--r-sm);
+  font-size:var(--fs-xs);font-family:inherit;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:500;cursor:pointer;}
+.dash-vendor-opt:hover{background:var(--primary-weak);color:var(--primary-hover);}
+.dash-vendor-more{padding:5px 8px 2px;font-size:var(--fs-2xs);color:var(--ink-faint);}
 .dash-h{margin:var(--sp-6) 0 var(--sp-3);font-size:var(--fs-lg);font-weight:650;color:var(--ink);letter-spacing:-.01em;display:flex;align-items:baseline;gap:var(--sp-3);flex-wrap:wrap;}
 .dash-h span{font-size:var(--fs-sm);font-weight:500;color:var(--ink-faint);}
 .dash-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-4);margin-bottom:var(--sp-4);}

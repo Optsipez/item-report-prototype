@@ -151,6 +151,22 @@ function dashVendorAmbiguousTip(){
   const more = dashVendorAmbiguous.codes.length > shown.length ? ', +' + (dashVendorAmbiguous.codes.length - shown.length) + ' more' : '';
   return 'Matches ' + dashVendorAmbiguous.codes.length + ' vendors: ' + list + more + '. Type the exact code, or more letters to narrow it down.';
 }
+// The visible list under the box -- the tooltip above is easy to miss since
+// nothing prompts you to hover; this is the actual click-to-pick UI.
+function dashVendorOptionsHtml(){
+  if(!dashVendorAmbiguous) return '';
+  const showNames = canSeeVendorName();
+  const shown = dashVendorAmbiguous.codes.slice(0, 8);
+  const more = dashVendorAmbiguous.codes.length - shown.length;
+  const opts = shown.map(c => {
+    const it = ITEMS.find(i => i['Vendor Code'] === c);
+    const label = showNames && it ? c + ' — ' + it['Vendor Name'] : c;
+    return '<button type="button" class="dash-vendor-opt" data-code="' + dashEsc(c) + '">' + dashEsc(label) + '</button>';
+  }).join('');
+  return '<div class="dash-vendor-options">' + opts +
+    (more > 0 ? '<div class="dash-vendor-more">+' + more + ' more — type more letters to narrow it down</div>' : '') +
+    '</div>';
+}
 function dashItemInScope(it){
   return (!dashScope.dept || it['Department Desc'] === dashScope.dept) &&
     (!dashScope.cat || it['Category'] === dashScope.cat) &&
@@ -382,8 +398,9 @@ function dashScopeBar(){
     (dashScopeIsSet() ? '<button type="button" class="dash-btn ghost" id="dashReset">Show everything</button>' : '') + '</div>' +
     '<label>Department<select id="dashDept">' + opt(uniq('Department Desc'), dashScope.dept) + '</select></label>' +
     '<label>Category<select id="dashCat">' + opt(uniq('Category'), dashScope.cat) + '</select></label>' +
-    '<label>Vendor code<input id="dashVendor" list="dashVendorList" class="' + (dashVendorAmbiguous ? 'dash-vendor-ambiguous' : '') + '" value="' +
-      dashEsc(dashVendorAmbiguous ? dashVendorAmbiguous.raw : dashScope.vendor) + '" title="' + dashEsc(dashVendorAmbiguousTip()) + '" placeholder="All" autocomplete="off"></label>' +
+    '<label class="dash-vendor-field">Vendor code<input id="dashVendor" list="dashVendorList" class="' + (dashVendorAmbiguous ? 'dash-vendor-ambiguous' : '') + '" value="' +
+      dashEsc(dashVendorAmbiguous ? dashVendorAmbiguous.raw : dashScope.vendor) + '" title="' + dashEsc(dashVendorAmbiguousTip()) + '" placeholder="All" autocomplete="off">' +
+      dashVendorOptionsHtml() + '</label>' +
     '<datalist id="dashVendorList">' + uniq('Vendor Code').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>' +
     search('dashRange', 'range', 'Range Name') +
     search('dashGroup', 'group', 'Group Desc') +
@@ -502,6 +519,10 @@ function renderDashboard(){
     dashSaveScope(); renderDashboard();
   };
   ['dashDept', 'dashCat', 'dashPlan'].forEach(id => $(id).addEventListener('change', change));
+  root.querySelectorAll('.dash-vendor-opt').forEach(btn => btn.addEventListener('click', () => {
+    $('dashVendor').value = btn.dataset.code;
+    change();
+  }));
   // The 4 free-text fields (esp. Vendor code, since it silently rewrites
   // whatever you typed into a code) can't rely on 'change' alone -- a
   // script-set value doesn't always carry the "dirty" flag browsers use to
