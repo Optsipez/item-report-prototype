@@ -383,6 +383,11 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
   border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--panel);
 }
 .dash-scope select:focus,.dash-scope input:focus{outline:none;border-color:var(--primary);box-shadow:var(--ring);}
+/* A typed vendor NAME that matches more than one vendor -- see
+   vendorNameLookup() in dashboard.js. Amber, not red: it's not invalid
+   input, just ambiguous, and nothing gets filtered until it's narrowed
+   down (the tooltip lists the matching codes). */
+.dash-scope input.dash-vendor-ambiguous{border-color:var(--warn);background:var(--warn-bg);}
 .dash-h{margin:var(--sp-6) 0 var(--sp-3);font-size:var(--fs-lg);font-weight:650;color:var(--ink);letter-spacing:-.01em;display:flex;align-items:baseline;gap:var(--sp-3);flex-wrap:wrap;}
 .dash-h span{font-size:var(--fs-sm);font-weight:500;color:var(--ink-faint);}
 .dash-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-4);margin-bottom:var(--sp-4);}

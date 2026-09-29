@@ -111,14 +111,45 @@ const VENDOR_NAME_TO_CODE = (() => {
   ITEMS.forEach(it => { const n = it['Vendor Name']; if(n && !m[n.toLowerCase()]) m[n.toLowerCase()] = it['Vendor Code']; });
   return m;
 })();
-function resolveVendorInput(raw){
+// "LUM" or "Ingenium" can genuinely match several DIFFERENT vendors, not
+// just one -- silently picking the first (old behaviour) could quietly
+// filter to the wrong company. This looks up every distinct vendor CODE
+// whose name matches (exact tie, else prefix, else "contains" -- never a
+// mix of tiers) and reports how many there are, so the caller can refuse to
+// guess when there's more than one.
+//   { type:'empty' } | { type:'code', code } -- already a real code, as-is
+//   { type:'resolved', code } -- exactly one name match
+//   { type:'ambiguous', codes:[...] } -- 2+ distinct vendors match
+//   { type:'unmatched' } -- no code and no name matches at all
+function vendorNameLookup(raw){
   const v = String(raw || '').trim();
-  if(!v || VENDOR_CODES.has(v.toUpperCase())) return v;   // blank or already a real code -- leave as typed
+  if(!v) return { type: 'empty' };
+  if(VENDOR_CODES.has(v.toUpperCase())) return { type: 'code', code: v };
   const lower = v.toLowerCase();
-  if(VENDOR_NAME_TO_CODE[lower]) return VENDOR_NAME_TO_CODE[lower];   // exact name match
+  if(VENDOR_NAME_TO_CODE[lower]) return { type: 'resolved', code: VENDOR_NAME_TO_CODE[lower] };
   const names = Object.keys(VENDOR_NAME_TO_CODE);
-  const hit = names.find(n => n.startsWith(lower)) || names.find(n => n.includes(lower));
-  return hit ? VENDOR_NAME_TO_CODE[hit] : v;   // no match at all -- leave as typed (same as today, filters to nothing)
+  let hits = names.filter(n => n.startsWith(lower));
+  if(!hits.length) hits = names.filter(n => n.includes(lower));
+  if(!hits.length) return { type: 'unmatched' };
+  const codes = [...new Set(hits.map(n => VENDOR_NAME_TO_CODE[n]))];   // same vendor, different name spellings -> not ambiguous
+  return codes.length === 1 ? { type: 'resolved', code: codes[0] } : { type: 'ambiguous', codes };
+}
+// Set by the vendor field's change handler when a typed name matches more
+// than one vendor -- { raw: what was typed, codes: [...] } or null. Read by
+// dashScopeBar() to flag the box and by dashVendorAmbiguousTip() for its
+// tooltip; never lists names for a buyer, only codes (canSeeVendorName()).
+let dashVendorAmbiguous = null;
+function dashVendorAmbiguousTip(){
+  if(!dashVendorAmbiguous) return '';
+  const showNames = canSeeVendorName();
+  const shown = dashVendorAmbiguous.codes.slice(0, 8);
+  const list = shown.map(c => {
+    if(!showNames) return c;
+    const it = ITEMS.find(i => i['Vendor Code'] === c);
+    return it ? c + ' (' + it['Vendor Name'] + ')' : c;
+  }).join(', ');
+  const more = dashVendorAmbiguous.codes.length > shown.length ? ', +' + (dashVendorAmbiguous.codes.length - shown.length) + ' more' : '';
+  return 'Matches ' + dashVendorAmbiguous.codes.length + ' vendors: ' + list + more + '. Type the exact code, or more letters to narrow it down.';
 }
 function dashItemInScope(it){
   return (!dashScope.dept || it['Department Desc'] === dashScope.dept) &&
@@ -351,7 +382,8 @@ function dashScopeBar(){
     (dashScopeIsSet() ? '<button type="button" class="dash-btn ghost" id="dashReset">Show everything</button>' : '') + '</div>' +
     '<label>Department<select id="dashDept">' + opt(uniq('Department Desc'), dashScope.dept) + '</select></label>' +
     '<label>Category<select id="dashCat">' + opt(uniq('Category'), dashScope.cat) + '</select></label>' +
-    '<label>Vendor code<input id="dashVendor" list="dashVendorList" value="' + dashEsc(dashScope.vendor) + '" placeholder="All" autocomplete="off"></label>' +
+    '<label>Vendor code<input id="dashVendor" list="dashVendorList" class="' + (dashVendorAmbiguous ? 'dash-vendor-ambiguous' : '') + '" value="' +
+      dashEsc(dashVendorAmbiguous ? dashVendorAmbiguous.raw : dashScope.vendor) + '" title="' + dashEsc(dashVendorAmbiguousTip()) + '" placeholder="All" autocomplete="off"></label>' +
     '<datalist id="dashVendorList">' + uniq('Vendor Code').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>' +
     search('dashRange', 'range', 'Range Name') +
     search('dashGroup', 'group', 'Group Desc') +
@@ -454,8 +486,14 @@ function renderDashboard(){
     openGridFocus(c.title + (scopeParts.length ? ' – ' + scopeParts.join(' · ') : ''), c.codes, c.sort);
   });
   const change = () => {
-    const vendor = resolveVendorInput($('dashVendor').value);
-    $('dashVendor').value = vendor;   // box always ends up showing the code, never the typed name
+    const raw = $('dashVendor').value;
+    const lookup = vendorNameLookup(raw);
+    let vendor = '';
+    if(lookup.type === 'code') vendor = raw.trim();
+    else if(lookup.type === 'resolved'){ vendor = lookup.code; $('dashVendor').value = vendor; }   // box shows the code, never the typed name
+    else if(lookup.type === 'unmatched') vendor = raw.trim();   // leave as typed -- filters to nothing, same as before
+    // 'ambiguous' and 'empty' both leave vendor === '' (don't guess which of several matches was meant)
+    dashVendorAmbiguous = lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null;
     dashScope = {
       dept: $('dashDept').value, cat: $('dashCat').value, vendor,
       range: $('dashRange').value.trim(), group: $('dashGroup').value.trim(),
