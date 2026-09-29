@@ -363,13 +363,18 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .dash-more{margin-top:var(--sp-3);align-self:flex-start;}
 .dash-asof{color:var(--ink-faint);font-size:var(--fs-sm);}
 .dash-scope{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));align-items:flex-end;gap:var(--sp-4);padding:var(--sp-4) var(--sp-5);margin-bottom:var(--sp-5);
+  display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--sp-4);padding:var(--sp-4) var(--sp-5);margin-bottom:var(--sp-5);
   background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-xs);
 }
-.dash-scope-t{grid-column:1/-1;}
-.dash-scope #dashReset{grid-column:1/-1;justify-self:start;}
+/* flex-basis:100% forces each onto its own full-width line (the flexbox way
+   to force a wrap); every field gets flex-grow so a short last row (e.g.
+   Plan on its own after 6 others fill row 1) stretches to fill the row
+   instead of leaving a big empty gap -- a fixed grid column count can't do
+   that when the field count doesn't divide evenly. */
+.dash-scope-t{flex-basis:100%;}
+.dash-scope #dashReset{flex-basis:100%;flex-grow:0;}
 .dash-scope-t{font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--ink-faint);padding-bottom:9px;}
-.dash-scope label{display:flex;flex-direction:column;gap:4px;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink-faint);}
+.dash-scope label{flex:1 1 170px;display:flex;flex-direction:column;gap:4px;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink-faint);}
 .dash-scope select,.dash-scope input{
   min-width:170px;padding:8px 10px;font-size:var(--fs-base);font-family:inherit;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:500;
   border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--panel);
