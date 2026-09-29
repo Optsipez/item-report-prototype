@@ -850,6 +850,9 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .dr-wrap table.matrix{font-size:var(--fs-2xs);}
 .dr-wrap table.matrix th,.dr-wrap table.matrix td{padding:4px 5px;white-space:nowrap;}
 .dr-wrap table.matrix th.l,.dr-wrap table.matrix td.l{text-align:left;white-space:normal;max-width:160px;}
+.dr-wrap th.dr-sort{cursor:pointer;user-select:none;}
+.dr-wrap th.dr-sort:hover{background:var(--s-200);}
+.dr-sort-ind{margin-left:3px;font-size:8px;color:var(--primary);}
 .dr-empty{padding:var(--sp-6);text-align:center;color:var(--ink-faint);}
 .wk-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-4);margin-bottom:var(--sp-5);}
 .wk-head h3{margin:0 0 3px;font-size:var(--fs-lg);font-weight:600;color:var(--ink);letter-spacing:-.01em;}

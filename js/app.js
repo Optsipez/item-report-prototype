@@ -2582,6 +2582,52 @@ function dateRangeMatch(item, months, mode){
 }
 const DATE_RANGE_MODE_LABEL = { lrcv: 'LRCV date', grn: 'GRN', sales: 'Sales' };
 
+// Sort state for the popup's table -- persists across mode switches, closes,
+// and reopens with a new date range (same as dateRangeMode above), until you
+// click a header a third time. null = original (matched) order.
+let dateRangeSort = null;   // { key, dir: 'desc' | 'asc' }
+// Value to sort each row by, for a given column key. Strings compare
+// case-insensitively; STK Age by its bucket order (same as the main grid);
+// Trend by the raw (uncapped) ratio, with "no data" (null) always last
+// regardless of direction, same treatment the main grid gives blanks.
+function dateRangeSortValue(row, key){
+  // Plain string, not numeric -- item codes are a mix of pure numbers
+  // ("101454") and letter-prefixed ones ("P10080"); sorting some rows as
+  // Number and others as String mid-sort is a real bug (inconsistent JS
+  // coercion), so this matches Vendor/PUDA Code below and sorts as text.
+  if(key === 'code') return String(row.it['Item Code'] || '').toLowerCase();
+  if(key === 'desc') return String(row.it['Description'] || '').toLowerCase();
+  if(key === 'vendor') return String(row.it['Vendor Code'] || '').toLowerCase();
+  if(key === 'range') return String(row.it['Range Name'] || '').toLowerCase();
+  if(key === 'pudaCode') return String(row.it['PUDA Code'] || '').toLowerCase();
+  if(key === 'pudaDesc') return String(row.it['PUDA Desc'] || '').toLowerCase();
+  if(key === 'plan') return PLAN_CODE_RANK[String(row.it['Current Plan Code'] || '').trim().toUpperCase()] ?? 0;
+  if(key === 'soh') return sohValue(row.it);
+  if(key === 'wh') return whSohValue(row.it);
+  if(key === 'sr') return srQtyValue(row.it);
+  if(key === 'po') return Number(row.it['PO-Qty']) || 0;
+  if(key === 'avg') return row.avg;
+  if(key === 'sold') return row.s3;
+  if(key === 'received') return row.r3;
+  if(key === 'age') return row.age.sno;
+  if(key === 'trend') return row.pct;
+  const m = /^(sold|stock)_(\d+)$/.exec(key);
+  if(m) return (m[1] === 'sold' ? row.monthSales : row.monthStock)[+m[2]];
+  return 0;
+}
+function dateRangeSortRows(rows){
+  if(!dateRangeSort) return rows;
+  const { key, dir } = dateRangeSort;
+  const sorted = rows.slice().sort((a, b) => {
+    const va = dateRangeSortValue(a, key), vb = dateRangeSortValue(b, key);
+    const blankA = va == null, blankB = vb == null;
+    if(blankA || blankB) return blankA === blankB ? 0 : (blankA ? 1 : -1);   // blanks always last
+    if(va === vb) return 0;
+    const cmp = va < vb ? -1 : 1;
+    return dir === 'asc' ? cmp : -cmp;
+  });
+  return sorted;
+}
 function buildDateRangeTable(){
   const from = gridDateRange.from, to = gridDateRange.to;
   const months = monthsBetween(from, to);
@@ -2597,21 +2643,39 @@ function buildDateRangeTable(){
     return;
   }
 
-  const monthLabel = w => MONTHS[w.m] + "'" + String(w.year).slice(-2);
-  const monthHead = (w, kind) => '<th title="' + monthLabel(w) + ' ' + kind + '">' + monthLabel(w).replace("'", "<br>'") + '<br>' + kind + '</th>';
-  const cols =
-    '<th class="branch-sno">S.No</th><th>Item Code</th><th class="l">Description</th>' +
-    '<th title="Vendor Code">Vendor</th><th title="Range Name">Range</th>' +
-    '<th>PUDA Code</th><th class="l">PUDA Desc</th><th>Plan</th>' +
-    '<th>SOH</th><th title="WH SOH">WH</th><th title="SR Qty">SR</th><th title="PO Qty">PO</th><th>AVG</th>' +
-    '<th title="Sold, this range">Sold</th><th title="Received (GRN), this range">Rcvd</th><th title="STK Age">Age</th><th title="Trend, this range">Trend</th>' +
-    months.map(w => monthHead(w, 'Sold')).join('') +
-    months.map(w => monthHead(w, 'Stock')).join('');
-
-  const rows = items.map((it, i) => {
+  // Everything a row needs, computed once -- reused for both sorting and
+  // rendering rather than recomputed twice.
+  let rows = items.map(it => {
     const s3 = rangeSum(it, months, 'sales'), r3 = rangeSum(it, months, 'stock');
-    const avg = rangeAvg(it, months);
-    const age = stkAgeFor(it);
+    return {
+      it, s3, r3,
+      avg: rangeAvg(it, months),
+      age: stkAgeFor(it),
+      pct: sellThroughPct(s3, r3),
+      monthSales: months.map(w => { const yr = it.years[String(w.year)]; return yr ? (yr.sales[w.m] || 0) : 0; }),
+      monthStock: months.map(w => { const yr = it.years[String(w.year)]; return yr ? (yr.stock[w.m] || 0) : 0; }),
+    };
+  });
+  rows = dateRangeSortRows(rows);
+
+  const monthLabel = w => MONTHS[w.m] + "'" + String(w.year).slice(-2);
+  const sortInd = key => {
+    if(!dateRangeSort || dateRangeSort.key !== key) return '';
+    return ' <span class="dr-sort-ind">' + (dateRangeSort.dir === 'asc' ? '▲' : '▼') + '</span>';
+  };
+  const sh = (key, html, title) => '<th class="dr-sort" data-sort-key="' + key + '"' + (title ? ' title="' + title + '"' : '') + '>' + html + sortInd(key) + '</th>';
+  const monthHead = (w, kind, key) => sh(key, monthLabel(w).replace("'", "<br>'") + '<br>' + kind, monthLabel(w) + ' ' + kind);
+  const cols =
+    '<th class="branch-sno">S.No</th>' + sh('code', 'Item Code') + sh('desc', 'Description') +
+    sh('vendor', 'Vendor', 'Vendor Code') + sh('range', 'Range', 'Range Name') +
+    sh('pudaCode', 'PUDA Code') + sh('pudaDesc', 'PUDA Desc') + sh('plan', 'Plan') +
+    sh('soh', 'SOH') + sh('wh', 'WH', 'WH SOH') + sh('sr', 'SR', 'SR Qty') + sh('po', 'PO', 'PO Qty') + sh('avg', 'AVG') +
+    sh('sold', 'Sold', 'Sold, this range') + sh('received', 'Rcvd', 'Received (GRN), this range') + sh('age', 'Age', 'STK Age') + sh('trend', 'Trend', 'Trend, this range') +
+    months.map((w, i) => monthHead(w, 'Sold', 'sold_' + i)).join('') +
+    months.map((w, i) => monthHead(w, 'Stock', 'stock_' + i)).join('');
+
+  const rowsHtml = rows.map((row, i) => {
+    const { it, s3, r3, avg, age } = row;
     const trendTitle = 'Received ' + r3.toLocaleString('en-US') + '  ·  Sold ' + s3.toLocaleString('en-US') + ' over this range';
     return '<tr>' +
       '<td class="branch-sno">' + (i + 1) + '</td>' +
@@ -2631,12 +2695,19 @@ function buildDateRangeTable(){
       '<td>' + fmtInt(r3) + '</td>' +
       '<td>' + escHtml(age.label) + '</td>' +
       '<td>' + miniVBar(r3, s3, trendTitle, 'No stock or sales activity over this range') + '</td>' +
-      months.map(w => { const yr = it.years[String(w.year)]; const v = yr ? (yr.sales[w.m] || 0) : 0; return '<td>' + (v === 0 ? '—' : fmtInt(v)) + '</td>'; }).join('') +
-      months.map(w => { const yr = it.years[String(w.year)]; const v = yr ? (yr.stock[w.m] || 0) : 0; return '<td>' + (v === 0 ? '—' : fmtInt(v)) + '</td>'; }).join('') +
+      row.monthSales.map(v => '<td>' + (v === 0 ? '—' : fmtInt(v)) + '</td>').join('') +
+      row.monthStock.map(v => '<td>' + (v === 0 ? '—' : fmtInt(v)) + '</td>').join('') +
       '</tr>';
   }).join('');
 
-  body.innerHTML = '<table class="matrix dr-table"><thead><tr>' + cols + '</tr></thead><tbody>' + rows + '</tbody></table>';
+  body.innerHTML = '<table class="matrix dr-table"><thead><tr>' + cols + '</tr></thead><tbody>' + rowsHtml + '</tbody></table>';
+  body.querySelectorAll('th.dr-sort').forEach(th => th.addEventListener('click', () => {
+    const key = th.dataset.sortKey;
+    if(!dateRangeSort || dateRangeSort.key !== key) dateRangeSort = { key, dir: 'desc' };
+    else if(dateRangeSort.dir === 'desc') dateRangeSort = { key, dir: 'asc' };
+    else dateRangeSort = null;
+    buildDateRangeTable();
+  }));
 }
 
 let dateRangeModalReturn = null;
