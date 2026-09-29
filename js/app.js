@@ -103,51 +103,53 @@ function trailingStock(item, anchorYear, anchorMonth, n){
   return s;
 }
 
-/* Tiny inline 13-mo Trend cell — a mini proportional fill bar (no line/SVG
-   at all): Stock (gold) fills down from the top, Sold (blue) fills up from
-   the bottom, always meeting exactly at Sold's share of the two (so the bar
-   is always fully coloured — no empty space unless there's truly no data).
-   A fixed white reference line sits at the exact vertical centre and never
-   moves, purely so a glance shows whether Sold's fill has risen past the
-   halfway point (i.e. Sold > Stock) or not. Click opens the full
-   period-by-period breakdown in the popup.
+/* Sell-through = Sold ÷ Received × 100. Not capped at 100% by construction
+   (an item can easily sell more than it received in the same window, off
+   stock already on hand) -- so the displayed % is separately capped at 999%
+   ("999+%" beyond that; the exact size of a huge ratio isn't useful, just
+   that it's a lot). received=0 with sold>0 is treated the same way
+   (Infinity -> "999+%"); received=0 and sold=0 is "no data" (null), not 0%. */
+function sellThroughPct(soldTotal, receivedTotal){
+  if(receivedTotal === 0) return soldTotal === 0 ? null : Infinity;
+  return (soldTotal / receivedTotal) * 100;
+}
+function sellThroughText(pct){
+  if(pct == null) return '—';
+  return pct > 999 ? '999+%' : Math.round(pct) + '%';
+}
+
+/* Tiny inline 13-mo Trend cell — a single fill bar (no line/SVG): Sold ÷
+   Received, filling left to right, visually capped at 100% (a bar that's
+   "full" means it's AT LEAST 100%, not exactly -- the number above it has
+   the real, uncapped-to-999% figure). Past 100% the bar also switches to
+   the warn colour, since selling faster than stock is coming in is worth
+   noticing at a glance. Click opens the full period-by-period breakdown.
    The two totals are ytdSold()/totalReceivedQty() themselves, not a
    separate sum over monthlySeries/monthlyStockSeries — those two already
-   agree at every stats-window setting except 'all', where ytdSold is a true
-   calendar year-to-date (Jan through the current month) rather than a
-   trailing 13-month sum. Using the same functions the YTD Sold and Total
-   Received Qty columns use keeps this tile's numbers identical to theirs,
-   instead of silently showing a different, larger "Sold" total. */
+   agree at every stats-window setting, so this tile's numbers are always
+   identical to the YTD Sold and Total Received Qty columns. */
 // The bar markup itself, shared by the grid's 13-mo Trend cell and the
 // date-range popup's Trend column below — same visual, different totals in.
-function miniVBar(stockTotal, soldTotal, title, emptyTitle){
-  const denom = stockTotal + soldTotal;
-  if(denom === 0) return '<span class="spark-empty" title="' + (emptyTitle || 'No stock or sales activity') + '">—</span>';
-  const sellThrough = Math.round((soldTotal / denom) * 100);
-  const salePct = (soldTotal / denom * 100).toFixed(1);
-  const stockPct = (100 - salePct).toFixed(1);
-  // A number you can actually read at a glance, plus the stacked bar as a
-  // secondary visual cue — collapsed to just a thin two-colour block (no
-  // label) it was unreadable; the split alone doesn't say what it's a split
-  // OF without a number attached.
-  return '<span class="mini-vbar" title="' + title + '">' +
-    '<span class="mini-vbar-pct">' + sellThrough + '%</span>' +
+function miniVBar(receivedTotal, soldTotal, title, emptyTitle){
+  const pct = sellThroughPct(soldTotal, receivedTotal);
+  if(pct == null) return '<span class="spark-empty" title="' + (emptyTitle || 'No stock or sales activity') + '">—</span>';
+  const fillPct = Math.min(pct, 100).toFixed(1);
+  return '<span class="mini-vbar' + (pct >= 100 ? ' mini-vbar-over' : '') + '" title="' + title + '">' +
+    '<span class="mini-vbar-pct">' + sellThroughText(pct) + '</span>' +
     '<span class="mini-vbar-track">' +
-      '<span class="mini-vbar-seg mini-vbar-seg-stock" style="width:' + stockPct + '%"></span>' +
-      '<span class="mini-vbar-seg mini-vbar-seg-sale" style="width:' + salePct + '%"></span>' +
+      '<span class="mini-vbar-seg mini-vbar-seg-sale" style="width:' + fillPct + '%"></span>' +
     '</span>' +
     '</span>';
 }
 function trendMiniBar(item){
   const n = statsWindowMonthCount();
-  const stockTotal = totalReceivedQty(item);
+  const receivedTotal = totalReceivedQty(item);
   const soldTotal = ytdSold(item);
   const clickHint = ' — click for the full ' + n + '-month breakdown';
-  const denom = stockTotal + soldTotal;
-  const sellThrough = denom === 0 ? 0 : Math.round((soldTotal / denom) * 100);
-  const title = 'Total Received Qty ' + stockTotal.toLocaleString('en-US') + '  ·  ' + ytdSoldLabel() + ' ' + soldTotal.toLocaleString('en-US') +
-    '  ·  ' + sellThrough + '% sell-through' + clickHint;
-  return miniVBar(stockTotal, soldTotal, title, 'No stock or sales activity' + clickHint);
+  const pctText = sellThroughText(sellThroughPct(soldTotal, receivedTotal));
+  const title = 'Total Received Qty ' + receivedTotal.toLocaleString('en-US') + '  ·  ' + ytdSoldLabel() + ' ' + soldTotal.toLocaleString('en-US') +
+    '  ·  ' + pctText + ' (Sold ÷ Received)' + clickHint;
+  return miniVBar(receivedTotal, soldTotal, title, 'No stock or sales activity' + clickHint);
 }
 
 /* Trend popup — one column per period (current month, then N 3-month
@@ -212,29 +214,23 @@ function buildTrendChart(item){
     : monthColLabel(b.from) + '–' + monthColLabel(b.to);
 
   const legend = '<div class="tr-legend">' +
-    '<span class="tr-legend-item"><span class="tr-legend-dot tr-legend-dot-stock"></span>Stock</span>' +
-    '<span class="tr-legend-item"><span class="tr-legend-dot tr-legend-dot-sale"></span>Sold</span>' +
+    '<span class="tr-legend-item"><span class="tr-legend-dot tr-legend-dot-sale"></span>Sold ÷ Received</span>' +
     '</div>';
 
   const cols = bars.map(b => {
-    const denom = b.stockTotal + b.soldTotal;
-    const isEmpty = denom === 0;
-    const sellThrough = isEmpty ? null : Math.round((b.soldTotal / denom) * 100);
-    const salePct = isEmpty ? 0 : (b.soldTotal / denom * 100).toFixed(1);
-    const stockPct = isEmpty ? 0 : (100 - salePct).toFixed(1);
-    const title = bLabel(b) + ': Stock ' + b.stockTotal.toLocaleString('en-US') +
+    const pct = sellThroughPct(b.soldTotal, b.stockTotal);
+    const isEmpty = pct == null;
+    const fillPct = isEmpty ? 0 : Math.min(pct, 100).toFixed(1);
+    const pctText = sellThroughText(pct);
+    const title = bLabel(b) + ': Received ' + b.stockTotal.toLocaleString('en-US') +
       '  ·  Sold ' + b.soldTotal.toLocaleString('en-US') +
-      (sellThrough == null ? '' : '  ·  ' + sellThrough + '% sell-through');
+      (isEmpty ? '' : '  ·  ' + pctText);
     // No stock or sales at all that period — nothing to compare, so a neutral
-    // empty bar rather than a meaningless 0/0 split.
+    // empty bar rather than a meaningless 0/0 result.
     const bar = isEmpty
       ? '<div class="tr-vbar tr-vbar-empty"></div>'
-      : '<div class="tr-vbar">' +
-          '<span class="tr-vbar-fill">' +
-            '<span class="tr-vbar-seg tr-vbar-seg-stock" style="height:' + stockPct + '%"></span>' +
-            '<span class="tr-vbar-seg tr-vbar-seg-sale" style="height:' + salePct + '%"></span>' +
-          '</span>' +
-          '<span class="tr-vbar-refline"></span>' +
+      : '<div class="tr-vbar' + (pct >= 100 ? ' tr-vbar-over' : '') + '">' +
+          '<span class="tr-vbar-seg tr-vbar-seg-sale" style="height:' + fillPct + '%"></span>' +
         '</div>';
     return '<div class="tr-col-item" title="' + title + '">' +
         bar +
@@ -244,9 +240,9 @@ function buildTrendChart(item){
           ' / ' +
           '<span class="tr-col-sale">' + (b.soldTotal === 0 ? '—' : b.soldTotal.toLocaleString('en-US')) + '</span>' +
         '</div>' +
-        '<div class="tr-col-pct">' + (sellThrough == null
+        '<div class="tr-col-pct">' + (isEmpty
           ? '—'
-          : '<span class="tr-col-pct-num">' + sellThrough + '%</span><span class="tr-col-pct-lbl"> sell-thru</span>') + '</div>' +
+          : '<span class="tr-col-pct-num">' + pctText + '</span><span class="tr-col-pct-lbl"> sold/rcvd</span>') + '</div>' +
       '</div>';
   }).join('');
 
@@ -392,15 +388,15 @@ function sparkLabel(){
 function sparkTip(){
   const n = statsWindowMonthCount();
   const periods = (n - 1) / 3;
-  return 'Total Received Qty vs ' + ytdSoldLabel() + ' — a small bar, Received (gold) filling\n' +
-    'down from the top and Sold (blue) filling up from the bottom, meeting at\n' +
-    'Sold\'s share of the two — always fully coloured, never empty. A fixed\n' +
-    'white line marks the exact centre: when the blue rises past it, Sold has\n' +
-    'overtaken Received. The two totals are exactly ' + ytdSoldLabel() + ' and Total Received\n' +
-    'Qty from their own columns, so this bar always agrees with them.\n' +
-    'The actual totals and sell-through rate (Sold ÷ (Received + Sold)) are in the tooltip.\n' +
+  return 'Sell-through = ' + ytdSoldLabel() + ' ÷ Total Received Qty × 100 — a single blue\n' +
+    'fill bar, capped visually at 100% (a full bar means at least 100%, not\n' +
+    'exactly). Past 100% it turns amber too — selling faster than stock is\n' +
+    'coming in is worth a glance. The number above the bar is the real\n' +
+    'percentage, shown up to 999%; anything past that just reads 999+%.\n' +
+    'The two totals are exactly ' + ytdSoldLabel() + ' and Total Received Qty from their own\n' +
+    'columns, so this bar always agrees with them.\n' +
     'Click for a full breakdown: the current month, then ' + periods + ' 3-month period' + (periods === 1 ? '' : 's') + '\n' +
-    'going backwards, each with its own bar, totals, and sell-through %.';
+    'going backwards, each with its own bar and totals.';
 }
 
 /* Plan-code-"N" items have no useful sales history (they're new), so their AVG
