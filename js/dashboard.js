@@ -99,6 +99,27 @@ const DASH_ITEM_BY_CODE = (() => {
   ITEMS.forEach(it => { m[it['Item Code']] = it; });
   return m;
 })();
+// Vendor code filter accepts a typed vendor NAME too, resolved to its code
+// on blur/change -- for every role, buyers included. Buyers must never see
+// Vendor Name anywhere (canSeeVendorName()), so this never displays the
+// name: the box always ends up showing the code, same as if they'd typed it
+// directly. It's the same lookup logic Managers/CEO get, just with the name
+// side of it kept invisible for buyers rather than a separate code path.
+const VENDOR_CODES = new Set(ITEMS.map(it => it['Vendor Code']).filter(Boolean));
+const VENDOR_NAME_TO_CODE = (() => {
+  const m = {};
+  ITEMS.forEach(it => { const n = it['Vendor Name']; if(n && !m[n.toLowerCase()]) m[n.toLowerCase()] = it['Vendor Code']; });
+  return m;
+})();
+function resolveVendorInput(raw){
+  const v = String(raw || '').trim();
+  if(!v || VENDOR_CODES.has(v.toUpperCase())) return v;   // blank or already a real code -- leave as typed
+  const lower = v.toLowerCase();
+  if(VENDOR_NAME_TO_CODE[lower]) return VENDOR_NAME_TO_CODE[lower];   // exact name match
+  const names = Object.keys(VENDOR_NAME_TO_CODE);
+  const hit = names.find(n => n.startsWith(lower)) || names.find(n => n.includes(lower));
+  return hit ? VENDOR_NAME_TO_CODE[hit] : v;   // no match at all -- leave as typed (same as today, filters to nothing)
+}
 function dashItemInScope(it){
   return (!dashScope.dept || it['Department Desc'] === dashScope.dept) &&
     (!dashScope.cat || it['Category'] === dashScope.cat) &&
@@ -433,8 +454,10 @@ function renderDashboard(){
     openGridFocus(c.title + (scopeParts.length ? ' – ' + scopeParts.join(' · ') : ''), c.codes, c.sort);
   });
   const change = () => {
+    const vendor = resolveVendorInput($('dashVendor').value);
+    $('dashVendor').value = vendor;   // box always ends up showing the code, never the typed name
     dashScope = {
-      dept: $('dashDept').value, cat: $('dashCat').value, vendor: $('dashVendor').value.trim(),
+      dept: $('dashDept').value, cat: $('dashCat').value, vendor,
       range: $('dashRange').value.trim(), group: $('dashGroup').value.trim(),
       puda: $('dashPuda').value.trim(), plan: $('dashPlan').value,
     };
