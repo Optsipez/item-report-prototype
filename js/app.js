@@ -118,18 +118,14 @@ function trailingStock(item, anchorYear, anchorMonth, n){
    trailing 13-month sum. Using the same functions the YTD Sold and Total
    Received Qty columns use keeps this tile's numbers identical to theirs,
    instead of silently showing a different, larger "Sold" total. */
-function trendMiniBar(item){
-  const n = statsWindowMonthCount();
-  const stockTotal = totalReceivedQty(item);
-  const soldTotal = ytdSold(item);
-  const clickHint = ' — click for the full ' + n + '-month breakdown';
+// The bar markup itself, shared by the grid's 13-mo Trend cell and the
+// date-range popup's Trend column below — same visual, different totals in.
+function miniVBar(stockTotal, soldTotal, title, emptyTitle){
   const denom = stockTotal + soldTotal;
-  if(denom === 0) return '<span class="spark-empty" title="No stock or sales activity' + clickHint + '">—</span>';
+  if(denom === 0) return '<span class="spark-empty" title="' + (emptyTitle || 'No stock or sales activity') + '">—</span>';
   const sellThrough = Math.round((soldTotal / denom) * 100);
   const salePct = (soldTotal / denom * 100).toFixed(1);
   const stockPct = (100 - salePct).toFixed(1);
-  const title = 'Total Received Qty ' + stockTotal.toLocaleString('en-US') + '  ·  ' + ytdSoldLabel() + ' ' + soldTotal.toLocaleString('en-US') +
-    '  ·  ' + sellThrough + '% sell-through' + clickHint;
   // A number you can actually read at a glance, plus the stacked bar as a
   // secondary visual cue — collapsed to just a thin two-colour block (no
   // label) it was unreadable; the split alone doesn't say what it's a split
@@ -141,6 +137,17 @@ function trendMiniBar(item){
       '<span class="mini-vbar-seg mini-vbar-seg-sale" style="width:' + salePct + '%"></span>' +
     '</span>' +
     '</span>';
+}
+function trendMiniBar(item){
+  const n = statsWindowMonthCount();
+  const stockTotal = totalReceivedQty(item);
+  const soldTotal = ytdSold(item);
+  const clickHint = ' — click for the full ' + n + '-month breakdown';
+  const denom = stockTotal + soldTotal;
+  const sellThrough = denom === 0 ? 0 : Math.round((soldTotal / denom) * 100);
+  const title = 'Total Received Qty ' + stockTotal.toLocaleString('en-US') + '  ·  ' + ytdSoldLabel() + ' ' + soldTotal.toLocaleString('en-US') +
+    '  ·  ' + sellThrough + '% sell-through' + clickHint;
+  return miniVBar(stockTotal, soldTotal, title, 'No stock or sales activity' + clickHint);
 }
 
 /* Trend popup — one column per period (current month, then N 3-month
@@ -2459,7 +2466,8 @@ function buildGridBody(items, cols, pageStart){
    never be read two ways) or one picked from the calendar button. Typed text is checked when
    you leave the box or press Enter and rewritten in the standard form; a bad date turns the
    box red. The chosen dates are kept in gridDateRange (Date at local midnight, or null) and
-   announced with a 'gridDateRangeChange' event -- nothing in the grid uses them yet. */
+   announced with a 'gridDateRangeChange' event, which opens the date-range
+   popup below once both dates are set and not backwards. */
 const gridDateRange = { from: null, to: null };
 const MONTH_FULL = ['january','february','march','april','may','june','july','august','september','october','november','december'];
 function formatDMY(d){
@@ -2537,6 +2545,150 @@ function parseDMY(raw){
     });
   });
   refresh();
+})();
+
+/* Date-range popup -- opens automatically (see announce() above) once both
+   From and To are set and not backwards; closes itself if they stop being
+   so. Lists every item matching the picked range under one of three modes,
+   switched via a dropdown INSIDE the open popup -- it just re-renders the
+   same popup's body, never closes it.
+     - LRCV date: the item's own Lrcv Date falls inside the range (day-precise).
+     - GRN / Sales: the source data only has monthly totals, not per-
+       transaction dates, so these match any month overlapping the range --
+       same precision as the rest of the app's Sold/Stock by Month.
+   AVG, Sold and Received are recalculated for the picked range rather than
+   showing the stats-window figures used elsewhere: AVG reuses avgFnl (the
+   ported U-FNL formula, already generalized to any window size) anchored at
+   the range's own last month and sized to the range's own month count.
+   Under 3 months there's no valid AVG -- U-FNL's shortest sub-window is 3
+   months -- shown as -- rather than a guess. */
+let dateRangeMode = 'lrcv';
+function escHtml(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+// Every {year, m} the range spans, oldest first -- month-level, so a range
+// that starts/ends mid-month still includes that whole month.
+function monthsBetween(from, to){
+  const out = [];
+  let y = from.getFullYear(), m = from.getMonth();
+  const endY = to.getFullYear(), endM = to.getMonth();
+  while(y < endY || (y === endY && m <= endM)){
+    out.push({ year: y, m });
+    if(++m > 11){ m = 0; y++; }
+  }
+  return out;
+}
+function rangeSum(item, months, field){   // field: 'sales' or 'stock' (stock = GRN received)
+  return months.reduce((a, w) => { const yr = item.years[String(w.year)]; return a + (yr ? (yr[field][w.m] || 0) : 0); }, 0);
+}
+function rangeHasActivity(item, months, field){
+  return months.some(w => { const yr = item.years[String(w.year)]; return yr && (yr[field][w.m] || 0) !== 0; });
+}
+// Lrcv Date is ingested as "DD-MM-YYYY"; local midnight, same shape as gridDateRange.
+function parseLrcvDate(v){
+  const m = v ? String(v).match(/^(\d{2})-(\d{2})-(\d{4})$/) : null;
+  return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null;
+}
+function rangeAvg(item, months){
+  if(months.length < 3) return null;
+  const last = months[months.length - 1];
+  return avgFnl(item, { year: last.year, month: last.m }, months.length);
+}
+function dateRangeMatch(item, months, mode){
+  if(mode === 'lrcv'){ const d = parseLrcvDate(item['Lrcv Date']); return !!d && d >= gridDateRange.from && d <= gridDateRange.to; }
+  if(mode === 'grn') return rangeHasActivity(item, months, 'stock');
+  return rangeHasActivity(item, months, 'sales');
+}
+const DATE_RANGE_MODE_LABEL = { lrcv: 'LRCV date', grn: 'GRN', sales: 'Sales' };
+
+function buildDateRangeTable(){
+  const from = gridDateRange.from, to = gridDateRange.to;
+  const months = monthsBetween(from, to);
+  const items = ITEMS.filter(it => dateRangeMatch(it, months, dateRangeMode));
+
+  document.getElementById('drSub').textContent =
+    formatDMY(from) + ' – ' + formatDMY(to) + '  ·  matched on ' + DATE_RANGE_MODE_LABEL[dateRangeMode] +
+    '  ·  ' + items.length + (items.length === 1 ? ' item' : ' items');
+
+  const body = document.getElementById('drBody');
+  if(!items.length){
+    body.innerHTML = '<p class="dr-empty">No items match this range on ' + DATE_RANGE_MODE_LABEL[dateRangeMode] + '.</p>';
+    return;
+  }
+
+  const monthLabel = w => MONTHS[w.m] + "'" + String(w.year).slice(-2);
+  const cols =
+    '<th class="branch-sno">S.No</th><th>Item Code</th><th class="l">Description</th>' +
+    '<th>Vendor Code</th><th>Range Name</th>' +
+    '<th>PUDA Code</th><th class="l">PUDA Desc</th><th>Plan</th>' +
+    '<th>SOH</th><th>WH SOH</th><th>SR Qty</th><th>PO Qty</th><th>AVG</th>' +
+    '<th>Sold (range)</th><th>Received (range)</th><th>STK Age</th><th>Trend (range)</th>' +
+    months.map(w => '<th>' + monthLabel(w) + ' Sold</th>').join('') +
+    months.map(w => '<th>' + monthLabel(w) + ' Stock</th>').join('');
+
+  const rows = items.map((it, i) => {
+    const s3 = rangeSum(it, months, 'sales'), r3 = rangeSum(it, months, 'stock');
+    const avg = rangeAvg(it, months);
+    const age = stkAgeFor(it);
+    const trendTitle = 'Received ' + r3.toLocaleString('en-US') + '  ·  Sold ' + s3.toLocaleString('en-US') + ' over this range';
+    return '<tr>' +
+      '<td class="branch-sno">' + (i + 1) + '</td>' +
+      '<td>' + escHtml(it['Item Code']) + '</td>' +
+      '<td class="l">' + escHtml(it['Description']) + '</td>' +
+      '<td>' + escHtml(it['Vendor Code']) + '</td>' +
+      '<td>' + escHtml(it['Range Name']) + '</td>' +
+      '<td>' + escHtml(it['PUDA Code']) + '</td>' +
+      '<td class="l">' + escHtml(it['PUDA Desc']) + '</td>' +
+      '<td>' + escHtml(it['Current Plan Code']) + '</td>' +
+      '<td>' + fmtInt(sohValue(it)) + '</td>' +
+      '<td>' + fmtInt(whSohValue(it)) + '</td>' +
+      '<td>' + fmtInt(srQtyValue(it)) + '</td>' +
+      '<td>' + fmtInt(it['PO-Qty']) + '</td>' +
+      '<td>' + (avg == null ? '<span title="Range is under 3 months — AVG needs at least 3">—</span>' : avg) + '</td>' +
+      '<td>' + fmtInt(s3) + '</td>' +
+      '<td>' + fmtInt(r3) + '</td>' +
+      '<td>' + escHtml(age.label) + '</td>' +
+      '<td>' + miniVBar(r3, s3, trendTitle, 'No stock or sales activity over this range') + '</td>' +
+      months.map(w => { const yr = it.years[String(w.year)]; const v = yr ? (yr.sales[w.m] || 0) : 0; return '<td>' + (v === 0 ? '—' : fmtInt(v)) + '</td>'; }).join('') +
+      months.map(w => { const yr = it.years[String(w.year)]; const v = yr ? (yr.stock[w.m] || 0) : 0; return '<td>' + (v === 0 ? '—' : fmtInt(v)) + '</td>'; }).join('') +
+      '</tr>';
+  }).join('');
+
+  body.innerHTML = '<table class="matrix dr-table"><thead><tr>' + cols + '</tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+let dateRangeModalReturn = null;
+function openDateRangeModal(){
+  const modal = document.getElementById('dateRangeModal');
+  if(!modal) return;
+  document.getElementById('drTitle').textContent = 'Items — ' + formatDMY(gridDateRange.from) + ' to ' + formatDMY(gridDateRange.to);
+  document.getElementById('drMode').value = dateRangeMode;
+  buildDateRangeTable();
+  modal.hidden = false;
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+  dateRangeModalReturn = document.activeElement;
+  document.getElementById('drClose').focus();
+}
+function closeDateRangeModal(){
+  const modal = document.getElementById('dateRangeModal');
+  if(!modal || modal.hidden) return;
+  modal.hidden = true;
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+  if(dateRangeModalReturn && dateRangeModalReturn.focus) dateRangeModalReturn.focus();
+}
+(function(){
+  const modal = document.getElementById('dateRangeModal');
+  if(!modal) return;
+  modal.querySelectorAll('[data-dr-close]').forEach(el => el.addEventListener('click', closeDateRangeModal));
+  document.getElementById('drMode').addEventListener('change', e => { dateRangeMode = e.target.value; buildDateRangeTable(); });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') closeDateRangeModal(); });
+  document.addEventListener('gridDateRangeChange', e => {
+    const { from, to } = e.detail;
+    if(from && to && from <= to) openDateRangeModal();
+    else closeDateRangeModal();
+  });
 })();
 
 /* "Focus": a specific set of items handed over by the dashboard (e.g. "Reorder
