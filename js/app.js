@@ -2617,14 +2617,15 @@ function buildDateRangeTable(){
   }
 
   const monthLabel = w => MONTHS[w.m] + "'" + String(w.year).slice(-2);
+  const monthHead = (w, kind) => '<th title="' + monthLabel(w) + ' ' + kind + '">' + monthLabel(w).replace("'", "<br>'") + '<br>' + kind + '</th>';
   const cols =
     '<th class="branch-sno">S.No</th><th>Item Code</th><th class="l">Description</th>' +
-    '<th>Vendor Code</th><th>Range Name</th>' +
+    '<th title="Vendor Code">Vendor</th><th title="Range Name">Range</th>' +
     '<th>PUDA Code</th><th class="l">PUDA Desc</th><th>Plan</th>' +
-    '<th>SOH</th><th>WH SOH</th><th>SR Qty</th><th>PO Qty</th><th>AVG</th>' +
-    '<th>Sold (range)</th><th>Received (range)</th><th>STK Age</th><th>Trend (range)</th>' +
-    months.map(w => '<th>' + monthLabel(w) + ' Sold</th>').join('') +
-    months.map(w => '<th>' + monthLabel(w) + ' Stock</th>').join('');
+    '<th>SOH</th><th title="WH SOH">WH</th><th title="SR Qty">SR</th><th title="PO Qty">PO</th><th>AVG</th>' +
+    '<th title="Sold, this range">Sold</th><th title="Received (GRN), this range">Rcvd</th><th title="STK Age">Age</th><th title="Trend, this range">Trend</th>' +
+    months.map(w => monthHead(w, 'Sold')).join('') +
+    months.map(w => monthHead(w, 'Stock')).join('');
 
   const rows = items.map((it, i) => {
     const s3 = rangeSum(it, months, 'sales'), r3 = rangeSum(it, months, 'stock');

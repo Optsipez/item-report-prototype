@@ -827,12 +827,15 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .wk-dialog{position:relative;width:min(940px,100%);max-height:86vh;overflow:auto;
   background:var(--panel);border:1px solid var(--line-strong);border-radius:var(--r-lg);
   box-shadow:var(--sh-lg);padding:var(--sp-6);animation:popIn .18s ease;}
-.wk-dialog.wide{width:min(1400px,96vw);}
+.wk-dialog.wide{width:98vw;max-width:none;}
 .dr-mode-field{display:flex;flex-direction:column;gap:4px;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink-faint);}
 .dr-mode-field select{padding:7px 9px;font-size:var(--fs-sm);font-family:inherit;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:500;border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--panel);}
+/* Compact so the fixed columns fit without side-scroll on most screens --
+   month columns still push a long range wide, that's the data, not padding. */
 .dr-wrap{overflow-x:auto;}
-.dr-wrap table.matrix th,.dr-wrap table.matrix td{white-space:nowrap;}
-.dr-wrap table.matrix th.l,.dr-wrap table.matrix td.l{text-align:left;}
+.dr-wrap table.matrix{font-size:var(--fs-2xs);}
+.dr-wrap table.matrix th,.dr-wrap table.matrix td{padding:4px 5px;white-space:nowrap;}
+.dr-wrap table.matrix th.l,.dr-wrap table.matrix td.l{text-align:left;white-space:normal;max-width:160px;}
 .dr-empty{padding:var(--sp-6);text-align:center;color:var(--ink-faint);}
 .wk-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-4);margin-bottom:var(--sp-5);}
 .wk-head h3{margin:0 0 3px;font-size:var(--fs-lg);font-weight:600;color:var(--ink);letter-spacing:-.01em;}
