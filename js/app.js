@@ -2999,6 +2999,22 @@ const FILTER_VALUE_LABELS = {
 };
 // Filters that get a text box to search within their (often long) option list.
 const FILTER_SEARCHABLE = new Set(['Vendor Code', 'PUDA Desc', 'Group Desc', 'Range Name']);
+// Shared with dashboard.js's own vendor-name search (Show me bar). Vendor
+// Code's checkbox label always stays the code -- these two maps let a typed
+// NAME find the right code's checkbox without ever displaying the name
+// itself, so buyers (who must never see Vendor Name -- canSeeVendorName())
+// stay just as blind to it as before.
+const VENDOR_CODES = new Set(ITEMS.map(it => it['Vendor Code']).filter(Boolean));
+const VENDOR_NAME_TO_CODE = (() => {
+  const m = {};
+  ITEMS.forEach(it => { const n = it['Vendor Name']; if(n && !m[n.toLowerCase()]) m[n.toLowerCase()] = it['Vendor Code']; });
+  return m;
+})();
+const VENDOR_CODE_TO_NAME = (() => {
+  const m = {};
+  ITEMS.forEach(it => { if(it['Vendor Code'] && it['Vendor Name'] && !m[it['Vendor Code']]) m[it['Vendor Code']] = it['Vendor Name']; });
+  return m;
+})();
 function filterValueLabel(label, val){
   const map = FILTER_VALUE_LABELS[label];
   return (map && map[val]) || val;
@@ -3106,6 +3122,13 @@ function renderFilterBlocks(){
           if(DESC_TO_CODES[label] && cb){
             const codes = DESC_TO_CODES[label][cb.value];
             if(codes) hay += ' ' + Array.from(codes).join(' ').toLowerCase();
+          }
+          // Vendor Code's checkbox only ever shows the code -- this mixes the
+          // vendor's name into what's MATCHED against (never displayed), so
+          // typing "Ingenium" finds the right checkbox without buyers (who
+          // must never see Vendor Name) ever seeing the name itself.
+          if(label === 'Vendor Code' && cb && VENDOR_CODE_TO_NAME[cb.value]){
+            hay += ' ' + VENDOR_CODE_TO_NAME[cb.value].toLowerCase();
           }
           row.classList.toggle('nomatch', q !== '' && !hay.includes(q));
         });

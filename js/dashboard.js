@@ -105,12 +105,8 @@ const DASH_ITEM_BY_CODE = (() => {
 // name: the box always ends up showing the code, same as if they'd typed it
 // directly. It's the same lookup logic Managers/CEO get, just with the name
 // side of it kept invisible for buyers rather than a separate code path.
-const VENDOR_CODES = new Set(ITEMS.map(it => it['Vendor Code']).filter(Boolean));
-const VENDOR_NAME_TO_CODE = (() => {
-  const m = {};
-  ITEMS.forEach(it => { const n = it['Vendor Name']; if(n && !m[n.toLowerCase()]) m[n.toLowerCase()] = it['Vendor Code']; });
-  return m;
-})();
+// VENDOR_CODES / VENDOR_NAME_TO_CODE are defined in app.js (loads first) --
+// All Products' own Vendor Code filter search box uses the same two maps.
 // "LUM" or "Ingenium" can genuinely match several DIFFERENT vendors, not
 // just one -- silently picking the first (old behaviour) could quietly
 // filter to the wrong company. This looks up every distinct vendor CODE
