@@ -326,7 +326,8 @@ function dashScopeBar(){
   // text+datalist combo as Vendor code instead of a dropdown list.
   const search = (id, field, label) => '<label>' + label + '<input id="' + id + '" list="' + id + 'List" value="' + dashEsc(dashScope[field]) + '" placeholder="All" autocomplete="off"></label>' +
     '<datalist id="' + id + 'List">' + uniq(field === 'range' ? 'Range Name' : field === 'group' ? 'Group Desc' : 'PUDA Desc').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>';
-  return '<div class="dash-scope"><span class="dash-scope-t">Show me</span>' +
+  return '<div class="dash-scope"><div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' +
+    (dashScopeIsSet() ? '<button type="button" class="dash-btn ghost" id="dashReset">Show everything</button>' : '') + '</div>' +
     '<label>Department<select id="dashDept">' + opt(uniq('Department Desc'), dashScope.dept) + '</select></label>' +
     '<label>Category<select id="dashCat">' + opt(uniq('Category'), dashScope.cat) + '</select></label>' +
     '<label>Vendor code<input id="dashVendor" list="dashVendorList" value="' + dashEsc(dashScope.vendor) + '" placeholder="All" autocomplete="off"></label>' +
@@ -335,7 +336,7 @@ function dashScopeBar(){
     search('dashGroup', 'group', 'Group Desc') +
     search('dashPuda', 'puda', 'PUDA Desc') +
     '<label>Plan<select id="dashPlan">' + opt(uniq('Current Plan Code'), dashScope.plan) + '</select></label>' +
-    (dashScopeIsSet() ? '<button type="button" class="dash-btn ghost" id="dashReset">Show everything</button>' : '') + '</div>';
+    '</div>';
 }
 
 function renderDashboard(){
