@@ -2530,20 +2530,9 @@ function parseDMY(raw){
 
 /* Date-range popup -- opens automatically (see announce() above) once both
    From and To are set and not backwards; closes itself if they stop being
-   so. Lists every item matching the picked range under one of three modes,
-   switched via a dropdown INSIDE the open popup -- it just re-renders the
-   same popup's body, never closes it.
-     - LRCV date: the item's own Lrcv Date falls inside the range (day-precise).
-     - GRN / Sales: the source data only has monthly totals, not per-
-       transaction dates, so these match any month overlapping the range --
-       same precision as the rest of the app's Sold/Stock by Month.
-   AVG, Sold and Received are recalculated for the picked range rather than
-   showing the stats-window figures used elsewhere: AVG reuses avgFnl (the
-   ported U-FNL formula, already generalized to any window size) anchored at
-   the range's own last month and sized to the range's own month count.
-   Under 3 months there's no valid AVG -- U-FNL's shortest sub-window is 3
-   months -- shown as -- rather than a guess. */
-let dateRangeMode = 'lrcv';
+   so. Lists every item whose own Lrcv Date falls inside the range (day-
+   precise). Sold and Received are recalculated for the picked range rather
+   than showing the stats-window figures used elsewhere. */
 function escHtml(s){
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -2562,26 +2551,22 @@ function monthsBetween(from, to){
 function rangeSum(item, months, field){   // field: 'sales' or 'stock' (stock = GRN received)
   return months.reduce((a, w) => { const yr = item.years[String(w.year)]; return a + (yr ? (yr[field][w.m] || 0) : 0); }, 0);
 }
-function rangeHasActivity(item, months, field){
-  return months.some(w => { const yr = item.years[String(w.year)]; return yr && (yr[field][w.m] || 0) !== 0; });
-}
 // Lrcv Date is ingested as "DD-MM-YYYY"; local midnight, same shape as gridDateRange.
 function parseLrcvDate(v){
   const m = v ? String(v).match(/^(\d{2})-(\d{2})-(\d{4})$/) : null;
   return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null;
 }
-function dateRangeMatch(item, months, mode){
-  if(mode === 'lrcv'){ const d = parseLrcvDate(item['Lrcv Date']); return !!d && d >= gridDateRange.from && d <= gridDateRange.to; }
-  if(mode === 'grn') return rangeHasActivity(item, months, 'stock');
-  return rangeHasActivity(item, months, 'sales');
+// Day-precise match against the picked range, on the item's own Lrcv Date.
+function dateRangeMatch(item){
+  const d = parseLrcvDate(item['Lrcv Date']);
+  return !!d && d >= gridDateRange.from && d <= gridDateRange.to;
 }
-const DATE_RANGE_MODE_LABEL = { lrcv: 'LRCV date', grn: 'GRN', sales: 'Sales' };
 
 // Sort state for the popup's table -- multi-column, same model as the main
 // grid's gridSort: clicking a header ADDS it (doesn't replace), so you can
-// sort by Plan then Vendor then AVG all at once, primary first. Persists
-// across mode switches, closes, and reopens with a new date range (same as
-// dateRangeMode above), until you cycle a column back off.
+// sort by Plan then Vendor all at once, primary first. Persists across
+// closes and reopens with a new date range, until Clear sort or you cycle
+// every column back off one at a time.
 let dateRangeSort = [];   // [{ key, dir: 'desc' | 'asc' }, ...] -- index 0 is primary
 // Value to sort each row by, for a given column key. Strings compare
 // case-insensitively; STK Age by its bucket order (same as the main grid);
@@ -2632,15 +2617,17 @@ function dateRangeSortRows(rows){
 function buildDateRangeTable(){
   const from = gridDateRange.from, to = gridDateRange.to;
   const months = monthsBetween(from, to);
-  const items = ITEMS.filter(it => dateRangeMatch(it, months, dateRangeMode));
+  const items = ITEMS.filter(dateRangeMatch);
 
   document.getElementById('drSub').textContent =
-    formatDMY(from) + ' – ' + formatDMY(to) + '  ·  matched on ' + DATE_RANGE_MODE_LABEL[dateRangeMode] +
+    formatDMY(from) + ' – ' + formatDMY(to) + '  ·  matched on LRCV date' +
     '  ·  ' + items.length + (items.length === 1 ? ' item' : ' items');
 
   const body = document.getElementById('drBody');
+  const clearSortBtn = document.getElementById('drClearSort');
+  if(clearSortBtn) clearSortBtn.hidden = dateRangeSort.length === 0;
   if(!items.length){
-    body.innerHTML = '<p class="dr-empty">No items match this range on ' + DATE_RANGE_MODE_LABEL[dateRangeMode] + '.</p>';
+    body.innerHTML = '<p class="dr-empty">No items match this range on LRCV date.</p>';
     return;
   }
 
@@ -2720,7 +2707,6 @@ function openDateRangeModal(){
   const modal = document.getElementById('dateRangeModal');
   if(!modal) return;
   document.getElementById('drTitle').textContent = 'Items — ' + formatDMY(gridDateRange.from) + ' to ' + formatDMY(gridDateRange.to);
-  document.getElementById('drMode').value = dateRangeMode;
   buildDateRangeTable();
   modal.hidden = false;
   modal.setAttribute('aria-hidden', 'false');
@@ -2750,7 +2736,7 @@ function closeDateRangeModal(){
   const modal = document.getElementById('dateRangeModal');
   if(!modal) return;
   modal.querySelectorAll('[data-dr-close]').forEach(el => el.addEventListener('click', closeDateRangeModal));
-  document.getElementById('drMode').addEventListener('change', e => { dateRangeMode = e.target.value; buildDateRangeTable(); });
+  document.getElementById('drClearSort').addEventListener('click', () => { dateRangeSort = []; buildDateRangeTable(); });
   document.addEventListener('keydown', e => { if(e.key === 'Escape') closeDateRangeModal(); });
   document.addEventListener('gridDateRangeChange', e => {
     const { from, to } = e.detail;
