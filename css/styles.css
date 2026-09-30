@@ -869,7 +869,7 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .wk-dialog.wide{width:98vw;max-width:none;display:flex;flex-direction:column;overflow:hidden;}
 .wk-dialog.wide .wk-head{flex:none;}
 .wk-dialog.wide .dr-wrap{flex:1;min-height:0;}
-.dr-wrap table.matrix thead th{position:sticky;top:0;z-index:1;background:var(--s-200);}
+.dr-wrap table.matrix thead th{position:sticky;top:0;z-index:1;background:var(--s-300);}
 .dr-head-left{display:flex;align-items:center;gap:var(--sp-5);}
 /* Compact so the fixed columns fit without side-scroll on most screens --
    month columns still push a long range wide, that's the data, not padding. */
