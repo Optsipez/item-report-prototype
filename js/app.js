@@ -3241,6 +3241,16 @@ function renderFilterChips(){
     wrap.appendChild(clr);
   }
   wrap.hidden = checked.length === 0 && !gridFocus;
+  // The chip row above is easy to miss (or scroll past) -- someone filtering
+  // then forgetting a filter is on, and reading a thin/empty result as "no
+  // data" rather than "still filtered", is the actual failure this fixes.
+  // Recolor buttons that are always on screen instead, so a filter being on
+  // is visible no matter where you're looking.
+  const active = checked.length > 0 || !!gridFocus;
+  ['collapseAllBtn', 'expandAllBtn', 'clearFiltersBtn'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.classList.toggle('filters-active-btn', active);
+  });
 }
 
 // Faceted filtering: an option stays enabled only if choosing it would still

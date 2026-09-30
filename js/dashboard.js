@@ -391,7 +391,7 @@ function dashScopeBar(){
   const search = (id, field, label) => '<label>' + label + '<input id="' + id + '" list="' + id + 'List" value="' + dashEsc(dashScope[field]) + '" placeholder="All" autocomplete="off"></label>' +
     '<datalist id="' + id + 'List">' + uniq(field === 'range' ? 'Range Name' : field === 'group' ? 'Group Desc' : 'PUDA Desc').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>';
   return '<div class="dash-scope"><div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' +
-    (dashScopeIsSet() ? '<button type="button" class="dash-btn ghost" id="dashReset">Show everything</button>' : '') + '</div>' +
+    (dashScopeIsSet() ? '<button type="button" class="dash-btn ghost filters-active-btn" id="dashReset">Show everything</button>' : '') + '</div>' +
     '<label>Department<select id="dashDept">' + opt(uniq('Department Desc'), dashScope.dept) + '</select></label>' +
     '<label>Category<select id="dashCat">' + opt(uniq('Category'), dashScope.cat) + '</select></label>' +
     '<label class="dash-vendor-field">Vendor code<input id="dashVendor" list="dashVendorList" class="' + (dashVendorAmbiguous ? 'dash-vendor-ambiguous' : '') + '" value="' +
@@ -436,7 +436,7 @@ function renderDashboard(){
       '<div class="dash-date">' + dashEsc(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + '</div>' +
       '<h1 class="dash-greet">' + DASH_GREETINGS[dashGreetingIdx](dashEsc(dashName())) + '</h1>' +
       '<p class="dash-sub">' + dashSubtitle() + ' <span class="dash-asof">Data as of ' + dashEsc(dashDate(DATA_AS_OF)) + '.</span></p></div>' +
-      '<div class="dash-links"><a class="dash-btn" href="#products">All Products &rarr;</a><a class="dash-btn ghost" href="#lookup">Item Lookup &rarr;</a></div></div>' +
+      '<div class="dash-links"><a class="dash-btn' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#products">All Products &rarr;</a><a class="dash-btn ghost' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#lookup">Item Lookup &rarr;</a></div></div>' +
     dashScopeBar() +
     '<h2 class="dash-h">Needs attention <span>' + dashEsc(scopeLine) + '</span></h2>' + dashActions(R) +
     '<h2 class="dash-h">How it’s trading <span>last 3 complete months (' + dashEsc(winLabel) + ') vs the 3 before</span></h2>' +

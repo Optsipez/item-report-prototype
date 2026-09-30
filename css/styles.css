@@ -361,6 +361,15 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .dash-btn.ghost{background:var(--panel);color:var(--ink);border-color:var(--line-strong);}
 .dash-btn.ghost:hover{border-color:var(--primary-line);color:var(--primary-hover);background:var(--primary-weak);}
 .dash-more{margin-top:var(--sp-3);align-self:flex-start;}
+/* One shared "a filter is on somewhere" flag, reused on the dashboard's own
+   quick links/Show everything and on All Products' toolbar/Clear all --
+   deliberately the same loud amber on every button it's applied to,
+   regardless of that button's own normal look, so it can't blend in and get
+   missed (a filtered page reading as "no data" is the actual failure mode
+   this fixes -- someone forgot a filter was on). !important because it has
+   to beat each button type's own background/border rules, not just one. */
+.filters-active-btn{background:var(--warn) !important;color:#fff !important;border-color:var(--warn) !important;}
+.filters-active-btn:hover{filter:brightness(.92);}
 .dash-asof{color:var(--ink-faint);font-size:var(--fs-sm);}
 .dash-scope{
   display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--sp-4);padding:var(--sp-4) var(--sp-5);margin-bottom:var(--sp-5);
