@@ -3206,7 +3206,7 @@ function renderFilterChips(){
   if(checked.length + (gridFocus ? 1 : 0) > 1){
     const clr = document.createElement('button');
     clr.type = 'button';
-    clr.className = 'chip chip-clear';
+    clr.className = 'chip chip-clear filters-active-btn';
     clr.textContent = 'Clear all';
     clr.addEventListener('click', () => document.getElementById('clearFiltersBtn').click());
     wrap.appendChild(clr);
@@ -3215,13 +3215,12 @@ function renderFilterChips(){
   // The chip row above is easy to miss (or scroll past) -- someone filtering
   // then forgetting a filter is on, and reading a thin/empty result as "no
   // data" rather than "still filtered", is the actual failure this fixes.
-  // Recolor buttons that are always on screen instead, so a filter being on
-  // is visible no matter where you're looking.
+  // Recolor the sidebar's own Clear all too, so a filter being on is visible
+  // no matter where you're looking. Collapse/Expand all sections are left
+  // alone -- they're layout toggles, not filter state.
   const active = checked.length > 0 || !!gridFocus;
-  ['collapseAllBtn', 'expandAllBtn', 'clearFiltersBtn'].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.classList.toggle('filters-active-btn', active);
-  });
+  const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+  if(clearFiltersBtn) clearFiltersBtn.classList.toggle('filters-active-btn', active);
 }
 
 // Faceted filtering: an option stays enabled only if choosing it would still
