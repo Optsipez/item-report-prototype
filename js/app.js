@@ -2582,10 +2582,12 @@ function dateRangeMatch(item, months, mode){
 }
 const DATE_RANGE_MODE_LABEL = { lrcv: 'LRCV date', grn: 'GRN', sales: 'Sales' };
 
-// Sort state for the popup's table -- persists across mode switches, closes,
-// and reopens with a new date range (same as dateRangeMode above), until you
-// click a header a third time. null = original (matched) order.
-let dateRangeSort = null;   // { key, dir: 'desc' | 'asc' }
+// Sort state for the popup's table -- multi-column, same model as the main
+// grid's gridSort: clicking a header ADDS it (doesn't replace), so you can
+// sort by Plan then Vendor then AVG all at once, primary first. Persists
+// across mode switches, closes, and reopens with a new date range (same as
+// dateRangeMode above), until you cycle a column back off.
+let dateRangeSort = [];   // [{ key, dir: 'desc' | 'asc' }, ...] -- index 0 is primary
 // Value to sort each row by, for a given column key. Strings compare
 // case-insensitively; STK Age by its bucket order (same as the main grid);
 // Trend by the raw (uncapped) ratio, with "no data" (null) always last
@@ -2616,15 +2618,20 @@ function dateRangeSortValue(row, key){
   return 0;
 }
 function dateRangeSortRows(rows){
-  if(!dateRangeSort) return rows;
-  const { key, dir } = dateRangeSort;
+  if(!dateRangeSort.length) return rows;
   const sorted = rows.slice().sort((a, b) => {
-    const va = dateRangeSortValue(a, key), vb = dateRangeSortValue(b, key);
-    const blankA = va == null, blankB = vb == null;
-    if(blankA || blankB) return blankA === blankB ? 0 : (blankA ? 1 : -1);   // blanks always last
-    if(va === vb) return 0;
-    const cmp = va < vb ? -1 : 1;
-    return dir === 'asc' ? cmp : -cmp;
+    for(const { key, dir } of dateRangeSort){          // primary -> secondary -> ...
+      const va = dateRangeSortValue(a, key), vb = dateRangeSortValue(b, key);
+      const blankA = va == null, blankB = vb == null;
+      if(blankA || blankB){
+        if(blankA !== blankB) return blankA ? 1 : -1;   // blanks always last, on this column
+        continue;                                       // both blank here -- tied on this column, try the next
+      }
+      if(va === vb) continue;
+      const cmp = va < vb ? -1 : 1;
+      return dir === 'asc' ? cmp : -cmp;
+    }
+    return 0;                                           // Array#sort is stable -- ties keep their relative order
   });
   return sorted;
 }
@@ -2660,8 +2667,10 @@ function buildDateRangeTable(){
 
   const monthLabel = w => MONTHS[w.m] + "'" + String(w.year).slice(-2);
   const sortInd = key => {
-    if(!dateRangeSort || dateRangeSort.key !== key) return '';
-    return ' <span class="dr-sort-ind">' + (dateRangeSort.dir === 'asc' ? '▲' : '▼') + '</span>';
+    const idx = dateRangeSort.findIndex(s => s.key === key);
+    if(idx === -1) return '';
+    const arrow = dateRangeSort[idx].dir === 'asc' ? '▲' : '▼';
+    return ' <span class="dr-sort-ind">' + (dateRangeSort.length > 1 ? arrow + (idx + 1) : arrow) + '</span>';
   };
   const sh = (key, html, title) => '<th class="dr-sort" data-sort-key="' + key + '"' + (title ? ' title="' + title + '"' : '') + '>' + html + sortInd(key) + '</th>';
   const monthHead = (w, kind, key) => sh(key, monthLabel(w).replace("'", "<br>'") + '<br>' + kind, monthLabel(w) + ' ' + kind);
@@ -2703,9 +2712,10 @@ function buildDateRangeTable(){
   body.innerHTML = '<table class="matrix dr-table"><thead><tr>' + cols + '</tr></thead><tbody>' + rowsHtml + '</tbody></table>';
   body.querySelectorAll('th.dr-sort').forEach(th => th.addEventListener('click', () => {
     const key = th.dataset.sortKey;
-    if(!dateRangeSort || dateRangeSort.key !== key) dateRangeSort = { key, dir: 'desc' };
-    else if(dateRangeSort.dir === 'desc') dateRangeSort = { key, dir: 'asc' };
-    else dateRangeSort = null;
+    const idx = dateRangeSort.findIndex(s => s.key === key);
+    if(idx === -1) dateRangeSort.push({ key, dir: 'desc' });                    // not sorted yet -> add as the newest column
+    else if(dateRangeSort[idx].dir === 'desc') dateRangeSort[idx] = { key, dir: 'asc' };
+    else dateRangeSort.splice(idx, 1);                                         // third click -> drop this column only
     buildDateRangeTable();
   }));
 }
