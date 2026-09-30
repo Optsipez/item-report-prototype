@@ -857,6 +857,7 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .wk-dialog.wide .wk-head{flex:none;}
 .wk-dialog.wide .dr-wrap{flex:1;min-height:0;}
 .dr-wrap table.matrix thead th{position:sticky;top:0;z-index:1;}
+.dr-head-left{display:flex;align-items:center;gap:var(--sp-5);}
 .dr-mode-field{display:flex;flex-direction:column;gap:4px;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink-faint);}
 .dr-mode-field select{padding:7px 9px;font-size:var(--fs-sm);font-family:inherit;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:500;border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--panel);}
 /* Compact so the fixed columns fit without side-scroll on most screens --

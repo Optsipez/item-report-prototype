@@ -281,17 +281,19 @@
   <div class="wk-backdrop" data-dr-close></div>
   <div class="wk-dialog wide" role="document">
     <div class="wk-head">
-      <div>
-        <h3 id="drTitle">Items by date range</h3>
-        <p id="drSub" class="wk-sub"></p>
+      <div class="dr-head-left">
+        <div>
+          <h3 id="drTitle">Items by date range</h3>
+          <p id="drSub" class="wk-sub"></p>
+        </div>
+        <label class="dr-mode-field">Match on
+          <select id="drMode">
+            <option value="lrcv">LRCV date</option>
+            <option value="grn">GRN</option>
+            <option value="sales">Sales</option>
+          </select>
+        </label>
       </div>
-      <label class="dr-mode-field">Match on
-        <select id="drMode">
-          <option value="lrcv">LRCV date</option>
-          <option value="grn">GRN</option>
-          <option value="sales">Sales</option>
-        </select>
-      </label>
       <button id="drClose" class="wk-x" type="button" data-dr-close aria-label="Close">&times;</button>
     </div>
     <div id="drBody" class="wk-body dr-wrap"></div>
