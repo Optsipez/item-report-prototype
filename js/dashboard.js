@@ -163,14 +163,17 @@ function dashVendorOptionsHtml(){
     (more > 0 ? '<div class="dash-vendor-more">+' + more + ' more — type more letters to narrow it down</div>' : '') +
     '</div>';
 }
-function dashItemInScope(it){
-  return (!dashScope.dept || it['Department Desc'] === dashScope.dept) &&
-    (!dashScope.cat || it['Category'] === dashScope.cat) &&
-    (!dashScope.vendor || String(it['Vendor Code']).toUpperCase() === dashScope.vendor.toUpperCase()) &&
-    (!dashScope.range || it['Range Name'] === dashScope.range) &&
-    (!dashScope.group || it['Group Desc'] === dashScope.group) &&
-    (!dashScope.puda || it['PUDA Desc'] === dashScope.puda) &&
-    (!dashScope.plan || String(it['Current Plan Code']).toUpperCase() === dashScope.plan.toUpperCase());
+// scope defaults to dashScope -- the date-range popup's own "Show me" bar
+// (app.js) reuses this exact matching logic with its own drScope instead.
+function dashItemInScope(it, scope){
+  scope = scope || dashScope;
+  return (!scope.dept || it['Department Desc'] === scope.dept) &&
+    (!scope.cat || it['Category'] === scope.cat) &&
+    (!scope.vendor || String(it['Vendor Code']).toUpperCase() === scope.vendor.toUpperCase()) &&
+    (!scope.range || it['Range Name'] === scope.range) &&
+    (!scope.group || it['Group Desc'] === scope.group) &&
+    (!scope.puda || it['PUDA Desc'] === scope.puda) &&
+    (!scope.plan || String(it['Current Plan Code']).toUpperCase() === scope.plan.toUpperCase());
 }
 function dashLineInScope(l){   // a PO line: [po, item, desc, qty, eta, vendor, dept, cat]
   if(dashScope.range || dashScope.group || dashScope.puda || dashScope.plan){

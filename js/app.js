@@ -2562,6 +2562,102 @@ function dateRangeMatch(item){
   return !!d && d >= gridDateRange.from && d <= gridDateRange.to;
 }
 
+/* The popup's own "Show me" bar -- same 7 fields, same look, same vendor-
+   name-with-ambiguity behaviour as the dashboard's (js/dashboard.js), just
+   a separate scope object so the two don't interfere with each other or
+   with dashScope's own localStorage persistence. Reuses dashItemInScope()
+   (now scope-parametrized for exactly this) and vendorNameLookup() /
+   VENDOR_CODES / VENDOR_NAME_TO_CODE, which already live in this file. */
+const DR_SCOPE_DEFAULTS = { dept: '', cat: '', vendor: '', range: '', group: '', puda: '', plan: '' };
+let drScope = { ...DR_SCOPE_DEFAULTS };
+let drVendorAmbiguous = null;   // { raw, codes } or null -- see vendorNameLookup()
+const drScopeIsSet = () => Object.keys(DR_SCOPE_DEFAULTS).some(k => drScope[k]);
+function drVendorAmbiguousTip(){
+  if(!drVendorAmbiguous) return '';
+  const showNames = canSeeVendorName();
+  const shown = drVendorAmbiguous.codes.slice(0, 8);
+  const list = shown.map(c => {
+    if(!showNames) return c;
+    const it = ITEMS.find(i => i['Vendor Code'] === c);
+    return it ? c + ' (' + it['Vendor Name'] + ')' : c;
+  }).join(', ');
+  const more = drVendorAmbiguous.codes.length > shown.length ? ', +' + (drVendorAmbiguous.codes.length - shown.length) + ' more' : '';
+  return 'Matches ' + drVendorAmbiguous.codes.length + ' vendors: ' + list + more + '. Type the exact code, or more letters to narrow it down.';
+}
+function drVendorOptionsHtml(){
+  if(!drVendorAmbiguous) return '';
+  const showNames = canSeeVendorName();
+  const shown = drVendorAmbiguous.codes.slice(0, 8);
+  const more = drVendorAmbiguous.codes.length - shown.length;
+  const opts = shown.map(c => {
+    const it = ITEMS.find(i => i['Vendor Code'] === c);
+    const label = showNames && it ? c + ' — ' + it['Vendor Name'] : c;
+    return '<button type="button" class="dash-vendor-opt" data-code="' + escHtml(c) + '">' + escHtml(label) + '</button>';
+  }).join('');
+  return '<div class="dash-vendor-options">' + opts +
+    (more > 0 ? '<div class="dash-vendor-more">+' + more + ' more — type more letters to narrow it down</div>' : '') +
+    '</div>';
+}
+function renderDrScopeBar(){
+  const wrap = document.getElementById('drScopeBar');
+  if(!wrap) return;
+  const uniq = f => [...new Set(ITEMS.map(i => i[f]).filter(Boolean))].sort();
+  const opt = (arr, cur) => '<option value="">All</option>' + arr.map(v => '<option' + (v === cur ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('');
+  const search = (id, field, label) => '<label>' + label + '<input id="' + id + '" list="' + id + 'List" value="' + escHtml(drScope[field]) + '" placeholder="All" autocomplete="off"></label>' +
+    '<datalist id="' + id + 'List">' + uniq(field === 'range' ? 'Range Name' : field === 'group' ? 'Group Desc' : 'PUDA Desc').map(v => '<option value="' + escHtml(v) + '">').join('') + '</datalist>';
+  wrap.innerHTML = '<div class="dash-scope"><div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' +
+    (drScopeIsSet() ? '<button type="button" class="dash-btn ghost filters-active-btn" id="drScopeReset">Show everything</button>' : '') + '</div>' +
+    '<label>Department<select id="drDept">' + opt(uniq('Department Desc'), drScope.dept) + '</select></label>' +
+    '<label>Category<select id="drCat">' + opt(uniq('Category'), drScope.cat) + '</select></label>' +
+    '<label class="dash-vendor-field">Vendor code<input id="drVendor" list="drVendorList" class="' + (drVendorAmbiguous ? 'dash-vendor-ambiguous' : '') + '" value="' +
+      escHtml(drVendorAmbiguous ? drVendorAmbiguous.raw : drScope.vendor) + '" title="' + escHtml(drVendorAmbiguousTip()) + '" placeholder="All" autocomplete="off">' +
+      drVendorOptionsHtml() + '</label>' +
+    '<datalist id="drVendorList">' + uniq('Vendor Code').map(v => '<option value="' + escHtml(v) + '">').join('') + '</datalist>' +
+    search('drRange', 'range', 'Range Name') +
+    search('drGroup', 'group', 'Group Desc') +
+    search('drPuda', 'puda', 'PUDA Desc') +
+    '<label>Plan<select id="drPlan">' + opt(uniq('Current Plan Code'), drScope.plan) + '</select></label>' +
+    '</div>';
+
+  const $ = id => document.getElementById(id);
+  const change = () => {
+    const raw = $('drVendor').value;
+    const lookup = vendorNameLookup(raw);
+    let vendor = '';
+    if(lookup.type === 'code') vendor = raw.trim();
+    else if(lookup.type === 'resolved'){ vendor = lookup.code; $('drVendor').value = vendor; }
+    else if(lookup.type === 'unmatched') vendor = raw.trim();
+    // 'ambiguous' and 'empty' both leave vendor === '' -- don't guess which of several matches was meant
+    drVendorAmbiguous = lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null;
+    drScope = {
+      dept: $('drDept').value, cat: $('drCat').value, vendor,
+      range: $('drRange').value.trim(), group: $('drGroup').value.trim(),
+      puda: $('drPuda').value.trim(), plan: $('drPlan').value,
+    };
+    renderDrScopeBar();
+    buildDateRangeTable();
+  };
+  ['drDept', 'drCat', 'drPlan'].forEach(id => $(id).addEventListener('change', change));
+  // Free-text fields use blur + Enter, not 'change' -- see the identical
+  // fix for the dashboard's own Vendor/Range/Group/PUDA fields.
+  ['drVendor', 'drRange', 'drGroup', 'drPuda'].forEach(id => {
+    const el = $(id);
+    el.addEventListener('blur', change);
+    el.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); change(); } });
+  });
+  wrap.querySelectorAll('.dash-vendor-opt').forEach(btn => btn.addEventListener('click', () => {
+    $('drVendor').value = btn.dataset.code;
+    change();
+  }));
+  const reset = $('drScopeReset');
+  if(reset) reset.addEventListener('click', () => {
+    drScope = { ...DR_SCOPE_DEFAULTS };
+    drVendorAmbiguous = null;
+    renderDrScopeBar();
+    buildDateRangeTable();
+  });
+}
+
 // Sort state for the popup's table -- multi-column, same model as the main
 // grid's gridSort: clicking a header ADDS it (doesn't replace), so you can
 // sort by Plan then Vendor all at once, primary first. Persists across
@@ -2617,7 +2713,7 @@ function dateRangeSortRows(rows){
 function buildDateRangeTable(){
   const from = gridDateRange.from, to = gridDateRange.to;
   const months = monthsBetween(from, to);
-  const items = ITEMS.filter(dateRangeMatch);
+  const items = ITEMS.filter(dateRangeMatch).filter(it => dashItemInScope(it, drScope));
 
   document.getElementById('drSub').textContent =
     formatDMY(from) + ' – ' + formatDMY(to) + '  ·  matched on LRCV date' +
@@ -2707,6 +2803,7 @@ function openDateRangeModal(){
   const modal = document.getElementById('dateRangeModal');
   if(!modal) return;
   document.getElementById('drTitle').textContent = 'Items — ' + formatDMY(gridDateRange.from) + ' to ' + formatDMY(gridDateRange.to);
+  renderDrScopeBar();
   buildDateRangeTable();
   modal.hidden = false;
   modal.setAttribute('aria-hidden', 'false');
