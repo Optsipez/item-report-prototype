@@ -758,6 +758,9 @@ function applyRoute(route){
     }
     setView('lookup');
   } else if(route.view === 'trip'){
+    // Admin-only while in development -- a typed/bookmarked #trip still
+    // can't get a non-admin in, even though the nav button is hidden for them.
+    if(CURRENT_ROLE !== 'admin'){ navigate('dashboard'); return; }
     setView('trip');                      // renders the vendor search + table
   } else {
     setView('all');                       // rebuilds the grid

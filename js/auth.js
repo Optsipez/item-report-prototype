@@ -91,7 +91,14 @@ function hideLoginOverlay(){
   if(overlay) overlay.hidden = true;
 }
 // Lets CSS hide role-restricted bits (see .vendor-name-only in styles.css).
-function applyRoleClass(){ document.body.classList.toggle('role-buyer', CURRENT_ROLE === 'buyer'); }
+// Trip Requirement is admin-only while it's still in development -- queries
+// the button fresh rather than relying on app.js's own navTrip constant, so
+// this works regardless of script load order.
+function applyRoleClass(){
+  document.body.classList.toggle('role-buyer', CURRENT_ROLE === 'buyer');
+  const navTrip = document.getElementById('navTrip');
+  if(navTrip) navTrip.hidden = CURRENT_ROLE !== 'admin';
+}
 function updateTopbarUser(){
   const label = document.getElementById('topbarUserLabel');
   if(!label || !CURRENT_ROLE) return;
