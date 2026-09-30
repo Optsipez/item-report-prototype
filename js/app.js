@@ -2681,8 +2681,8 @@ function buildDateRangeTable(){
   const monthHead = (w, kind, key, cls) => sh(key, monthLabel(w).replace("'", "<br>'") + '<br>' + kind, monthLabel(w) + ' ' + kind, cls);
   const cols =
     '<th class="branch-sno">S.No</th>' + sh('code', 'Item Code') + sh('desc', 'Description') +
-    sh('vendor', 'Vendor', 'Vendor Code') + sh('range', 'Range', 'Range Name') +
-    sh('pudaCode', 'PUDA Code') + sh('pudaDesc', 'PUDA Desc') + sh('plan', 'Plan', null, 'dr-plan') +
+    sh('vendor', 'Vendor', 'Vendor Code', 'dr-narrow') + sh('range', 'Range', 'Range Name', 'dr-narrow') +
+    sh('pudaCode', 'PUDA Code', null, 'dr-narrow') + sh('pudaDesc', 'PUDA Desc') + sh('plan', 'Plan', null, 'dr-plan dr-narrow') +
     sh('soh', 'SOH', null, 'dr-soh') + sh('wh', 'WH', 'WH SOH', 'dr-wh') + sh('sr', 'SR', 'SR Qty', 'dr-sr') + sh('po', 'PO', 'PO Qty') + sh('avg', 'AVG', null, 'dr-avg') +
     sh('sold', 'Sold', 'Sold, this range') + sh('received', 'Rcvd', 'Received (GRN), this range') + sh('age', 'Age', 'STK Age') + sh('trend', 'Trend', 'Trend, this range') +
     months.map((w, i) => monthHead(w, 'Sold', 'sold_' + i, 'dr-soldmonth')).join('');
@@ -2694,11 +2694,11 @@ function buildDateRangeTable(){
       '<td class="branch-sno">' + (i + 1) + '</td>' +
       '<td>' + escHtml(it['Item Code']) + '</td>' +
       '<td class="l">' + escHtml(it['Description']) + '</td>' +
-      '<td>' + escHtml(it['Vendor Code']) + '</td>' +
-      '<td>' + escHtml(it['Range Name']) + '</td>' +
-      '<td>' + escHtml(it['PUDA Code']) + '</td>' +
+      '<td class="dr-narrow" title="' + escHtml(it['Vendor Code']) + '">' + escHtml(it['Vendor Code']) + '</td>' +
+      '<td class="dr-narrow" title="' + escHtml(it['Range Name']) + '">' + escHtml(it['Range Name']) + '</td>' +
+      '<td class="dr-narrow" title="' + escHtml(it['PUDA Code']) + '">' + escHtml(it['PUDA Code']) + '</td>' +
       '<td class="l">' + escHtml(it['PUDA Desc']) + '</td>' +
-      '<td class="dr-plan">' + escHtml(it['Current Plan Code']) + '</td>' +
+      '<td class="dr-plan dr-narrow">' + escHtml(it['Current Plan Code']) + '</td>' +
       '<td class="dr-soh">' + fmtInt(sohValue(it)) + '</td>' +
       '<td class="dr-wh">' + fmtInt(whSohValue(it)) + '</td>' +
       '<td class="dr-sr">' + fmtInt(srQtyValue(it)) + '</td>' +
