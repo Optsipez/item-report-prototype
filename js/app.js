@@ -2570,10 +2570,17 @@ function parseLrcvDate(v){
   const m = v ? String(v).match(/^(\d{2})-(\d{2})-(\d{4})$/) : null;
   return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null;
 }
-function rangeAvg(item, months){
-  if(months.length < 3) return null;
-  const last = months[months.length - 1];
-  return avgFnl(item, { year: last.year, month: last.m }, months.length);
+// Under 3 months there's no real AVG -- U-FNL's shortest sub-window is 3
+// months, and there's no historical "beginning stock" to build a true
+// short-range formula from either. Instead: a plain Sold-over-the-range ÷
+// number-of-months average, clearly marked (approx:true, "~" prefix and its
+// own tooltip) so it's never mistaken for the real formula's output.
+function rangeAvg(item, months, s3){
+  if(months.length >= 3){
+    const last = months[months.length - 1];
+    return { value: avgFnl(item, { year: last.year, month: last.m }, months.length), approx: false };
+  }
+  return { value: Math.round(s3 / months.length), approx: true };
 }
 function dateRangeMatch(item, months, mode){
   if(mode === 'lrcv'){ const d = parseLrcvDate(item['Lrcv Date']); return !!d && d >= gridDateRange.from && d <= gridDateRange.to; }
@@ -2608,7 +2615,7 @@ function dateRangeSortValue(row, key){
   if(key === 'wh') return whSohValue(row.it);
   if(key === 'sr') return srQtyValue(row.it);
   if(key === 'po') return Number(row.it['PO-Qty']) || 0;
-  if(key === 'avg') return row.avg;
+  if(key === 'avg') return row.avg.value;
   if(key === 'sold') return row.s3;
   if(key === 'received') return row.r3;
   if(key === 'age') return row.age.sno;
@@ -2656,7 +2663,7 @@ function buildDateRangeTable(){
     const s3 = rangeSum(it, months, 'sales'), r3 = rangeSum(it, months, 'stock');
     return {
       it, s3, r3,
-      avg: rangeAvg(it, months),
+      avg: rangeAvg(it, months, s3),
       age: stkAgeFor(it),
       pct: sellThroughPct(s3, r3),
       monthSales: months.map(w => { const yr = it.years[String(w.year)]; return yr ? (yr.sales[w.m] || 0) : 0; }),
@@ -2703,7 +2710,7 @@ function buildDateRangeTable(){
       '<td class="dr-wh">' + fmtInt(whSohValue(it)) + '</td>' +
       '<td class="dr-sr">' + fmtInt(srQtyValue(it)) + '</td>' +
       '<td>' + fmtInt(it['PO-Qty']) + '</td>' +
-      '<td class="dr-avg">' + (avg == null ? '<span title="Range is under 3 months — AVG needs at least 3">—</span>' : avg) + '</td>' +
+      '<td class="dr-avg">' + (avg.approx ? '<span title="Under 3 months — plain average (Sold ÷ months), not the full AVG formula">~' + avg.value + '</span>' : avg.value) + '</td>' +
       '<td>' + fmtInt(s3) + '</td>' +
       '<td>' + fmtInt(r3) + '</td>' +
       '<td>' + escHtml(age.label) + '</td>' +
