@@ -2672,16 +2672,22 @@ function buildDateRangeTable(){
     const arrow = dateRangeSort[idx].dir === 'asc' ? '▲' : '▼';
     return ' <span class="dr-sort-ind">' + (dateRangeSort.length > 1 ? arrow + (idx + 1) : arrow) + '</span>';
   };
-  const sh = (key, html, title) => '<th class="dr-sort" data-sort-key="' + key + '"' + (title ? ' title="' + title + '"' : '') + '>' + html + sortInd(key) + '</th>';
-  const monthHead = (w, kind, key) => sh(key, monthLabel(w).replace("'", "<br>'") + '<br>' + kind, monthLabel(w) + ' ' + kind);
+  // Same highlight colours as their All Products counterparts (plan-cell,
+  // soh-cell, whsoh-cell, srqty-cell, avg-cell, grp-soldby, grp-stockin --
+  // see css/styles.css) so a column reads the same in both places. PO Qty,
+  // Sold/Received (range totals), Age and Trend aren't coloured in All
+  // Products either (YTD Sold/Total Received Qty/STK Age/PO-Qty are plain
+  // there), so they stay plain here too.
+  const sh = (key, html, title, cls) => '<th class="dr-sort' + (cls ? ' ' + cls : '') + '" data-sort-key="' + key + '"' + (title ? ' title="' + title + '"' : '') + '>' + html + sortInd(key) + '</th>';
+  const monthHead = (w, kind, key, cls) => sh(key, monthLabel(w).replace("'", "<br>'") + '<br>' + kind, monthLabel(w) + ' ' + kind, cls);
   const cols =
     '<th class="branch-sno">S.No</th>' + sh('code', 'Item Code') + sh('desc', 'Description') +
     sh('vendor', 'Vendor', 'Vendor Code') + sh('range', 'Range', 'Range Name') +
-    sh('pudaCode', 'PUDA Code') + sh('pudaDesc', 'PUDA Desc') + sh('plan', 'Plan') +
-    sh('soh', 'SOH') + sh('wh', 'WH', 'WH SOH') + sh('sr', 'SR', 'SR Qty') + sh('po', 'PO', 'PO Qty') + sh('avg', 'AVG') +
+    sh('pudaCode', 'PUDA Code') + sh('pudaDesc', 'PUDA Desc') + sh('plan', 'Plan', null, 'dr-plan') +
+    sh('soh', 'SOH', null, 'dr-soh') + sh('wh', 'WH', 'WH SOH', 'dr-wh') + sh('sr', 'SR', 'SR Qty', 'dr-sr') + sh('po', 'PO', 'PO Qty') + sh('avg', 'AVG', null, 'dr-avg') +
     sh('sold', 'Sold', 'Sold, this range') + sh('received', 'Rcvd', 'Received (GRN), this range') + sh('age', 'Age', 'STK Age') + sh('trend', 'Trend', 'Trend, this range') +
-    months.map((w, i) => monthHead(w, 'Sold', 'sold_' + i)).join('') +
-    months.map((w, i) => monthHead(w, 'Stock', 'stock_' + i)).join('');
+    months.map((w, i) => monthHead(w, 'Sold', 'sold_' + i, 'dr-soldmonth')).join('') +
+    months.map((w, i) => monthHead(w, 'Stock', 'stock_' + i, 'dr-stockmonth')).join('');
 
   const rowsHtml = rows.map((row, i) => {
     const { it, s3, r3, avg, age } = row;
@@ -2694,18 +2700,18 @@ function buildDateRangeTable(){
       '<td>' + escHtml(it['Range Name']) + '</td>' +
       '<td>' + escHtml(it['PUDA Code']) + '</td>' +
       '<td class="l">' + escHtml(it['PUDA Desc']) + '</td>' +
-      '<td>' + escHtml(it['Current Plan Code']) + '</td>' +
-      '<td>' + fmtInt(sohValue(it)) + '</td>' +
-      '<td>' + fmtInt(whSohValue(it)) + '</td>' +
-      '<td>' + fmtInt(srQtyValue(it)) + '</td>' +
+      '<td class="dr-plan">' + escHtml(it['Current Plan Code']) + '</td>' +
+      '<td class="dr-soh">' + fmtInt(sohValue(it)) + '</td>' +
+      '<td class="dr-wh">' + fmtInt(whSohValue(it)) + '</td>' +
+      '<td class="dr-sr">' + fmtInt(srQtyValue(it)) + '</td>' +
       '<td>' + fmtInt(it['PO-Qty']) + '</td>' +
-      '<td>' + (avg == null ? '<span title="Range is under 3 months — AVG needs at least 3">—</span>' : avg) + '</td>' +
+      '<td class="dr-avg">' + (avg == null ? '<span title="Range is under 3 months — AVG needs at least 3">—</span>' : avg) + '</td>' +
       '<td>' + fmtInt(s3) + '</td>' +
       '<td>' + fmtInt(r3) + '</td>' +
       '<td>' + escHtml(age.label) + '</td>' +
       '<td>' + miniVBar(r3, s3, trendTitle, 'No stock or sales activity over this range') + '</td>' +
-      row.monthSales.map(v => '<td>' + (v === 0 ? '—' : fmtInt(v)) + '</td>').join('') +
-      row.monthStock.map(v => '<td>' + (v === 0 ? '—' : fmtInt(v)) + '</td>').join('') +
+      row.monthSales.map(v => '<td class="dr-soldmonth">' + (v === 0 ? '—' : fmtInt(v)) + '</td>').join('') +
+      row.monthStock.map(v => '<td class="dr-stockmonth">' + (v === 0 ? '—' : fmtInt(v)) + '</td>').join('') +
       '</tr>';
   }).join('');
 
