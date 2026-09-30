@@ -103,53 +103,45 @@ function trailingStock(item, anchorYear, anchorMonth, n){
   return s;
 }
 
-/* Sell-through = Sold ÷ Received × 100. Not capped at 100% by construction
-   (an item can easily sell more than it received in the same window, off
-   stock already on hand) -- so the displayed % is separately capped at 999%
-   ("999+%" beyond that; the exact size of a huge ratio isn't useful, just
-   that it's a lot). received=0 with sold>0 is treated the same way
-   (Infinity -> "999+%"); received=0 and sold=0 is "no data" (null), not 0%. */
-function sellThroughPct(soldTotal, receivedTotal){
-  if(receivedTotal === 0) return soldTotal === 0 ? null : Infinity;
-  return (soldTotal / receivedTotal) * 100;
+/* Sell-through = Sold ÷ (Sold + SOH) × 100. Naturally bounded to [0,100]
+   whenever soh >= 0 (no stock left = 100%, nothing sold = 0%), so unlike the
+   old Sold÷Received version there's no over-100%/999+% case to cap. Both
+   zero (nothing sold, nothing on hand) is "no data" (null), not 0%. */
+function sellThroughPct(soldTotal, sohTotal){
+  const denom = soldTotal + sohTotal;
+  return denom > 0 ? (soldTotal / denom) * 100 : null;
 }
 function sellThroughText(pct){
-  if(pct == null) return '—';
-  return pct > 999 ? '999+%' : Math.round(pct) + '%';
+  return pct == null ? '—' : Math.round(pct) + '%';
 }
 
 /* Tiny inline 13-mo Trend cell — a single fill bar (no line/SVG): Sold ÷
-   Received, filling left to right, visually capped at 100% (a bar that's
-   "full" means it's AT LEAST 100%, not exactly -- the number above it has
-   the real, uncapped-to-999% figure). Past 100% the bar also switches to
-   the warn colour, since selling faster than stock is coming in is worth
-   noticing at a glance. Click opens the full period-by-period breakdown.
-   The two totals are ytdSold()/totalReceivedQty() themselves, not a
-   separate sum over monthlySeries/monthlyStockSeries — those two already
-   agree at every stats-window setting, so this tile's numbers are always
-   identical to the YTD Sold and Total Received Qty columns. */
+   (Sold + SOH), filling left to right. Click opens the full
+   period-by-period breakdown. Sold is ytdSold() itself (the same rolling
+   window as the YTD Sold column); SOH is the item's current live snapshot
+   (sohValue()), not window-dependent, so it's the same number at every
+   stats-window setting. */
 // The bar markup itself, shared by the grid's 13-mo Trend cell and the
 // date-range popup's Trend column below — same visual, different totals in.
-function miniVBar(receivedTotal, soldTotal, title, emptyTitle){
-  const pct = sellThroughPct(soldTotal, receivedTotal);
+function miniVBar(sohTotal, soldTotal, title, emptyTitle){
+  const pct = sellThroughPct(soldTotal, sohTotal);
   if(pct == null) return '<span class="spark-empty" title="' + (emptyTitle || 'No stock or sales activity') + '">—</span>';
-  const fillPct = Math.min(pct, 100).toFixed(1);
-  return '<span class="mini-vbar' + (pct >= 100 ? ' mini-vbar-over' : '') + '" title="' + title + '">' +
+  return '<span class="mini-vbar" title="' + title + '">' +
     '<span class="mini-vbar-pct">' + sellThroughText(pct) + '</span>' +
     '<span class="mini-vbar-track">' +
-      '<span class="mini-vbar-seg mini-vbar-seg-sale" style="width:' + fillPct + '%"></span>' +
+      '<span class="mini-vbar-seg mini-vbar-seg-sale" style="width:' + pct.toFixed(1) + '%"></span>' +
     '</span>' +
     '</span>';
 }
 function trendMiniBar(item){
   const n = statsWindowMonthCount();
-  const receivedTotal = totalReceivedQty(item);
+  const sohTotal = sohValue(item);
   const soldTotal = ytdSold(item);
   const clickHint = ' — click for the full ' + n + '-month breakdown';
-  const pctText = sellThroughText(sellThroughPct(soldTotal, receivedTotal));
-  const title = 'Total Received Qty ' + receivedTotal.toLocaleString('en-US') + '  ·  ' + ytdSoldLabel() + ' ' + soldTotal.toLocaleString('en-US') +
-    '  ·  ' + pctText + ' (Sold ÷ Received)' + clickHint;
-  return miniVBar(receivedTotal, soldTotal, title, 'No stock or sales activity' + clickHint);
+  const pctText = sellThroughText(sellThroughPct(soldTotal, sohTotal));
+  const title = 'SOH ' + sohTotal.toLocaleString('en-US') + '  ·  ' + ytdSoldLabel() + ' ' + soldTotal.toLocaleString('en-US') +
+    '  ·  ' + pctText + ' (Sold ÷ (Sold + SOH))' + clickHint;
+  return miniVBar(sohTotal, soldTotal, title, 'No stock or sales activity' + clickHint);
 }
 
 /* Trend popup — one column per period (current month, then N 3-month
@@ -207,29 +199,35 @@ function trendBars(item){
   bars.reverse();   // newest -> oldest, current month first, matching the grid's month order
   return bars;
 }
+// SOH has no historical/per-period equivalent in this app's data (it's
+// always a live current snapshot, unlike Sold/Received which are tracked
+// per month) — so every period's bar uses the SAME current sohValue(item)
+// as its "Sold + SOH" denominator, matching the mini cell's own number.
 function buildTrendChart(item){
   const bars = trendBars(item);
+  const sohNow = sohValue(item);
   const bLabel = b => b.monthCount === 1 ? monthColLabel(b.from)
     : b.from.year === b.to.year ? monthColLabel(b.from).slice(0, 3) + '–' + monthColLabel(b.to)
     : monthColLabel(b.from) + '–' + monthColLabel(b.to);
 
   const legend = '<div class="tr-legend">' +
-    '<span class="tr-legend-item"><span class="tr-legend-dot tr-legend-dot-sale"></span>Sold ÷ Received</span>' +
+    '<span class="tr-legend-item"><span class="tr-legend-dot tr-legend-dot-sale"></span>Sold ÷ (Sold + SOH now, ' + sohNow.toLocaleString('en-US') + ')</span>' +
     '</div>';
 
   const cols = bars.map(b => {
-    const pct = sellThroughPct(b.soldTotal, b.stockTotal);
+    const pct = sellThroughPct(b.soldTotal, sohNow);
     const isEmpty = pct == null;
-    const fillPct = isEmpty ? 0 : Math.min(pct, 100).toFixed(1);
+    const fillPct = isEmpty ? 0 : pct.toFixed(1);
     const pctText = sellThroughText(pct);
-    const title = bLabel(b) + ': Received ' + b.stockTotal.toLocaleString('en-US') +
-      '  ·  Sold ' + b.soldTotal.toLocaleString('en-US') +
+    const title = bLabel(b) + ': Sold ' + b.soldTotal.toLocaleString('en-US') +
+      '  ·  Received ' + b.stockTotal.toLocaleString('en-US') +
+      '  ·  SOH now ' + sohNow.toLocaleString('en-US') +
       (isEmpty ? '' : '  ·  ' + pctText);
-    // No stock or sales at all that period — nothing to compare, so a neutral
-    // empty bar rather than a meaningless 0/0 result.
+    // Nothing sold that period and nothing on hand now — nothing to
+    // compare, so a neutral empty bar rather than a meaningless 0/0 result.
     const bar = isEmpty
       ? '<div class="tr-vbar tr-vbar-empty"></div>'
-      : '<div class="tr-vbar' + (pct >= 100 ? ' tr-vbar-over' : '') + '">' +
+      : '<div class="tr-vbar">' +
           '<span class="tr-vbar-seg tr-vbar-seg-sale" style="height:' + fillPct + '%"></span>' +
         '</div>';
     return '<div class="tr-col-item" title="' + title + '">' +
@@ -242,7 +240,7 @@ function buildTrendChart(item){
         '</div>' +
         '<div class="tr-col-pct">' + (isEmpty
           ? '—'
-          : '<span class="tr-col-pct-num">' + pctText + '</span><span class="tr-col-pct-lbl"> sold/rcvd</span>') + '</div>' +
+          : '<span class="tr-col-pct-num">' + pctText + '</span><span class="tr-col-pct-lbl"> sell-thru</span>') + '</div>' +
       '</div>';
   }).join('');
 
@@ -388,15 +386,15 @@ function sparkLabel(){
 function sparkTip(){
   const n = statsWindowMonthCount();
   const periods = (n - 1) / 3;
-  return 'Sell-through = ' + ytdSoldLabel() + ' ÷ Total Received Qty × 100 — a single blue\n' +
-    'fill bar, capped visually at 100% (a full bar means at least 100%, not\n' +
-    'exactly). Past 100% it turns amber too — selling faster than stock is\n' +
-    'coming in is worth a glance. The number above the bar is the real\n' +
-    'percentage, shown up to 999%; anything past that just reads 999+%.\n' +
-    'The two totals are exactly ' + ytdSoldLabel() + ' and Total Received Qty from their own\n' +
-    'columns, so this bar always agrees with them.\n' +
+  return 'Sell-through = ' + ytdSoldLabel() + ' ÷ (' + ytdSoldLabel() + ' + SOH) × 100 — a single\n' +
+    'blue fill bar. SOH is the item\'s current stock on hand (WH SOH + SR\n' +
+    'Qty), so it\'s the same number at every stats-window setting, not a\n' +
+    'trailing total like ' + ytdSoldLabel() + ' is. The two totals are exactly\n' +
+    ytdSoldLabel() + ' and SOH from their own columns, so this bar always\n' +
+    'agrees with them.\n' +
     'Click for a full breakdown: the current month, then ' + periods + ' 3-month period' + (periods === 1 ? '' : 's') + '\n' +
-    'going backwards, each with its own bar and totals.';
+    'going backwards, each measured against today\'s SOH (there\'s no\n' +
+    'historical SOH to break down period by period).';
 }
 
 /* Plan-code-"N" items have no useful sales history (they're new), so their AVG
@@ -2734,7 +2732,7 @@ function buildDateRangeTable(){
     return {
       it, s3, r3,
       age: stkAgeFor(it),
-      pct: sellThroughPct(s3, r3),
+      pct: sellThroughPct(s3, sohValue(it)),
       monthSales: months.map(w => { const yr = it.years[String(w.year)]; return yr ? (yr.sales[w.m] || 0) : 0; }),
     };
   });
@@ -2765,7 +2763,8 @@ function buildDateRangeTable(){
 
   const rowsHtml = rows.map((row, i) => {
     const { it, s3, r3, age } = row;
-    const trendTitle = 'Received ' + r3.toLocaleString('en-US') + '  ·  Sold ' + s3.toLocaleString('en-US') + ' over this range';
+    const sohNow = sohValue(it);
+    const trendTitle = 'SOH ' + sohNow.toLocaleString('en-US') + '  ·  Sold ' + s3.toLocaleString('en-US') + ' over this range';
     return '<tr>' +
       '<td class="branch-sno">' + (i + 1) + '</td>' +
       '<td>' + escHtml(it['Item Code']) + '</td>' +
@@ -2782,7 +2781,7 @@ function buildDateRangeTable(){
       '<td>' + fmtInt(s3) + '</td>' +
       '<td>' + fmtInt(r3) + '</td>' +
       '<td>' + escHtml(age.label) + '</td>' +
-      '<td>' + miniVBar(r3, s3, trendTitle, 'No stock or sales activity over this range') + '</td>' +
+      '<td>' + miniVBar(sohNow, s3, trendTitle, 'No stock or sales activity over this range') + '</td>' +
       row.monthSales.map(v => '<td class="dr-soldmonth">' + (v === 0 ? '—' : fmtInt(v)) + '</td>').join('') +
       '</tr>';
   }).join('');

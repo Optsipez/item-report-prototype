@@ -272,7 +272,7 @@
       <button id="trClose" class="wk-x" type="button" data-tr-close aria-label="Close">&times;</button>
     </div>
     <div id="trBody" class="wk-body"></div>
-    <p class="wk-note">The current month gets its own column, then four 3-month periods going backwards, using all 13 months. Each bar is Sold ÷ Received for that period, capped visually at 100% (turning amber past it — selling faster than stock came in); the real percentage, up to 999%, is shown underneath. Real totals for each period are shown too.</p>
+    <p class="wk-note">The current month gets its own column, then 3-month periods going backwards. Each bar is that period's Sold ÷ (Sold + current SOH) — SOH is a live snapshot, so it's the same for every period, not a historical figure. Real totals for each period are shown too.</p>
   </div>
 </div>
 

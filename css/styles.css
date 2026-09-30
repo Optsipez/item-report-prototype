@@ -939,12 +939,10 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 
 /* ============================================================
    13-MONTH TREND — proportional fill column chart (trend-cell popup + mini
-   grid cell). One vertical bar per period (current month, then four
-   3-month periods): Sold ÷ Received for that period, a single fill rising
-   from the bottom, visually capped at 100% -- a "full" bar means AT LEAST
-   100%, not exactly (the real, uncapped-to-999% number is shown below/beside
-   it). Past 100% the fill switches to the warn colour, since selling faster
-   than stock is coming in is worth noticing at a glance.
+   grid cell). One vertical bar per period (current month, then 3-month
+   periods): Sold ÷ (Sold + current SOH) for that period, a single fill
+   rising from the bottom. Naturally bounded at 100% (SOH >= 0), so no
+   visual capping or over-100% colour switch is needed.
    ============================================================ */
 .tr-chart{display:flex;flex-direction:column;}
 .tr-legend{display:flex;align-items:center;gap:var(--sp-4);margin-bottom:var(--sp-4);font-size:var(--fs-2xs);color:var(--ink-soft);}
@@ -963,8 +961,6 @@ table.grid tbody tr.row-item td.wk-cell:hover{
   overflow:hidden;position:relative;transition:transform var(--t-fast),box-shadow var(--t-fast);}
 .tr-vbar-seg-sale{position:absolute;left:0;right:0;bottom:0;width:100%;transition:height .3s ease;
   background:linear-gradient(0deg,var(--stock-light),var(--stock));}
-.tr-vbar-over{border-color:var(--warn);}
-.tr-vbar-over .tr-vbar-seg-sale{background:linear-gradient(0deg,var(--warn-bg),var(--warn));}
 .tr-vbar-empty{background:var(--s-100);}
 .tr-col-label{font-size:var(--fs-2xs);color:var(--ink-soft);font-weight:600;white-space:nowrap;}
 .tr-col-vals{font-family:'IBM Plex Mono',monospace;font-size:var(--fs-2xs);font-weight:600;color:var(--ink-soft);text-align:center;}
@@ -978,8 +974,8 @@ table.grid tbody tr.row-item td.wk-cell:hover{
   color:var(--ink);font-variant-numeric:tabular-nums;}
 .tr-col-pct-lbl{font-size:9.5px;color:var(--ink-faint);}
 
-/* Mini proportional bar in the grid's own 13-mo Trend cell — Sold ÷ Received
-   as a single fill (capped visually at 100%, warn colour past it), same
+/* Mini proportional bar in the grid's own 13-mo Trend cell — Sold ÷
+   (Sold + SOH) as a single fill, naturally bounded at 100%, same
    number+track layout as the SM/PM cover cells for a consistent look. */
 .mini-vbar{display:inline-flex;flex-direction:column;gap:3px;min-width:40px;vertical-align:middle;}
 .mini-vbar-pct{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:var(--fs-sm);
@@ -987,8 +983,6 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .mini-vbar-track{display:flex;width:100%;height:6px;border-radius:var(--r-pill);overflow:hidden;background:var(--s-150);}
 .mini-vbar-seg{display:block;height:100%;}
 .mini-vbar-seg-sale{background:var(--stock);}
-.mini-vbar-over .mini-vbar-pct{color:var(--warn);}
-.mini-vbar-over .mini-vbar-seg-sale{background:var(--warn);}
 .foot-note{margin-top:var(--sp-4);font-size:var(--fs-xs);color:var(--ink-faint);border-top:1px dashed var(--line-strong);padding-top:var(--sp-3);line-height:1.6;}
 
 /* ===== All Products grid ===== */
