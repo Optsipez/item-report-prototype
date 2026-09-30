@@ -870,9 +870,9 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .dr-wrap th.dr-sort:hover{background:var(--s-200);}
 .dr-sort-ind{margin-left:3px;font-size:8px;color:var(--primary);}
 /* Same highlight colours as their All Products counterparts -- see
-   .plan-cell/.soh-cell/.whsoh-cell/.srqty-cell/.avg-cell/.grp-soldby/
-   .grp-stockin on table.grid. Reusing the exact same custom properties
-   (not copied hex values) so a theme change stays in sync automatically. */
+   .plan-cell/.soh-cell/.whsoh-cell/.srqty-cell/.avg-cell/.grp-soldby on
+   table.grid. Reusing the exact same custom properties (not copied hex
+   values) so a theme change stays in sync automatically. */
 .dr-wrap table.matrix th.dr-plan,.dr-wrap table.matrix td.dr-plan{background:var(--i-100);color:var(--i-700);font-weight:600;}
 .dr-wrap table.matrix th.dr-soh,.dr-wrap table.matrix td.dr-soh{background:var(--soh-bg);color:var(--soh);font-weight:600;}
 .dr-wrap table.matrix th.dr-wh,.dr-wrap table.matrix td.dr-wh{background:var(--warn-bg);color:var(--warn);font-weight:600;}
@@ -880,8 +880,6 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .dr-wrap table.matrix th.dr-avg,.dr-wrap table.matrix td.dr-avg{background:var(--stock-bg);color:var(--stock);font-weight:600;}
 .dr-wrap table.matrix td.dr-soldmonth{background:var(--soldby-2026);}
 .dr-wrap table.matrix thead th.dr-soldmonth{background:var(--soldby-tint-head);color:var(--ink-soft);}
-.dr-wrap table.matrix td.dr-stockmonth{background:var(--stockin-2026);}
-.dr-wrap table.matrix thead th.dr-stockmonth{background:var(--stockin-tint-head);color:var(--ink-soft);}
 .dr-empty{padding:var(--sp-6);text-align:center;color:var(--ink-faint);}
 .wk-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-4);margin-bottom:var(--sp-5);}
 .wk-head h3{margin:0 0 3px;font-size:var(--fs-lg);font-weight:600;color:var(--ink);letter-spacing:-.01em;}

@@ -2613,8 +2613,8 @@ function dateRangeSortValue(row, key){
   if(key === 'received') return row.r3;
   if(key === 'age') return row.age.sno;
   if(key === 'trend') return row.pct;
-  const m = /^(sold|stock)_(\d+)$/.exec(key);
-  if(m) return (m[1] === 'sold' ? row.monthSales : row.monthStock)[+m[2]];
+  const m = /^sold_(\d+)$/.exec(key);
+  if(m) return row.monthSales[+m[1]];
   return 0;
 }
 function dateRangeSortRows(rows){
@@ -2660,7 +2660,6 @@ function buildDateRangeTable(){
       age: stkAgeFor(it),
       pct: sellThroughPct(s3, r3),
       monthSales: months.map(w => { const yr = it.years[String(w.year)]; return yr ? (yr.sales[w.m] || 0) : 0; }),
-      monthStock: months.map(w => { const yr = it.years[String(w.year)]; return yr ? (yr.stock[w.m] || 0) : 0; }),
     };
   });
   rows = dateRangeSortRows(rows);
@@ -2686,8 +2685,7 @@ function buildDateRangeTable(){
     sh('pudaCode', 'PUDA Code') + sh('pudaDesc', 'PUDA Desc') + sh('plan', 'Plan', null, 'dr-plan') +
     sh('soh', 'SOH', null, 'dr-soh') + sh('wh', 'WH', 'WH SOH', 'dr-wh') + sh('sr', 'SR', 'SR Qty', 'dr-sr') + sh('po', 'PO', 'PO Qty') + sh('avg', 'AVG', null, 'dr-avg') +
     sh('sold', 'Sold', 'Sold, this range') + sh('received', 'Rcvd', 'Received (GRN), this range') + sh('age', 'Age', 'STK Age') + sh('trend', 'Trend', 'Trend, this range') +
-    months.map((w, i) => monthHead(w, 'Sold', 'sold_' + i, 'dr-soldmonth')).join('') +
-    months.map((w, i) => monthHead(w, 'Stock', 'stock_' + i, 'dr-stockmonth')).join('');
+    months.map((w, i) => monthHead(w, 'Sold', 'sold_' + i, 'dr-soldmonth')).join('');
 
   const rowsHtml = rows.map((row, i) => {
     const { it, s3, r3, avg, age } = row;
@@ -2711,7 +2709,6 @@ function buildDateRangeTable(){
       '<td>' + escHtml(age.label) + '</td>' +
       '<td>' + miniVBar(r3, s3, trendTitle, 'No stock or sales activity over this range') + '</td>' +
       row.monthSales.map(v => '<td class="dr-soldmonth">' + (v === 0 ? '—' : fmtInt(v)) + '</td>').join('') +
-      row.monthStock.map(v => '<td class="dr-stockmonth">' + (v === 0 ? '—' : fmtInt(v)) + '</td>').join('') +
       '</tr>';
   }).join('');
 
