@@ -375,6 +375,10 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
   display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--sp-4);padding:var(--sp-4) var(--sp-5);margin-bottom:var(--sp-5);
   background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-xs);
 }
+/* The popup's own copy of this bar -- no card, no "Show me" label, sits
+   right under the title instead of set apart in its own box. */
+.dr-scope-bare{padding:0;margin-bottom:var(--sp-4);background:none;border:none;box-shadow:none;}
+.dr-scope-reset{flex-basis:100%;}
 /* flex-basis:100% forces each onto its own full-width line (the flexbox way
    to force a wrap); every field gets flex-grow so a short last row (e.g.
    Plan on its own after 6 others fill row 1) stretches to fill the row

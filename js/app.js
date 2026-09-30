@@ -2605,8 +2605,8 @@ function renderDrScopeBar(){
   const opt = (arr, cur) => '<option value="">All</option>' + arr.map(v => '<option' + (v === cur ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('');
   const search = (id, field, label) => '<label>' + label + '<input id="' + id + '" list="' + id + 'List" value="' + escHtml(drScope[field]) + '" placeholder="All" autocomplete="off"></label>' +
     '<datalist id="' + id + 'List">' + uniq(field === 'range' ? 'Range Name' : field === 'group' ? 'Group Desc' : 'PUDA Desc').map(v => '<option value="' + escHtml(v) + '">').join('') + '</datalist>';
-  wrap.innerHTML = '<div class="dash-scope"><div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' +
-    (drScopeIsSet() ? '<button type="button" class="dash-btn ghost filters-active-btn" id="drScopeReset">Show everything</button>' : '') + '</div>' +
+  wrap.innerHTML = '<div class="dash-scope dr-scope-bare">' +
+    (drScopeIsSet() ? '<button type="button" class="dash-btn ghost filters-active-btn dr-scope-reset" id="drScopeReset">Show everything</button>' : '') +
     '<label>Department<select id="drDept">' + opt(uniq('Department Desc'), drScope.dept) + '</select></label>' +
     '<label>Category<select id="drCat">' + opt(uniq('Category'), drScope.cat) + '</select></label>' +
     '<label class="dash-vendor-field">Vendor code<input id="drVendor" list="drVendorList" class="' + (drVendorAmbiguous ? 'dash-vendor-ambiguous' : '') + '" value="' +
