@@ -870,7 +870,16 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 /* Compact so the fixed columns fit without side-scroll on most screens --
    month columns still push a long range wide, that's the data, not padding. */
 .dr-wrap{overflow:auto;}
-.dr-wrap table.matrix{font-size:var(--fs-2xs);}
+/* Fixed at --fs-2xs the table read fine on a laptop screen but small on a
+   22-27" monitor at the same-ish resolution -- more physical inches over
+   the same pixels means smaller-looking text, and the app's own --fs-2xs
+   breakpoints only kick in past 2200px, which a common 1920-wide monitor
+   never reaches. This scales continuously with viewport width instead of
+   waiting for a breakpoint: ~10.5px at a 1366px laptop (unchanged), up to
+   14px by a 2560px monitor, capped at 14px past that (4K etc. already get a
+   bigger --fs-2xs from the breakpoints below, which still applies via the
+   var() fallback beyond this clamp's own ceiling). */
+.dr-wrap table.matrix{font-size:clamp(var(--fs-2xs), 0.27vw + 7px, 14px);}
 .dr-wrap table.matrix th,.dr-wrap table.matrix td{padding:4px 5px;white-space:nowrap;}
 .dr-wrap table.matrix th.l,.dr-wrap table.matrix td.l{text-align:left;white-space:normal;max-width:160px;}
 .dr-wrap th.dr-sort{cursor:pointer;user-select:none;}
