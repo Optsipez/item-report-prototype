@@ -866,20 +866,6 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .dr-wrap table.matrix{font-size:var(--fs-2xs);}
 .dr-wrap table.matrix th,.dr-wrap table.matrix td{padding:4px 5px;white-space:nowrap;}
 .dr-wrap table.matrix th.l,.dr-wrap table.matrix td.l{text-align:left;white-space:normal;max-width:160px;}
-/* Vendor/Range/PUDA Code/Plan don't need much room -- truncate with an
-   ellipsis instead of sizing the column to their longest value (full text
-   still available via the cell's own title on hover). Narrower columns
-   overall means less to lay out and paint on every re-render (sort, mode
-   switch, scroll). */
-.dr-wrap table.matrix th.dr-narrow,.dr-wrap table.matrix td.dr-narrow{max-width:60px;overflow:hidden;text-overflow:ellipsis;}
-.dr-wrap table.matrix th.branch-sno,.dr-wrap table.matrix td.branch-sno{padding-left:4px;padding-right:4px;}
-/* table.matrix defaults to width:100% (stretch to fill) -- that's what was
-   making dr-narrow's own max-width get overridden: with room to spare
-   (Stock by Month is gone now), an auto-layout table stretched to fill the
-   dialog hands the slack to whichever columns aren't capped as tightly,
-   growing them past their own max-width. width:auto lets the table shrink
-   to what its columns actually need instead. */
-.dr-wrap table.dr-table{width:auto;}
 .dr-wrap th.dr-sort{cursor:pointer;user-select:none;}
 .dr-wrap th.dr-sort:hover{background:var(--s-200);}
 .dr-sort-ind{margin-left:3px;font-size:8px;color:var(--primary);}
