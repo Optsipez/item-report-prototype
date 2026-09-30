@@ -2746,6 +2746,16 @@ function closeDateRangeModal(){
   modal.setAttribute('aria-hidden', 'true');
   document.body.style.overflow = '';
   if(dateRangeModalReturn && dateRangeModalReturn.focus) dateRangeModalReturn.focus();
+  // Clear From/To on close (X, backdrop, or Escape) so there's a clean slate
+  // for a fresh pair next time, instead of having to erase the old dates by
+  // hand first. Goes through the native date inputs' own 'change' handler
+  // (empty value -> commit(k,{empty:true}) in setupDateRange) so text,
+  // classes, gridDateRange and the announced event all stay in sync exactly
+  // like any other way of clearing a date field.
+  ['dateFromNative', 'dateToNative'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el){ el.value = ''; el.dispatchEvent(new Event('change', { bubbles: true })); }
+  });
 }
 (function(){
   const modal = document.getElementById('dateRangeModal');
