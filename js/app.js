@@ -2570,18 +2570,6 @@ function parseLrcvDate(v){
   const m = v ? String(v).match(/^(\d{2})-(\d{2})-(\d{4})$/) : null;
   return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null;
 }
-// Under 3 months there's no real AVG -- U-FNL's shortest sub-window is 3
-// months, and there's no historical "beginning stock" to build a true
-// short-range formula from either. Instead: a plain Sold-over-the-range ÷
-// number-of-months average, clearly marked (approx:true, "~" prefix and its
-// own tooltip) so it's never mistaken for the real formula's output.
-function rangeAvg(item, months, s3){
-  if(months.length >= 3){
-    const last = months[months.length - 1];
-    return { value: avgFnl(item, { year: last.year, month: last.m }, months.length), approx: false };
-  }
-  return { value: Math.round(s3 / months.length), approx: true };
-}
 function dateRangeMatch(item, months, mode){
   if(mode === 'lrcv'){ const d = parseLrcvDate(item['Lrcv Date']); return !!d && d >= gridDateRange.from && d <= gridDateRange.to; }
   if(mode === 'grn') return rangeHasActivity(item, months, 'stock');
@@ -2615,7 +2603,6 @@ function dateRangeSortValue(row, key){
   if(key === 'wh') return whSohValue(row.it);
   if(key === 'sr') return srQtyValue(row.it);
   if(key === 'po') return Number(row.it['PO-Qty']) || 0;
-  if(key === 'avg') return row.avg.value;
   if(key === 'sold') return row.s3;
   if(key === 'received') return row.r3;
   if(key === 'age') return row.age.sno;
@@ -2663,7 +2650,6 @@ function buildDateRangeTable(){
     const s3 = rangeSum(it, months, 'sales'), r3 = rangeSum(it, months, 'stock');
     return {
       it, s3, r3,
-      avg: rangeAvg(it, months, s3),
       age: stkAgeFor(it),
       pct: sellThroughPct(s3, r3),
       monthSales: months.map(w => { const yr = it.years[String(w.year)]; return yr ? (yr.sales[w.m] || 0) : 0; }),
@@ -2679,10 +2665,10 @@ function buildDateRangeTable(){
     return ' <span class="dr-sort-ind">' + (dateRangeSort.length > 1 ? arrow + (idx + 1) : arrow) + '</span>';
   };
   // Same highlight colours as their All Products counterparts (plan-cell,
-  // soh-cell, whsoh-cell, srqty-cell, avg-cell, grp-soldby, grp-stockin --
-  // see css/styles.css) so a column reads the same in both places. PO Qty,
-  // Sold/Received (range totals), Age and Trend aren't coloured in All
-  // Products either (YTD Sold/Total Received Qty/STK Age/PO-Qty are plain
+  // soh-cell, whsoh-cell, srqty-cell, grp-soldby -- see css/styles.css) so a
+  // column reads the same in both places. PO Qty, Sold/Received (range
+  // totals), Age and Trend aren't coloured in All Products either
+  // (YTD Sold/Total Received Qty/STK Age/PO-Qty are plain
   // there), so they stay plain here too.
   const sh = (key, html, title, cls) => '<th class="dr-sort' + (cls ? ' ' + cls : '') + '" data-sort-key="' + key + '"' + (title ? ' title="' + title + '"' : '') + '>' + html + sortInd(key) + '</th>';
   const monthHead = (w, kind, key, cls) => sh(key, monthLabel(w).replace("'", "<br>'") + '<br>' + kind, monthLabel(w) + ' ' + kind, cls);
@@ -2690,12 +2676,12 @@ function buildDateRangeTable(){
     '<th class="branch-sno">S.No</th>' + sh('code', 'Item Code') + sh('desc', 'Description') +
     sh('vendor', 'Vendor', 'Vendor Code') + sh('range', 'Range', 'Range Name') +
     sh('pudaCode', 'PUDA Code') + sh('pudaDesc', 'PUDA Desc') + sh('plan', 'Plan', null, 'dr-plan') +
-    sh('soh', 'SOH', null, 'dr-soh') + sh('wh', 'WH', 'WH SOH', 'dr-wh') + sh('sr', 'SR', 'SR Qty', 'dr-sr') + sh('po', 'PO', 'PO Qty') + sh('avg', 'AVG', null, 'dr-avg') +
+    sh('soh', 'SOH', null, 'dr-soh') + sh('wh', 'WH', 'WH SOH', 'dr-wh') + sh('sr', 'SR', 'SR Qty', 'dr-sr') + sh('po', 'PO', 'PO Qty') +
     sh('sold', 'Sold', 'Sold, this range') + sh('received', 'Rcvd', 'Received (GRN), this range') + sh('age', 'Age', 'STK Age') + sh('trend', 'Trend', 'Trend, this range') +
     months.map((w, i) => monthHead(w, 'Sold', 'sold_' + i, 'dr-soldmonth')).join('');
 
   const rowsHtml = rows.map((row, i) => {
-    const { it, s3, r3, avg, age } = row;
+    const { it, s3, r3, age } = row;
     const trendTitle = 'Received ' + r3.toLocaleString('en-US') + '  ·  Sold ' + s3.toLocaleString('en-US') + ' over this range';
     return '<tr>' +
       '<td class="branch-sno">' + (i + 1) + '</td>' +
@@ -2710,7 +2696,6 @@ function buildDateRangeTable(){
       '<td class="dr-wh">' + fmtInt(whSohValue(it)) + '</td>' +
       '<td class="dr-sr">' + fmtInt(srQtyValue(it)) + '</td>' +
       '<td>' + fmtInt(it['PO-Qty']) + '</td>' +
-      '<td class="dr-avg">' + (avg.approx ? '<span title="Under 3 months — plain average (Sold ÷ months), not the full AVG formula">~' + avg.value + '</span>' : avg.value) + '</td>' +
       '<td>' + fmtInt(s3) + '</td>' +
       '<td>' + fmtInt(r3) + '</td>' +
       '<td>' + escHtml(age.label) + '</td>' +

@@ -879,14 +879,13 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .dr-wrap th.dr-sort:hover{background:var(--s-200);}
 .dr-sort-ind{margin-left:3px;font-size:8px;color:var(--primary);}
 /* Same highlight colours as their All Products counterparts -- see
-   .plan-cell/.soh-cell/.whsoh-cell/.srqty-cell/.avg-cell/.grp-soldby on
-   table.grid. Reusing the exact same custom properties (not copied hex
-   values) so a theme change stays in sync automatically. */
+   .plan-cell/.soh-cell/.whsoh-cell/.srqty-cell/.grp-soldby on table.grid.
+   Reusing the exact same custom properties (not copied hex values) so a
+   theme change stays in sync automatically. */
 .dr-wrap table.matrix th.dr-plan,.dr-wrap table.matrix td.dr-plan{background:var(--i-100);color:var(--i-700);font-weight:600;}
 .dr-wrap table.matrix th.dr-soh,.dr-wrap table.matrix td.dr-soh{background:var(--soh-bg);color:var(--soh);font-weight:600;}
 .dr-wrap table.matrix th.dr-wh,.dr-wrap table.matrix td.dr-wh{background:var(--warn-bg);color:var(--warn);font-weight:600;}
 .dr-wrap table.matrix th.dr-sr,.dr-wrap table.matrix td.dr-sr{background:var(--warn-bg);color:var(--warn);font-weight:600;}
-.dr-wrap table.matrix th.dr-avg,.dr-wrap table.matrix td.dr-avg{background:var(--stock-bg);color:var(--stock);font-weight:600;}
 .dr-wrap table.matrix td.dr-soldmonth{background:var(--soldby-2026);}
 .dr-wrap table.matrix thead th.dr-soldmonth{background:var(--soldby-tint-head);color:var(--ink-soft);}
 .dr-empty{padding:var(--sp-6);text-align:center;color:var(--ink-faint);}
