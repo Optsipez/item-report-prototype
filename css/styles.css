@@ -411,6 +411,13 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
   font-size:var(--fs-xs);font-family:inherit;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:500;cursor:pointer;}
 .dash-vendor-opt:hover{background:var(--primary-weak);color:var(--primary-hover);}
 .dash-vendor-more{padding:5px 8px 2px;font-size:var(--fs-2xs);color:var(--ink-faint);}
+/* Trip Requirement's Vendor Item No. / Photo columns -- reserved, no data
+   ingested yet (see js/app.js). A plain dash for the text column; a small
+   empty box standing in for the photo so the layout doesn't shift once a
+   real image is wired in. */
+.trip-tbd{color:var(--ink-faint);}
+.trip-photo-ph{display:inline-block;width:28px;height:28px;border-radius:var(--r-sm);
+  background:var(--s-100);border:1px dashed var(--line-strong);}
 .dash-h{margin:var(--sp-6) 0 var(--sp-3);font-size:var(--fs-lg);font-weight:650;color:var(--ink);letter-spacing:-.01em;display:flex;align-items:baseline;gap:var(--sp-3);flex-wrap:wrap;}
 .dash-h span{font-size:var(--fs-sm);font-weight:500;color:var(--ink-faint);}
 .dash-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-4);margin-bottom:var(--sp-4);}

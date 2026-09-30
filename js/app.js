@@ -650,26 +650,32 @@ const viewLookup = document.getElementById('viewLookup');
 const viewAll = document.getElementById('viewAll');
 const navDash = document.getElementById('navDash');
 const viewDash = document.getElementById('viewDash');
+const navTrip = document.getElementById('navTrip');
+const viewTrip = document.getElementById('viewTrip');
 
 function setView(view){
-  const isLookup = view === 'lookup', isDash = view === 'dashboard', isAll = view === 'all';
+  const isLookup = view === 'lookup', isDash = view === 'dashboard', isAll = view === 'all', isTrip = view === 'trip';
   navDash.classList.toggle('active', isDash);
   navLookup.classList.toggle('active', isLookup);
   navAll.classList.toggle('active', isAll);
+  navTrip.classList.toggle('active', isTrip);
   railLookup.classList.toggle('active', isLookup);
   railAll.classList.toggle('active', isAll);
   viewDash.classList.toggle('active', isDash);
   viewLookup.classList.toggle('active', isLookup);
   viewAll.classList.toggle('active', isAll);
-  // The dashboard is full-width: no filter rail, no rail-sized left margin.
-  document.body.classList.toggle('view-dashboard', isDash);
+  viewTrip.classList.toggle('active', isTrip);
+  // The dashboard (and Trip Requirement, same single-column layout) is
+  // full-width: no filter rail, no rail-sized left margin.
+  document.body.classList.toggle('view-dashboard', isDash || isTrip);
   // .main's left padding is trimmed to 22px (not the usual 32px) specifically
   // for the grid's frozen columns (see the comment on .main in styles.css) —
   // Item Lookup has no such column to align with, so that tight padding just
   // read as its title/text crowding the rail's edge. .flush restores the
   // fuller padding for this view only, leaving the grid's alignment alone.
-  document.querySelector('.main').classList.toggle('flush', isLookup || isDash);
+  document.querySelector('.main').classList.toggle('flush', isLookup || isDash || isTrip);
   if(isAll) renderGrid();
+  if(isTrip) renderTrip();
   if(typeof syncTopbarWidth === 'function') syncTopbarWidth();
 }
 
@@ -728,6 +734,7 @@ function routeFromHash(){
   const h = decodeURIComponent(location.hash.replace(/^#/, ''));
   if(h.indexOf('item=') === 0) return { view: 'lookup', code: h.slice(5) };
   if(h === 'lookup') return { view: 'lookup', code: null };
+  if(h === 'trip') return { view: 'trip' };
   // No hash = a fresh visit or a just-signed-in user: land on the dashboard.
   if(h === '' || h === 'dashboard') return { view: 'dashboard' };
   return { view: 'all' };
@@ -750,6 +757,8 @@ function applyRoute(route){
       }
     }
     setView('lookup');
+  } else if(route.view === 'trip'){
+    setView('trip');                      // renders the vendor search + table
   } else {
     setView('all');                       // rebuilds the grid
     if(resumeCode) flashResumeRow(resumeCode);
@@ -787,6 +796,7 @@ navLookup.addEventListener('click', () =>
   navigate(selectedItem ? 'item=' + encodeURIComponent(selectedItem['Item Code']) : 'lookup'));
 navAll.addEventListener('click', () => navigate('products'));
 navDash.addEventListener('click', () => navigate('dashboard'));
+navTrip.addEventListener('click', () => navigate('trip'));
 document.querySelector('.topbar .brand').addEventListener('click', () => navigate('dashboard'));
 
 /* ============================================================
@@ -2840,6 +2850,132 @@ function closeDateRangeModal(){
     else closeDateRangeModal();
   });
 })();
+
+/* ============================================================
+   TRIP REQUIREMENT — vendor-scoped order-planning sheet
+   ------------------------------------------------------------
+   Type a vendor code (or name -- same ambiguity-resolution UX as the
+   dashboard's and date-range popup's own Vendor Code fields) to see
+   every item for that vendor: today's SOH, units sold since it was
+   last received, and the resulting sell-through (Recovery %) -- the
+   numbers a buyer needs before a supplier trip or repeat order,
+   replacing a manually rebuilt Excel sheet.
+   Vendor Item No., Photo and CPC are placeholders (columns exist,
+   values don't -- no such data is ingested yet); Remarks is left out
+   entirely, undecided. Recovery % reuses sellThroughPct()/miniVBar(),
+   the exact Sold÷(Sold+SOH) formula the 13-mo Trend column uses.
+   ============================================================ */
+let tripCode = '';               // resolved vendor code, or '' if none/unresolved
+let tripVendorAmbiguous = null;  // { raw, codes } or null -- see vendorNameLookup()
+function tripVendorAmbiguousTip(){
+  if(!tripVendorAmbiguous) return '';
+  const showNames = canSeeVendorName();
+  const shown = tripVendorAmbiguous.codes.slice(0, 8);
+  const list = shown.map(c => {
+    if(!showNames) return c;
+    const it = ITEMS.find(i => i['Vendor Code'] === c);
+    return it ? c + ' (' + it['Vendor Name'] + ')' : c;
+  }).join(', ');
+  const more = tripVendorAmbiguous.codes.length > shown.length ? ', +' + (tripVendorAmbiguous.codes.length - shown.length) + ' more' : '';
+  return 'Matches ' + tripVendorAmbiguous.codes.length + ' vendors: ' + list + more + '. Type the exact code, or more letters to narrow it down.';
+}
+function tripVendorOptionsHtml(){
+  if(!tripVendorAmbiguous) return '';
+  const showNames = canSeeVendorName();
+  const shown = tripVendorAmbiguous.codes.slice(0, 8);
+  const more = tripVendorAmbiguous.codes.length - shown.length;
+  const opts = shown.map(c => {
+    const it = ITEMS.find(i => i['Vendor Code'] === c);
+    const label = showNames && it ? c + ' — ' + it['Vendor Name'] : c;
+    return '<button type="button" class="dash-vendor-opt" data-code="' + escHtml(c) + '">' + escHtml(label) + '</button>';
+  }).join('');
+  return '<div class="dash-vendor-options">' + opts +
+    (more > 0 ? '<div class="dash-vendor-more">+' + more + ' more — type more letters to narrow it down</div>' : '') +
+    '</div>';
+}
+// Units sold from the item's own Lrcv Date up to today -- null (not 0) when
+// there's no recorded Lrcv Date to anchor to, since "sold since it arrived"
+// is meaningless without knowing when it arrived.
+function tripSoldSinceReceipt(item){
+  const d = parseLrcvDate(item['Lrcv Date']);
+  if(!d) return null;
+  const to = new Date(REPORT_MONTH.year, REPORT_MONTH.month, 1);
+  return rangeSum(item, monthsBetween(d, to), 'sales');
+}
+function tripRows(code){
+  return ITEMS.filter(it => it['Vendor Code'] === code).map(it => {
+    const soh = sohValue(it);
+    const sold = tripSoldSinceReceipt(it);
+    return { it, soh, sold };
+  });
+}
+function renderTripTable(code){
+  const rows = tripRows(code).sort((a, b) => a.it['Description'].localeCompare(b.it['Description']));
+  if(!rows.length) return '<p class="dr-empty">No items found for vendor ' + escHtml(code) + '.</p>';
+  const cols = '<th class="branch-sno">No</th><th>Vendor Item No.</th><th>2XL Barcode No</th><th>Photo</th>' +
+    '<th class="l">Description</th><th>Range Name</th><th class="dr-soh">SOH</th><th>Sold (since Lrcv)</th>' +
+    '<th>Recovery %</th><th>Disct%</th><th>Sale Mrg</th><th>Last Posting Date</th><th>Purchase Qty</th>';
+  const body = rows.map((row, i) => {
+    const { it, soh, sold } = row;
+    const recTitle = sold == null ? 'No Lrcv Date on record' : 'SOH ' + soh.toLocaleString('en-US') + '  ·  Sold ' + sold.toLocaleString('en-US') + ' since last received';
+    const recovery = sold == null
+      ? '<span class="spark-empty" title="' + recTitle + '">—</span>'
+      : miniVBar(soh, sold, recTitle, recTitle);
+    const mrg = typeof it['MRG Factor'] === 'number' ? it['MRG Factor'].toFixed(2) + 'x' : '—';
+    return '<tr>' +
+      '<td class="branch-sno">' + (i + 1) + '</td>' +
+      '<td class="trip-tbd" title="Not yet available">—</td>' +
+      '<td>' + escHtml(it['Item Code']) + '</td>' +
+      '<td><span class="trip-photo-ph" title="Not yet available"></span></td>' +
+      '<td class="l">' + escHtml(it['Description']) + '</td>' +
+      '<td>' + escHtml(it['Range Name']) + '</td>' +
+      '<td class="dr-soh">' + fmtInt(soh) + '</td>' +
+      '<td>' + (sold == null ? '—' : fmtInt(sold)) + '</td>' +
+      '<td>' + recovery + '</td>' +
+      '<td>' + fmtPct(it['Disct%']) + '</td>' +
+      '<td>' + mrg + '</td>' +
+      '<td>' + fmtLrcvDate(it['Lrcv Date']) + '</td>' +
+      '<td>' + fmtInt(it['PO-Qty']) + '</td>' +
+      '</tr>';
+  }).join('');
+  return '<div class="dr-wrap"><table class="matrix dr-table"><thead><tr>' + cols + '</tr></thead><tbody>' + body + '</tbody></table></div>';
+}
+function renderTrip(){
+  const root = document.getElementById('tripRoot');
+  if(!root) return;
+  root.innerHTML =
+    '<div class="dash-hero"><div>' +
+      '<div class="dash-date">Trip Requirement</div>' +
+      '<h1 class="dash-greet">Plan your next order</h1>' +
+      '<p class="dash-sub">Type a vendor code (or name) to see every item for that vendor — stock on hand, units sold since it was last received, and the resulting sell-through.</p>' +
+    '</div></div>' +
+    '<div class="dash-scope dr-scope-bare">' +
+      '<label class="dash-vendor-field">Vendor code<input id="tripVendor" list="tripVendorList" class="' + (tripVendorAmbiguous ? 'dash-vendor-ambiguous' : '') + '" value="' +
+        escHtml(tripVendorAmbiguous ? tripVendorAmbiguous.raw : tripCode) + '" title="' + escHtml(tripVendorAmbiguousTip()) + '" placeholder="Type a vendor code or name…" autocomplete="off">' +
+        tripVendorOptionsHtml() + '</label>' +
+      '<datalist id="tripVendorList">' + [...VENDOR_CODES].sort().map(v => '<option value="' + escHtml(v) + '">').join('') + '</datalist>' +
+    '</div>' +
+    (tripCode ? renderTripTable(tripCode) : '<p class="dr-empty">Enter a vendor code above to see its items.</p>');
+
+  const $ = id => document.getElementById(id);
+  const change = () => {
+    const raw = $('tripVendor').value;
+    const lookup = vendorNameLookup(raw);
+    if(lookup.type === 'code' || lookup.type === 'unmatched') tripCode = raw.trim().toUpperCase();
+    else if(lookup.type === 'resolved') tripCode = lookup.code;
+    else if(lookup.type === 'empty') tripCode = '';
+    // 'ambiguous' leaves tripCode untouched -- don't guess which vendor was meant
+    tripVendorAmbiguous = lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null;
+    renderTrip();
+  };
+  const vendorInput = $('tripVendor');
+  vendorInput.addEventListener('blur', change);
+  vendorInput.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); change(); } });
+  root.querySelectorAll('.dash-vendor-opt').forEach(btn => btn.addEventListener('click', () => {
+    vendorInput.value = btn.dataset.code;
+    change();
+  }));
+}
 
 /* "Focus": a specific set of items handed over by the dashboard (e.g. "Reorder
    now", 37 items) so All Products shows exactly those, on top of any filters.
