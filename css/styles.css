@@ -419,9 +419,28 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    left unconstrained it would stretch edge to edge (the 150px flex-basis
    assumes several fields sharing a row), so this caps it to a sane width. */
 .trip-scope .dash-vendor-field{flex:0 1 420px;}
+/* A small icon inside the field -- "this box takes a vendor" at a glance,
+   same stroke-icon style as the date fields' calendar glyph elsewhere. */
+.trip-vendor-input-wrap{position:relative;}
+.trip-vendor-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--ink-faint);pointer-events:none;}
+.trip-scope input#tripVendor{padding:10px 12px 10px 34px;font-size:var(--fs-base);}
 .trip-tbd{color:var(--ink-faint);}
 .trip-photo-ph{display:inline-block;width:28px;height:28px;border-radius:var(--r-sm);
   background:var(--s-100);border:1px dashed var(--line-strong);}
+/* Each KPI tile picks up the same colour its own metric already wears in
+   the table below (SOH teal, Sold/Recovery blue, Items the app's own
+   brass accent) -- a fixed per-metric identity, not a value-based flag. */
+.trip-kpis .dash-kpi{border-top:3px solid var(--line-strong);}
+.trip-kpis .dash-kpi:nth-child(1){border-top-color:var(--primary);}
+.trip-kpis .dash-kpi:nth-child(2){border-top-color:var(--soh);}
+.trip-kpis .dash-kpi:nth-child(3){border-top-color:var(--stock);}
+.trip-kpis .dash-kpi:nth-child(4){border-top-color:var(--pos);}
+/* Zebra striping, scoped to Trip Requirement's own table only (.dr-wrap/
+   .matrix are shared with the date-range popup, which keeps its plain
+   rows). Skips rows already carrying their own background (SOH/Plan-style
+   columns use higher-specificity selectors and win regardless). */
+.trip-wrap table.matrix tbody tr:nth-child(even) td:not(.dr-soh){background:var(--s-25);}
+.trip-wrap table.matrix tbody tr:hover td:not(.dr-soh){background:var(--s-100);}
 .dash-h{margin:var(--sp-6) 0 var(--sp-3);font-size:var(--fs-lg);font-weight:650;color:var(--ink);letter-spacing:-.01em;display:flex;align-items:baseline;gap:var(--sp-3);flex-wrap:wrap;}
 .dash-h span{font-size:var(--fs-sm);font-weight:500;color:var(--ink-faint);}
 .dash-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-4);margin-bottom:var(--sp-4);}

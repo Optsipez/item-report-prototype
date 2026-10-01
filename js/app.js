@@ -2967,7 +2967,7 @@ function renderTripSummary(code, rows){
   const kpi = (k, v, n) => '<div class="dash-kpi"><span class="dash-kpi-k">' + k + '</span><span class="dash-kpi-v">' + v + '</span><span class="dash-kpi-n">' + n + '</span></div>';
   const noLrcv = S.items - S.knownCount;
   return '<h2 class="dash-h">' + escHtml(name || code) + (name ? ' <span>' + escHtml(code) + '</span>' : '') + '</h2>' +
-    '<div class="dash-kpis">' +
+    '<div class="dash-kpis trip-kpis">' +
       kpi('Items', fmtInt(S.items), 'for this vendor') +
       kpi('Total SOH', fmtInt(S.totalSoh), 'units on hand now') +
       kpi('Sold since restock', fmtInt(S.totalSold), noLrcv ? noLrcv + ' item' + (noLrcv === 1 ? '' : 's') + ' with no Lrcv Date' : 'across all ' + S.items + ' items') +
@@ -3019,7 +3019,7 @@ function renderTripTable(rows){
       '<td>' + fmtInt(it['PO-Qty']) + '</td>' +
       '</tr>';
   }).join('');
-  return '<div class="dr-wrap"><table class="matrix dr-table"><thead><tr>' + cols + '</tr></thead><tbody>' + body + '</tbody></table></div>';
+  return '<div class="dr-wrap trip-wrap"><table class="matrix dr-table"><thead><tr>' + cols + '</tr></thead><tbody>' + body + '</tbody></table></div>';
 }
 function renderTrip(){
   const root = document.getElementById('tripRoot');
@@ -3036,9 +3036,11 @@ function renderTrip(){
         (typeof DATA_AS_OF !== 'undefined' ? ' <span class="dash-asof">Data as of ' + escHtml(dashDate(DATA_AS_OF)) + '.</span>' : '') + '</p>' +
     '</div></div>' +
     '<div class="dash-scope trip-scope">' +
-      '<label class="dash-vendor-field">Vendor code<input id="tripVendor" list="tripVendorList" class="' + (tripVendorAmbiguous ? 'dash-vendor-ambiguous' : '') + '" value="' +
+      '<label class="dash-vendor-field">Vendor code<span class="trip-vendor-input-wrap">' +
+        '<svg class="trip-vendor-icon" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6.5 3 3h10l1 3.5"/><path d="M2 6.5v7h12v-7"/><path d="M6 13.5v-4h4v4"/></svg>' +
+        '<input id="tripVendor" list="tripVendorList" class="' + (tripVendorAmbiguous ? 'dash-vendor-ambiguous' : '') + '" value="' +
         escHtml(tripVendorAmbiguous ? tripVendorAmbiguous.raw : tripCode) + '" title="' + escHtml(tripVendorAmbiguousTip()) + '" placeholder="Type a vendor code or name…" autocomplete="off">' +
-        tripVendorOptionsHtml() + '</label>' +
+        '</span>' + tripVendorOptionsHtml() + '</label>' +
       '<datalist id="tripVendorList">' + [...VENDOR_CODES].sort().map(v => '<option value="' + escHtml(v) + '">').join('') + '</datalist>' +
     '</div>' +
     body;
