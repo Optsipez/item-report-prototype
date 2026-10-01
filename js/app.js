@@ -758,9 +758,6 @@ function applyRoute(route){
     }
     setView('lookup');
   } else if(route.view === 'trip'){
-    // Admin-only while in development -- a typed/bookmarked #trip still
-    // can't get a non-admin in, even though the nav button is hidden for them.
-    if(CURRENT_ROLE !== 'admin'){ navigate('dashboard'); return; }
     setView('trip');                      // renders the vendor search + table
   } else {
     setView('all');                       // rebuilds the grid
@@ -2963,7 +2960,10 @@ function tripSummary(rows){
 }
 function renderTripSummary(code, rows){
   const S = tripSummary(rows);
-  const name = VENDOR_CODE_TO_NAME[code];
+  // Buyers must never see Vendor Name (canSeeVendorName()) -- this heading
+  // used to be admin-only so the name was always safe to show; now that
+  // every role can open this tab, it needs the same gate as everywhere else.
+  const name = canSeeVendorName() ? VENDOR_CODE_TO_NAME[code] : null;
   const kpi = (k, v, n) => '<div class="dash-kpi"><span class="dash-kpi-k">' + k + '</span><span class="dash-kpi-v">' + v + '</span><span class="dash-kpi-n">' + n + '</span></div>';
   const noLrcv = S.items - S.knownCount;
   return '<h2 class="dash-h">' + escHtml(name || code) + (name ? ' <span>' + escHtml(code) + '</span>' : '') + '</h2>' +
