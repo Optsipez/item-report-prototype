@@ -3024,6 +3024,27 @@ function renderTripTable(rows){
 function renderTrip(){
   const root = document.getElementById('tripRoot');
   if(!root) return;
+  // Still being built -- buyers can see the tab exists (it'll be theirs to
+  // use once it's ready) but not the feature itself yet. Other roles get
+  // the real thing while it's being shaped.
+  if(CURRENT_ROLE === 'buyer'){
+    root.innerHTML =
+      '<div class="dash-hero"><div>' +
+        '<div class="dash-date">Trip Requirement</div>' +
+        '<h1 class="dash-greet">Plan your next order</h1>' +
+      '</div></div>' +
+      '<div class="empty-state">' +
+        '<svg class="empty-art" viewBox="0 0 120 96" fill="none" aria-hidden="true">' +
+          '<rect x="14" y="18" width="72" height="60" rx="6" class="ea-card"/>' +
+          '<line x1="26" y1="34" x2="60" y2="34" class="ea-line"/>' +
+          '<line x1="26" y1="44" x2="72" y2="44" class="ea-line ea-line-faint"/>' +
+          '<line x1="26" y1="54" x2="50" y2="54" class="ea-line ea-line-faint"/>' +
+        '</svg>' +
+        '<h3>Still under development</h3>' +
+        '<p>This feature isn’t ready yet. Sorry for the inconvenience caused.</p>' +
+      '</div>';
+    return;
+  }
   const rows = tripCode ? tripRows(tripCode).sort((a, b) => a.it['Description'].localeCompare(b.it['Description'])) : null;
   const body = !tripCode ? tripEmptyState()
     : !rows.length ? '<p class="dr-empty">No items found for vendor ' + escHtml(tripCode) + '.</p>'
