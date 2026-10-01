@@ -2730,6 +2730,7 @@ function dateRangeSortValue(row, key){
   if(key === 'sr') return srQtyValue(row.it);
   if(key === 'po') return Number(row.it['PO-Qty']) || 0;
   if(key === 'sold') return row.s3;
+  if(key === 'lrcv') return parseLrcvDate(row.it['Lrcv Date']);
   if(key === 'received') return row.r3;
   if(key === 'age') return row.age.sno;
   if(key === 'trend') return row.pct;
@@ -2805,7 +2806,7 @@ function buildDateRangeTable(){
     sh('vendor', 'Vendor', 'Vendor Code') + sh('range', 'Range', 'Range Name') +
     sh('pudaCode', 'PUDA Code') + sh('pudaDesc', 'PUDA Desc') + sh('plan', 'Plan', null, 'dr-plan') +
     sh('soh', 'SOH', null, 'dr-soh') + sh('wh', 'WH', 'WH SOH', 'dr-wh') + sh('sr', 'SR', 'SR Qty', 'dr-sr') + sh('po', 'PO', 'PO Qty') +
-    sh('sold', 'Sold', 'Sold, this range') + sh('received', 'Rcvd', 'Received (GRN), this range') + sh('age', 'Age', 'STK Age') + sh('trend', 'Trend', 'Trend, this range') +
+    sh('sold', 'Sold', 'Sold, this range') + sh('lrcv', 'LRCV', 'Lrcv Date') + sh('received', 'Rcvd', 'Received (GRN), this range') + sh('age', 'Age', 'STK Age') + sh('trend', 'Trend', 'Trend, this range') +
     months.map((w, i) => monthHead(w, 'Sold', 'sold_' + i, 'dr-soldmonth')).join('');
 
   const rowsHtml = rows.map((row, i) => {
@@ -2826,6 +2827,7 @@ function buildDateRangeTable(){
       '<td class="dr-sr">' + fmtInt(srQtyValue(it)) + '</td>' +
       '<td>' + fmtInt(it['PO-Qty']) + '</td>' +
       '<td>' + fmtInt(s3) + '</td>' +
+      '<td>' + fmtLrcvDate(it['Lrcv Date']) + '</td>' +
       '<td>' + fmtInt(r3) + '</td>' +
       '<td>' + escHtml(age.label) + '</td>' +
       '<td>' + miniVBar(sohNow, s3, trendTitle, 'No stock or sales activity over this range') + '</td>' +
