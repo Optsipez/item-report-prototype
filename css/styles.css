@@ -929,6 +929,15 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .dr-wrap table.matrix th.dr-sr,.dr-wrap table.matrix td.dr-sr{background:var(--warn-bg);color:var(--warn);font-weight:600;}
 .dr-wrap table.matrix td.dr-soldmonth{background:var(--soldby-2026);}
 .dr-wrap table.matrix thead th.dr-soldmonth{background:var(--soldby-tint-head);color:var(--ink-soft);}
+/* Sold / LRCV / Rcvd framed as one group -- "the main three columns" at a
+   glance. No background tint (those three aren't colour-coded elsewhere
+   either), just a bold outline: top edge on the header, bottom edge on
+   the actual last row (added in JS, not every row), side edges running
+   the full height down the two outer columns. */
+.dr-wrap table.matrix th.dr-main3{border-top:2px solid var(--ink);}
+.dr-wrap table.matrix th.dr-main3-l,.dr-wrap table.matrix td.dr-main3-l{border-left:2px solid var(--ink);}
+.dr-wrap table.matrix th.dr-main3-r,.dr-wrap table.matrix td.dr-main3-r{border-right:2px solid var(--ink);}
+.dr-wrap table.matrix td.dr-main3-bottom{border-bottom:2px solid var(--ink);}
 .dr-empty{padding:var(--sp-6);text-align:center;color:var(--ink-faint);}
 .wk-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-4);margin-bottom:var(--sp-5);}
 .wk-head h3{margin:0 0 3px;font-size:var(--fs-lg);font-weight:600;color:var(--ink);letter-spacing:-.01em;}

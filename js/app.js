@@ -2806,13 +2806,17 @@ function buildDateRangeTable(){
     sh('vendor', 'Vendor', 'Vendor Code') + sh('range', 'Range', 'Range Name') +
     sh('pudaCode', 'PUDA Code') + sh('pudaDesc', 'PUDA Desc') + sh('plan', 'Plan', null, 'dr-plan') +
     sh('soh', 'SOH', null, 'dr-soh') + sh('wh', 'WH', 'WH SOH', 'dr-wh') + sh('sr', 'SR', 'SR Qty', 'dr-sr') + sh('po', 'PO', 'PO Qty') +
-    sh('sold', 'Sold', 'Sold, this range') + sh('lrcv', 'LRCV', 'Lrcv Date') + sh('received', 'Rcvd', 'Received (GRN), this range') + sh('age', 'Age', 'STK Age') + sh('trend', 'Trend', 'Trend, this range') +
+    sh('sold', 'Sold', 'Sold, this range', 'dr-main3 dr-main3-l') + sh('lrcv', 'LRCV', 'Lrcv Date', 'dr-main3') + sh('received', 'Rcvd', 'Received (GRN), this range', 'dr-main3 dr-main3-r') +
+    sh('age', 'Age', 'STK Age') + sh('trend', 'Trend', 'Trend, this range') +
     months.map((w, i) => monthHead(w, 'Sold', 'sold_' + i, 'dr-soldmonth')).join('');
 
   const rowsHtml = rows.map((row, i) => {
     const { it, s3, r3, age } = row;
     const sohNow = sohValue(it);
     const trendTitle = 'SOH ' + sohNow.toLocaleString('en-US') + '  ·  Sold ' + s3.toLocaleString('en-US') + ' over this range';
+    // The Sold/LRCV/Rcvd box's bottom edge only belongs on the actual last
+    // row -- a border on every row would just be a rule under each one.
+    const last = i === rows.length - 1 ? ' dr-main3-bottom' : '';
     return '<tr>' +
       '<td class="branch-sno">' + (i + 1) + '</td>' +
       '<td>' + escHtml(it['Item Code']) + '</td>' +
@@ -2826,9 +2830,9 @@ function buildDateRangeTable(){
       '<td class="dr-wh">' + fmtInt(whSohValue(it)) + '</td>' +
       '<td class="dr-sr">' + fmtInt(srQtyValue(it)) + '</td>' +
       '<td>' + fmtInt(it['PO-Qty']) + '</td>' +
-      '<td>' + fmtInt(s3) + '</td>' +
-      '<td>' + fmtLrcvDate(it['Lrcv Date']) + '</td>' +
-      '<td>' + fmtInt(r3) + '</td>' +
+      '<td class="dr-main3 dr-main3-l' + last + '">' + fmtInt(s3) + '</td>' +
+      '<td class="dr-main3' + last + '">' + fmtLrcvDate(it['Lrcv Date']) + '</td>' +
+      '<td class="dr-main3 dr-main3-r' + last + '">' + fmtInt(r3) + '</td>' +
       '<td>' + escHtml(age.label) + '</td>' +
       '<td>' + miniVBar(sohNow, s3, trendTitle, 'No stock or sales activity over this range') + '</td>' +
       row.monthSales.map(v => '<td class="dr-soldmonth">' + (v === 0 ? '—' : fmtInt(v)) + '</td>').join('') +
