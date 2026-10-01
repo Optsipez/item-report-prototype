@@ -533,6 +533,37 @@ function renderDashboard(){
     el.addEventListener('blur', change);
     el.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); change(); } });
   });
+  // Live, as-you-type narrowing for Vendor code -- while a typed name is
+  // still ambiguous or matches nothing yet, just refresh the floating
+  // options list in place (cheap -- renderDashboard() rebuilds the whole
+  // page, which would otherwise drop focus out of the field on every
+  // keystroke). Only once it resolves to one vendor or a real code does it
+  // commit via the full change()/re-render, same as blur always did, with
+  // its focus/caret restored right after (see refocusCaret() in app.js).
+  (() => {
+    const vendorInput = $('dashVendor');
+    vendorInput.addEventListener('input', () => {
+      const raw = vendorInput.value;
+      const lookup = vendorNameLookup(raw);
+      if(lookup.type === 'ambiguous' || lookup.type === 'empty' || lookup.type === 'unmatched'){
+        dashVendorAmbiguous = lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null;
+        vendorInput.classList.toggle('dash-vendor-ambiguous', !!dashVendorAmbiguous);
+        vendorInput.title = dashVendorAmbiguousTip();
+        const field = vendorInput.closest('.dash-vendor-field');
+        const old = field.querySelector('.dash-vendor-options');
+        if(old) old.remove();
+        field.insertAdjacentHTML('beforeend', dashVendorOptionsHtml());
+        field.querySelectorAll('.dash-vendor-opt').forEach(btn => btn.addEventListener('click', () => {
+          vendorInput.value = btn.dataset.code;
+          change();
+        }));
+      } else {
+        const pos = vendorInput.selectionStart;
+        change();
+        refocusCaret('dashVendor', pos);
+      }
+    });
+  })();
   const reset = $('dashReset');
   if(reset) reset.addEventListener('click', () => { dashScope = { ...DASH_SCOPE_DEFAULTS }; dashSaveScope(); renderDashboard(); });
 }

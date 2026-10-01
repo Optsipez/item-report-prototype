@@ -2547,6 +2547,17 @@ function parseDMY(raw){
 function escHtml(s){
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
+// After a full re-render replaces a text field with a new DOM node (e.g. a
+// vendor-code field resolving live, mid-keystroke -- see the three "Vendor
+// code" fields' own 'input' listeners), the browser drops focus to <body>.
+// Re-focusing the field by id and restoring roughly where the caret was
+// keeps typing from feeling like it got interrupted.
+function refocusCaret(id, pos){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.focus();
+  try { el.setSelectionRange(pos, pos); } catch(e){}
+}
 // Every {year, m} the range spans, oldest first -- month-level, so a range
 // that starts/ends mid-month still includes that whole month.
 function monthsBetween(from, to){
@@ -2656,6 +2667,32 @@ function renderDrScopeBar(){
     el.addEventListener('blur', change);
     el.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); change(); } });
   });
+  // Live, as-you-type narrowing for Vendor code -- see the identical
+  // comment on Trip Requirement's own vendor field (js/app.js, renderTrip).
+  (() => {
+    const vendorInput = $('drVendor');
+    vendorInput.addEventListener('input', () => {
+      const raw = vendorInput.value;
+      const lookup = vendorNameLookup(raw);
+      if(lookup.type === 'ambiguous' || lookup.type === 'empty' || lookup.type === 'unmatched'){
+        drVendorAmbiguous = lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null;
+        vendorInput.classList.toggle('dash-vendor-ambiguous', !!drVendorAmbiguous);
+        vendorInput.title = drVendorAmbiguousTip();
+        const field = vendorInput.closest('.dash-vendor-field');
+        const old = field.querySelector('.dash-vendor-options');
+        if(old) old.remove();
+        field.insertAdjacentHTML('beforeend', drVendorOptionsHtml());
+        field.querySelectorAll('.dash-vendor-opt').forEach(btn => btn.addEventListener('click', () => {
+          vendorInput.value = btn.dataset.code;
+          change();
+        }));
+      } else {
+        const pos = vendorInput.selectionStart;
+        change();
+        refocusCaret('drVendor', pos);
+      }
+    });
+  })();
   wrap.querySelectorAll('.dash-vendor-opt').forEach(btn => btn.addEventListener('click', () => {
     $('drVendor').value = btn.dataset.code;
     change();
@@ -2974,6 +3011,33 @@ function renderTrip(){
   const vendorInput = $('tripVendor');
   vendorInput.addEventListener('blur', change);
   vendorInput.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); change(); } });
+  // Live, as-you-type narrowing -- while a typed name is still ambiguous or
+  // matches nothing yet, just refresh the floating options list in place
+  // (cheap, and the field never loses focus mid-keystroke). Only once it
+  // actually resolves to a single vendor or a real code does it commit via
+  // the full change()/re-render, same as blur always did -- that's also the
+  // one moment the field needs its focus/caret restored afterwards.
+  vendorInput.addEventListener('input', () => {
+    const raw = vendorInput.value;
+    const lookup = vendorNameLookup(raw);
+    if(lookup.type === 'ambiguous' || lookup.type === 'empty' || lookup.type === 'unmatched'){
+      tripVendorAmbiguous = lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null;
+      vendorInput.classList.toggle('dash-vendor-ambiguous', !!tripVendorAmbiguous);
+      vendorInput.title = tripVendorAmbiguousTip();
+      const field = vendorInput.closest('.dash-vendor-field');
+      const old = field.querySelector('.dash-vendor-options');
+      if(old) old.remove();
+      field.insertAdjacentHTML('beforeend', tripVendorOptionsHtml());
+      field.querySelectorAll('.dash-vendor-opt').forEach(btn => btn.addEventListener('click', () => {
+        vendorInput.value = btn.dataset.code;
+        change();
+      }));
+    } else {
+      const pos = vendorInput.selectionStart;
+      change();
+      refocusCaret('tripVendor', pos);
+    }
+  });
   root.querySelectorAll('.dash-vendor-opt').forEach(btn => btn.addEventListener('click', () => {
     vendorInput.value = btn.dataset.code;
     change();
