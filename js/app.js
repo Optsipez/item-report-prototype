@@ -2946,24 +2946,31 @@ function tripRows(code){
   return ITEMS.filter(it => it['Vendor Code'] === code).map(it => {
     const soh = sohValue(it);
     const sold = tripSoldSinceReceipt(it);
-    return { it, soh, sold };
+    const pct = sold == null ? null : sellThroughPct(sold, soh);
+    return { it, soh, sold, pct };
   });
 }
+// An item at/above this Recovery % has sold through most of what's between
+// it and empty shelves -- worth flagging for the next order before it runs
+// out. Shared between the KPI count and the table's own row highlighting
+// below, so the two always agree on what counts as "needs reorder".
+const TRIP_REORDER_PCT = 80;
 // Headline numbers for the resolved vendor, shown as a KPI strip above the
-// table -- avgPct only counts items with a real Lrcv Date (sold != null),
-// same "no data" exclusion sellThroughPct() itself uses.
+// table -- avgPct/needsReorder only count items with a real Lrcv Date
+// (sold != null), same "no data" exclusion sellThroughPct() itself uses.
 function tripSummary(rows){
   const items = rows.length;
   const totalSoh = rows.reduce((a, r) => a + r.soh, 0);
   const known = rows.filter(r => r.sold != null);
   const totalSold = known.reduce((a, r) => a + r.sold, 0);
-  const avgPct = known.length ? known.reduce((a, r) => a + sellThroughPct(r.sold, r.soh), 0) / known.length : null;
-  return { items, totalSoh, totalSold, knownCount: known.length, avgPct };
+  const avgPct = known.length ? known.reduce((a, r) => a + r.pct, 0) / known.length : null;
+  const needsReorder = known.filter(r => r.pct >= TRIP_REORDER_PCT).length;
+  return { items, totalSoh, totalSold, knownCount: known.length, avgPct, needsReorder };
 }
 function renderTripSummary(code, rows){
   const S = tripSummary(rows);
   const name = VENDOR_CODE_TO_NAME[code];
-  const kpi = (k, v, n) => '<div class="dash-kpi"><span class="dash-kpi-k">' + k + '</span><span class="dash-kpi-v">' + v + '</span><span class="dash-kpi-n">' + n + '</span></div>';
+  const kpi = (k, v, n, tone) => '<div class="dash-kpi' + (tone ? ' ' + tone : '') + '"><span class="dash-kpi-k">' + k + '</span><span class="dash-kpi-v">' + v + '</span><span class="dash-kpi-n">' + n + '</span></div>';
   const noLrcv = S.items - S.knownCount;
   return '<h2 class="dash-h">' + escHtml(name || code) + (name ? ' <span>' + escHtml(code) + '</span>' : '') + '</h2>' +
     '<div class="dash-kpis trip-kpis">' +
@@ -2971,6 +2978,7 @@ function renderTripSummary(code, rows){
       kpi('Total SOH', fmtInt(S.totalSoh), 'units on hand now') +
       kpi('Sold since restock', fmtInt(S.totalSold), noLrcv ? noLrcv + ' item' + (noLrcv === 1 ? '' : 's') + ' with no Lrcv Date' : 'across all ' + S.items + ' items') +
       kpi('Avg Recovery %', S.avgPct == null ? '—' : Math.round(S.avgPct) + '%', 'average sell-through since last receipt') +
+      kpi('Needs reorder', fmtInt(S.needsReorder), 'at ' + TRIP_REORDER_PCT + '%+ Recovery', S.needsReorder ? 'warn' : '') +
     '</div>';
 }
 // Reuses Item Lookup's own "nothing picked yet" illustration (see
@@ -2996,13 +3004,15 @@ function renderTripTable(rows){
     '<th class="l">Description</th><th>Range Name</th><th class="dr-soh">SOH</th><th>Sold (since Lrcv)</th>' +
     '<th>Recovery %</th><th>Disct%</th><th>Sale Mrg</th><th>Last Posting Date</th><th>Purchase Qty</th>';
   const body = rows.map((row, i) => {
-    const { it, soh, sold } = row;
-    const recTitle = sold == null ? 'No Lrcv Date on record' : 'SOH ' + soh.toLocaleString('en-US') + '  ·  Sold ' + sold.toLocaleString('en-US') + ' since last received';
+    const { it, soh, sold, pct } = row;
+    const needsReorder = pct != null && pct >= TRIP_REORDER_PCT;
+    const recTitle = sold == null ? 'No Lrcv Date on record' : 'SOH ' + soh.toLocaleString('en-US') + '  ·  Sold ' + sold.toLocaleString('en-US') + ' since last received' +
+      (needsReorder ? '  ·  needs reorder (' + TRIP_REORDER_PCT + '%+)' : '');
     const recovery = sold == null
       ? '<span class="spark-empty" title="' + recTitle + '">—</span>'
       : miniVBar(soh, sold, recTitle, recTitle);
     const mrg = typeof it['MRG Factor'] === 'number' ? it['MRG Factor'].toFixed(2) + 'x' : '—';
-    return '<tr>' +
+    return '<tr' + (needsReorder ? ' class="trip-row-reorder"' : '') + '>' +
       '<td class="branch-sno">' + (i + 1) + '</td>' +
       '<td class="trip-tbd" title="Not yet available">—</td>' +
       '<td>' + escHtml(it['Item Code']) + '</td>' +
@@ -3023,7 +3033,17 @@ function renderTripTable(rows){
 function renderTrip(){
   const root = document.getElementById('tripRoot');
   if(!root) return;
-  const rows = tripCode ? tripRows(tripCode).sort((a, b) => a.it['Description'].localeCompare(b.it['Description'])) : null;
+  // Needs-reorder items float to the top (highest Recovery % first) --
+  // that's the actionable list for a trip, so it shouldn't be left to
+  // scrolling through an otherwise-alphabetical table to find. No Lrcv
+  // Date (pct null) sorts last, same "unknown goes last" rule used
+  // everywhere else blanks come up in this app.
+  const rows = tripCode ? tripRows(tripCode).sort((a, b) => {
+    if(a.pct == null && b.pct == null) return a.it['Description'].localeCompare(b.it['Description']);
+    if(a.pct == null) return 1;
+    if(b.pct == null) return -1;
+    return b.pct - a.pct || a.it['Description'].localeCompare(b.it['Description']);
+  }) : null;
   const body = !tripCode ? tripEmptyState()
     : !rows.length ? '<p class="dr-empty">No items found for vendor ' + escHtml(tripCode) + '.</p>'
     : renderTripSummary(tripCode, rows) + renderTripTable(rows);
@@ -3031,7 +3051,8 @@ function renderTrip(){
     '<div class="dash-hero"><div>' +
       '<div class="dash-date">Trip Requirement</div>' +
       '<h1 class="dash-greet">Plan your next order</h1>' +
-      '<p class="dash-sub">Type a vendor code (or name) to see every item for that vendor — stock on hand, units sold since it was last received, and the resulting sell-through.</p>' +
+      '<p class="dash-sub">Type a vendor code (or name) to see every item for that vendor — stock on hand, units sold since it was last received, and the resulting sell-through.' +
+        (typeof DATA_AS_OF !== 'undefined' ? ' <span class="dash-asof">Data as of ' + escHtml(dashDate(DATA_AS_OF)) + '.</span>' : '') + '</p>' +
     '</div></div>' +
     '<div class="dash-scope trip-scope">' +
       '<label class="dash-vendor-field">Vendor code<input id="tripVendor" list="tripVendorList" class="' + (tripVendorAmbiguous ? 'dash-vendor-ambiguous' : '') + '" value="' +
