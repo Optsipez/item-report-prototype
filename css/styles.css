@@ -415,6 +415,10 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    ingested yet (see js/app.js). A plain dash for the text column; a small
    empty box standing in for the photo so the layout doesn't shift once a
    real image is wired in. */
+/* The search card is a full .dash-scope but with only one field in it --
+   left unconstrained it would stretch edge to edge (the 150px flex-basis
+   assumes several fields sharing a row), so this caps it to a sane width. */
+.trip-scope .dash-vendor-field{flex:0 1 420px;}
 .trip-tbd{color:var(--ink-faint);}
 .trip-photo-ph{display:inline-block;width:28px;height:28px;border-radius:var(--r-sm);
   background:var(--s-100);border:1px dashed var(--line-strong);}

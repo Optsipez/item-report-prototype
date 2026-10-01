@@ -2949,9 +2949,49 @@ function tripRows(code){
     return { it, soh, sold };
   });
 }
-function renderTripTable(code){
-  const rows = tripRows(code).sort((a, b) => a.it['Description'].localeCompare(b.it['Description']));
-  if(!rows.length) return '<p class="dr-empty">No items found for vendor ' + escHtml(code) + '.</p>';
+// Headline numbers for the resolved vendor, shown as a KPI strip above the
+// table -- avgPct only counts items with a real Lrcv Date (sold != null),
+// same "no data" exclusion sellThroughPct() itself uses.
+function tripSummary(rows){
+  const items = rows.length;
+  const totalSoh = rows.reduce((a, r) => a + r.soh, 0);
+  const known = rows.filter(r => r.sold != null);
+  const totalSold = known.reduce((a, r) => a + r.sold, 0);
+  const avgPct = known.length ? known.reduce((a, r) => a + sellThroughPct(r.sold, r.soh), 0) / known.length : null;
+  return { items, totalSoh, totalSold, knownCount: known.length, avgPct };
+}
+function renderTripSummary(code, rows){
+  const S = tripSummary(rows);
+  const name = VENDOR_CODE_TO_NAME[code];
+  const kpi = (k, v, n) => '<div class="dash-kpi"><span class="dash-kpi-k">' + k + '</span><span class="dash-kpi-v">' + v + '</span><span class="dash-kpi-n">' + n + '</span></div>';
+  const noLrcv = S.items - S.knownCount;
+  return '<h2 class="dash-h">' + escHtml(name || code) + (name ? ' <span>' + escHtml(code) + '</span>' : '') + '</h2>' +
+    '<div class="dash-kpis trip-kpis">' +
+      kpi('Items', fmtInt(S.items), 'for this vendor') +
+      kpi('Total SOH', fmtInt(S.totalSoh), 'units on hand now') +
+      kpi('Sold since restock', fmtInt(S.totalSold), noLrcv ? noLrcv + ' item' + (noLrcv === 1 ? '' : 's') + ' with no Lrcv Date' : 'across all ' + S.items + ' items') +
+      kpi('Avg Recovery %', S.avgPct == null ? '—' : Math.round(S.avgPct) + '%', 'average sell-through since last receipt') +
+    '</div>';
+}
+// Reuses Item Lookup's own "nothing picked yet" illustration (see
+// #emptyState in index.html) -- same idea (search, then see a full report),
+// so the same art fits without needing a second one drawn from scratch.
+function tripEmptyState(){
+  return '<div class="empty-state">' +
+    '<svg class="empty-art" viewBox="0 0 120 96" fill="none" aria-hidden="true">' +
+      '<rect x="14" y="18" width="72" height="60" rx="6" class="ea-card"/>' +
+      '<line x1="26" y1="34" x2="60" y2="34" class="ea-line"/>' +
+      '<line x1="26" y1="44" x2="72" y2="44" class="ea-line ea-line-faint"/>' +
+      '<line x1="26" y1="54" x2="50" y2="54" class="ea-line ea-line-faint"/>' +
+      '<path d="M26 68 L34 60 L42 65 L50 52 L60 58" class="ea-spark"/>' +
+      '<circle cx="80" cy="66" r="16" class="ea-lens"/>' +
+      '<line x1="91" y1="77" x2="102" y2="88" class="ea-handle"/>' +
+    '</svg>' +
+    '<h3>No vendor selected</h3>' +
+    '<p>Type a vendor code or name above to see every item for that vendor — stock on hand, units sold since it was last received, and the resulting sell-through.</p>' +
+  '</div>';
+}
+function renderTripTable(rows){
   const cols = '<th class="branch-sno">No</th><th>Vendor Item No.</th><th>2XL Barcode No</th><th>Photo</th>' +
     '<th class="l">Description</th><th>Range Name</th><th class="dr-soh">SOH</th><th>Sold (since Lrcv)</th>' +
     '<th>Recovery %</th><th>Disct%</th><th>Sale Mrg</th><th>Last Posting Date</th><th>Purchase Qty</th>';
@@ -2983,19 +3023,23 @@ function renderTripTable(code){
 function renderTrip(){
   const root = document.getElementById('tripRoot');
   if(!root) return;
+  const rows = tripCode ? tripRows(tripCode).sort((a, b) => a.it['Description'].localeCompare(b.it['Description'])) : null;
+  const body = !tripCode ? tripEmptyState()
+    : !rows.length ? '<p class="dr-empty">No items found for vendor ' + escHtml(tripCode) + '.</p>'
+    : renderTripSummary(tripCode, rows) + renderTripTable(rows);
   root.innerHTML =
     '<div class="dash-hero"><div>' +
       '<div class="dash-date">Trip Requirement</div>' +
       '<h1 class="dash-greet">Plan your next order</h1>' +
       '<p class="dash-sub">Type a vendor code (or name) to see every item for that vendor — stock on hand, units sold since it was last received, and the resulting sell-through.</p>' +
     '</div></div>' +
-    '<div class="dash-scope dr-scope-bare">' +
+    '<div class="dash-scope trip-scope">' +
       '<label class="dash-vendor-field">Vendor code<input id="tripVendor" list="tripVendorList" class="' + (tripVendorAmbiguous ? 'dash-vendor-ambiguous' : '') + '" value="' +
         escHtml(tripVendorAmbiguous ? tripVendorAmbiguous.raw : tripCode) + '" title="' + escHtml(tripVendorAmbiguousTip()) + '" placeholder="Type a vendor code or name…" autocomplete="off">' +
         tripVendorOptionsHtml() + '</label>' +
       '<datalist id="tripVendorList">' + [...VENDOR_CODES].sort().map(v => '<option value="' + escHtml(v) + '">').join('') + '</datalist>' +
     '</div>' +
-    (tripCode ? renderTripTable(tripCode) : '<p class="dr-empty">Enter a vendor code above to see its items.</p>');
+    body;
 
   const $ = id => document.getElementById(id);
   const change = () => {
