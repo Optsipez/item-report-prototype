@@ -422,16 +422,6 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .trip-tbd{color:var(--ink-faint);}
 .trip-photo-ph{display:inline-block;width:28px;height:28px;border-radius:var(--r-sm);
   background:var(--s-100);border:1px dashed var(--line-strong);}
-/* A 5th tile ("Needs reorder") alongside the usual 4 -- .dash-kpi itself is
-   unchanged, just the grid gets an extra column on this one page. */
-.trip-kpis{grid-template-columns:repeat(5,minmax(0,1fr));}
-@media (max-width:1100px){.trip-kpis{grid-template-columns:repeat(3,minmax(0,1fr));}}
-/* Rows at/above TRIP_REORDER_PCT (js/app.js) -- sold through most of what's
-   on hand, worth ordering more before the trip. A left-edge accent rather
-   than a full tinted row: loud enough to scan for, quiet enough not to
-   fight the SOH/Plan columns' own background colours in the same row. */
-.trip-row-reorder td:first-child{box-shadow:inset 3px 0 0 var(--neg);}
-.trip-row-reorder td{background:var(--neg-bg);}
 .dash-h{margin:var(--sp-6) 0 var(--sp-3);font-size:var(--fs-lg);font-weight:650;color:var(--ink);letter-spacing:-.01em;display:flex;align-items:baseline;gap:var(--sp-3);flex-wrap:wrap;}
 .dash-h span{font-size:var(--fs-sm);font-weight:500;color:var(--ink-faint);}
 .dash-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-4);margin-bottom:var(--sp-4);}
