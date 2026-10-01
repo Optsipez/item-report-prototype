@@ -2587,10 +2587,38 @@ function dateRangeMatch(item){
    with dashScope's own localStorage persistence. Reuses dashItemInScope()
    (now scope-parametrized for exactly this) and vendorNameLookup() /
    VENDOR_CODES / VENDOR_NAME_TO_CODE, which already live in this file. */
-const DR_SCOPE_DEFAULTS = { dept: '', cat: '', vendor: '', range: '', group: '', puda: '', plan: '' };
-let drScope = { ...DR_SCOPE_DEFAULTS };
+// Department/Category/Plan are multi-select here (arrays of selected
+// values; empty = "All") -- unlike the dashboard's own Show me bar, which
+// stays single-select. dashItemInScope()/scopeFieldMatch() (dashboard.js)
+// handle either shape, so this doesn't touch the dashboard's own behaviour.
+const DR_SCOPE_DEFAULTS = { dept: [], cat: [], vendor: '', range: '', group: '', puda: '', plan: [] };
+let drScope = { dept: [], cat: [], vendor: '', range: '', group: '', puda: '', plan: [] };
 let drVendorAmbiguous = null;   // { raw, codes } or null -- see vendorNameLookup()
-const drScopeIsSet = () => Object.keys(DR_SCOPE_DEFAULTS).some(k => drScope[k]);
+let drOpenMultiSelect = null;   // 'dept' | 'cat' | 'plan' | null -- which checkbox panel is open
+const drScopeIsSet = () => Object.keys(DR_SCOPE_DEFAULTS).some(k => Array.isArray(drScope[k]) ? drScope[k].length > 0 : drScope[k]);
+// A checkbox dropdown: a button showing "All" / the one picked value / "N
+// selected", opening a panel of checkboxes under it. Reuses the exact
+// floating-panel look of the vendor-name ambiguity dropdown (dash-vendor-
+// field for positioning) rather than inventing a second visual language.
+function drMultiSelectHtml(key, label, options){
+  const selected = drScope[key];
+  const summary = selected.length === 0 ? 'All' : selected.length === 1 ? selected[0] : selected.length + ' selected';
+  const panel = drOpenMultiSelect === key
+    ? '<div class="dr-ms-panel" data-ms="' + key + '">' +
+        (selected.length ? '<button type="button" class="dr-ms-clear" data-ms="' + key + '">Clear</button>' : '') +
+        options.map(v => '<label class="dr-ms-opt"><input type="checkbox" value="' + escHtml(v) + '"' + (selected.includes(v) ? ' checked' : '') + '>' + escHtml(v) + '</label>').join('') +
+      '</div>'
+    : '';
+  return '<label class="dash-vendor-field dr-ms-field">' + label +
+    '<button type="button" class="dr-ms-btn' + (selected.length ? ' dr-ms-active' : '') + '" data-ms="' + key + '">' + escHtml(summary) + '<span class="dr-ms-caret">▾</span></button>' +
+    panel + '</label>';
+}
+document.addEventListener('click', e => {
+  if(drOpenMultiSelect && !e.target.closest('.dr-ms-field')){
+    drOpenMultiSelect = null;
+    renderDrScopeBar();
+  }
+});
 function drVendorAmbiguousTip(){
   if(!drVendorAmbiguous) return '';
   const showNames = canSeeVendorName();
@@ -2621,13 +2649,12 @@ function renderDrScopeBar(){
   const wrap = document.getElementById('drScopeBar');
   if(!wrap) return;
   const uniq = f => [...new Set(ITEMS.map(i => i[f]).filter(Boolean))].sort();
-  const opt = (arr, cur) => '<option value="">All</option>' + arr.map(v => '<option' + (v === cur ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('');
   const search = (id, field, label) => '<label>' + label + '<input id="' + id + '" list="' + id + 'List" value="' + escHtml(drScope[field]) + '" placeholder="All" autocomplete="off"></label>' +
     '<datalist id="' + id + 'List">' + uniq(field === 'range' ? 'Range Name' : field === 'group' ? 'Group Desc' : 'PUDA Desc').map(v => '<option value="' + escHtml(v) + '">').join('') + '</datalist>';
   wrap.innerHTML = '<div class="dash-scope dr-scope-bare">' +
     (drScopeIsSet() ? '<button type="button" class="dash-btn ghost filters-active-btn dr-scope-reset" id="drScopeReset">Show everything</button>' : '') +
-    '<label>Department<select id="drDept">' + opt(uniq('Department Desc'), drScope.dept) + '</select></label>' +
-    '<label>Category<select id="drCat">' + opt(uniq('Category'), drScope.cat) + '</select></label>' +
+    drMultiSelectHtml('dept', 'Department', uniq('Department Desc')) +
+    drMultiSelectHtml('cat', 'Category', uniq('Category')) +
     '<label class="dash-vendor-field">Vendor code<input id="drVendor" list="drVendorList" class="' + (drVendorAmbiguous ? 'dash-vendor-ambiguous' : '') + '" value="' +
       escHtml(drVendorAmbiguous ? drVendorAmbiguous.raw : drScope.vendor) + '" title="' + escHtml(drVendorAmbiguousTip()) + '" placeholder="All" autocomplete="off">' +
       drVendorOptionsHtml() + '</label>' +
@@ -2635,7 +2662,7 @@ function renderDrScopeBar(){
     search('drRange', 'range', 'Range Name') +
     search('drGroup', 'group', 'Group Desc') +
     search('drPuda', 'puda', 'PUDA Desc') +
-    '<label>Plan<select id="drPlan">' + opt(uniq('Current Plan Code'), drScope.plan) + '</select></label>' +
+    drMultiSelectHtml('plan', 'Plan', uniq('Current Plan Code')) +
     '</div>';
 
   const $ = id => document.getElementById(id);
@@ -2649,14 +2676,38 @@ function renderDrScopeBar(){
     // 'ambiguous' and 'empty' both leave vendor === '' -- don't guess which of several matches was meant
     drVendorAmbiguous = lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null;
     drScope = {
-      dept: $('drDept').value, cat: $('drCat').value, vendor,
+      ...drScope, vendor,
       range: $('drRange').value.trim(), group: $('drGroup').value.trim(),
-      puda: $('drPuda').value.trim(), plan: $('drPlan').value,
+      puda: $('drPuda').value.trim(),
     };
     renderDrScopeBar();
     buildDateRangeTable();
   };
-  ['drDept', 'drCat', 'drPlan'].forEach(id => $(id).addEventListener('change', change));
+  // Department/Category/Plan's own checkbox dropdowns -- opening one closes
+  // any other (drOpenMultiSelect holds at most one key), a click on a
+  // checkbox updates drScope[key] immediately (panel stays open so several
+  // boxes can be ticked in a row), and Clear empties just that field.
+  wrap.querySelectorAll('.dr-ms-btn').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const key = btn.dataset.ms;
+    drOpenMultiSelect = drOpenMultiSelect === key ? null : key;
+    renderDrScopeBar();
+  }));
+  wrap.querySelectorAll('.dr-ms-panel').forEach(panel => panel.addEventListener('click', e => e.stopPropagation()));
+  wrap.querySelectorAll('.dr-ms-panel input[type=checkbox]').forEach(cb => cb.addEventListener('change', () => {
+    const key = cb.closest('.dr-ms-panel').dataset.ms;
+    const set = new Set(drScope[key]);
+    if(cb.checked) set.add(cb.value); else set.delete(cb.value);
+    drScope = { ...drScope, [key]: [...set] };
+    renderDrScopeBar();
+    buildDateRangeTable();
+  }));
+  wrap.querySelectorAll('.dr-ms-clear').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation();
+    drScope = { ...drScope, [btn.dataset.ms]: [] };
+    renderDrScopeBar();
+    buildDateRangeTable();
+  }));
   // Free-text fields use blur + Enter, not 'change' -- see the identical
   // fix for the dashboard's own Vendor/Range/Group/PUDA fields.
   ['drVendor', 'drRange', 'drGroup', 'drPuda'].forEach(id => {
@@ -2698,6 +2749,7 @@ function renderDrScopeBar(){
   if(reset) reset.addEventListener('click', () => {
     drScope = { ...DR_SCOPE_DEFAULTS };
     drVendorAmbiguous = null;
+    drOpenMultiSelect = null;
     renderDrScopeBar();
     buildDateRangeTable();
   });

@@ -163,17 +163,26 @@ function dashVendorOptionsHtml(){
     (more > 0 ? '<div class="dash-vendor-more">+' + more + ' more — type more letters to narrow it down</div>' : '') +
     '</div>';
 }
+// A scope field is either a single string (dashboard's own Show me bar) or
+// an array of selected values (the date-range popup's multi-select
+// Department/Category/Plan) -- empty string/array both mean "no filter".
+function scopeFieldMatch(val, selected){
+  if(Array.isArray(selected)) return selected.length === 0 || selected.includes(val);
+  return !selected || val === selected;
+}
 // scope defaults to dashScope -- the date-range popup's own "Show me" bar
 // (app.js) reuses this exact matching logic with its own drScope instead.
 function dashItemInScope(it, scope){
   scope = scope || dashScope;
-  return (!scope.dept || it['Department Desc'] === scope.dept) &&
-    (!scope.cat || it['Category'] === scope.cat) &&
+  const planVal = String(it['Current Plan Code'] || '').toUpperCase();
+  const planSel = Array.isArray(scope.plan) ? scope.plan.map(p => String(p).toUpperCase()) : (scope.plan ? String(scope.plan).toUpperCase() : scope.plan);
+  return scopeFieldMatch(it['Department Desc'], scope.dept) &&
+    scopeFieldMatch(it['Category'], scope.cat) &&
     (!scope.vendor || String(it['Vendor Code']).toUpperCase() === scope.vendor.toUpperCase()) &&
     (!scope.range || it['Range Name'] === scope.range) &&
     (!scope.group || it['Group Desc'] === scope.group) &&
     (!scope.puda || it['PUDA Desc'] === scope.puda) &&
-    (!scope.plan || String(it['Current Plan Code']).toUpperCase() === scope.plan.toUpperCase());
+    scopeFieldMatch(planVal, planSel);
 }
 function dashLineInScope(l){   // a PO line: [po, item, desc, qty, eta, vendor, dept, cat]
   if(dashScope.range || dashScope.group || dashScope.puda || dashScope.plan){
