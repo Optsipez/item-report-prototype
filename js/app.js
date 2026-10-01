@@ -2703,6 +2703,21 @@ function renderDrScopeBar(){
   });
 }
 
+// All Products' own Classification group (COLUMN_LAYOUT, key:'class'),
+// reused here with the same field set and the same collapsed-by-default
+// behaviour (collapsedGroups' initial Set also has 'class' in it there).
+const DR_CLASS_COLS = [
+  { key: 'catgCode', field: 'Catg Code', label: 'Catg Code' },
+  { key: 'category', field: 'Category', label: 'Category' },
+  { key: 'deptCode', field: 'Department Code', label: 'Dept Code' },
+  { key: 'deptDesc', field: 'Department Desc', label: 'Dept Desc' },
+  { key: 'grpCode', field: 'Group Code', label: 'Grp Code' },
+  { key: 'grpDesc', field: 'Group Desc', label: 'Grp Desc' },
+  { key: 'subGrpCode', field: 'Sub Group Code', label: 'SubGrp Code' },
+  { key: 'subGrpDesc', field: 'Sub Group Desc', label: 'SubGrp Desc' },
+];
+let drClassCollapsed = true;
+
 // Sort state for the popup's table -- multi-column, same model as the main
 // grid's gridSort: clicking a header ADDS it (doesn't replace), so you can
 // sort by Plan then Vendor all at once, primary first. Persists across
@@ -2722,6 +2737,8 @@ function dateRangeSortValue(row, key){
   if(key === 'desc') return String(row.it['Description'] || '').toLowerCase();
   if(key === 'vendor') return String(row.it['Vendor Code'] || '').toLowerCase();
   if(key === 'range') return String(row.it['Range Name'] || '').toLowerCase();
+  const classCol = DR_CLASS_COLS.find(c => c.key === key);
+  if(classCol) return String(row.it[classCol.field] || '').toLowerCase();
   if(key === 'pudaCode') return String(row.it['PUDA Code'] || '').toLowerCase();
   if(key === 'pudaDesc') return String(row.it['PUDA Desc'] || '').toLowerCase();
   if(key === 'plan') return PLAN_CODE_RANK[String(row.it['Current Plan Code'] || '').trim().toUpperCase()] ?? 0;
@@ -2799,11 +2816,25 @@ function buildDateRangeTable(){
   // totals), Age and Trend aren't coloured in All Products either
   // (YTD Sold/Total Received Qty/STK Age/PO-Qty are plain
   // there), so they stay plain here too.
-  const sh = (key, html, title, cls) => '<th class="dr-sort' + (cls ? ' ' + cls : '') + '" data-sort-key="' + key + '"' + (title ? ' title="' + title + '"' : '') + '>' + html + sortInd(key) + '</th>';
+  // Classification (All Products' own COLUMN_LAYOUT 'class' group) is the
+  // one collapsible group here, collapsed by default -- same idea as that
+  // grid's own group bar/collapsed strip, just within this table's single
+  // existing header row rather than rebuilding its two-row system wholesale.
+  // Expanding it needs a real second header row for the 8 field names, so
+  // every OTHER header gets rowspan="2" only while that row exists.
+  const twoRow = !drClassCollapsed;
+  const sh = (key, html, title, cls) => '<th class="dr-sort' + (cls ? ' ' + cls : '') + '" data-sort-key="' + key + '"' + (title ? ' title="' + title + '"' : '') + (twoRow ? ' rowspan="2"' : '') + '>' + html + sortInd(key) + '</th>';
   const monthHead = (w, kind, key, cls) => sh(key, monthLabel(w).replace("'", "<br>'") + '<br>' + kind, monthLabel(w) + ' ' + kind, cls);
+  const classHeader = drClassCollapsed
+    ? '<th class="dr-class-toggle" rowspan="2" title="Click to expand: Classification"><span class="chev">+</span>Class</th>'
+    : '<th class="dr-class-toggle" colspan="' + DR_CLASS_COLS.length + '" title="Click to collapse this section"><span class="chev">−</span>Classification</th>';
+  const classFieldHeaders = twoRow
+    ? '<tr>' + DR_CLASS_COLS.map(c => '<th class="dr-sort dr-class-field" data-sort-key="' + c.key + '">' + c.label + sortInd(c.key) + '</th>').join('') + '</tr>'
+    : '';
   const cols =
-    '<th class="branch-sno">S.No</th>' + sh('code', 'Item Code') + sh('desc', 'Description') +
+    '<th class="branch-sno"' + (twoRow ? ' rowspan="2"' : '') + '>S.No</th>' + sh('code', 'Item Code') + sh('desc', 'Description') +
     sh('vendor', 'Vendor', 'Vendor Code') + sh('range', 'Range', 'Range Name') +
+    classHeader +
     sh('pudaCode', 'PUDA Code') + sh('pudaDesc', 'PUDA Desc') + sh('plan', 'Plan', null, 'dr-plan') +
     sh('soh', 'SOH', null, 'dr-soh') + sh('wh', 'WH', 'WH SOH', 'dr-wh') + sh('sr', 'SR', 'SR Qty', 'dr-sr') + sh('po', 'PO', 'PO Qty') +
     sh('sold', 'Sold', 'Sold, this range', 'dr-main3 dr-main3-l') + sh('lrcv', 'LRCV', 'Lrcv Date', 'dr-main3') + sh('received', 'Rcvd', 'Received (GRN), this range', 'dr-main3 dr-main3-r') +
@@ -2817,12 +2848,16 @@ function buildDateRangeTable(){
     // The Sold/LRCV/Rcvd box's bottom edge only belongs on the actual last
     // row -- a border on every row would just be a rule under each one.
     const last = i === rows.length - 1 ? ' dr-main3-bottom' : '';
+    const classCells = drClassCollapsed
+      ? '<td class="collapsed-cell"></td>'
+      : DR_CLASS_COLS.map(c => '<td>' + escHtml(it[c.field]) + '</td>').join('');
     return '<tr>' +
       '<td class="branch-sno">' + (i + 1) + '</td>' +
       '<td>' + escHtml(it['Item Code']) + '</td>' +
       '<td class="l">' + escHtml(it['Description']) + '</td>' +
       '<td>' + escHtml(it['Vendor Code']) + '</td>' +
       '<td>' + escHtml(it['Range Name']) + '</td>' +
+      classCells +
       '<td>' + escHtml(it['PUDA Code']) + '</td>' +
       '<td class="l">' + escHtml(it['PUDA Desc']) + '</td>' +
       '<td class="dr-plan">' + escHtml(it['Current Plan Code']) + '</td>' +
@@ -2839,7 +2874,7 @@ function buildDateRangeTable(){
       '</tr>';
   }).join('');
 
-  body.innerHTML = '<table class="matrix dr-table"><thead><tr>' + cols + '</tr></thead><tbody>' + rowsHtml + '</tbody></table>';
+  body.innerHTML = '<table class="matrix dr-table"><thead><tr>' + cols + '</tr>' + classFieldHeaders + '</thead><tbody>' + rowsHtml + '</tbody></table>';
   body.querySelectorAll('th.dr-sort').forEach(th => th.addEventListener('click', () => {
     const key = th.dataset.sortKey;
     const idx = dateRangeSort.findIndex(s => s.key === key);
@@ -2848,6 +2883,11 @@ function buildDateRangeTable(){
     else dateRangeSort.splice(idx, 1);                                         // third click -> drop this column only
     buildDateRangeTable();
   }));
+  const classToggle = body.querySelector('th.dr-class-toggle');
+  if(classToggle) classToggle.addEventListener('click', () => {
+    drClassCollapsed = !drClassCollapsed;
+    buildDateRangeTable();
+  });
 }
 
 let dateRangeModalReturn = null;

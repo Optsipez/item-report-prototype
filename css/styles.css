@@ -938,6 +938,18 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .dr-wrap table.matrix th.dr-main3-l,.dr-wrap table.matrix td.dr-main3-l{border-left:2px solid var(--ink);}
 .dr-wrap table.matrix th.dr-main3-r,.dr-wrap table.matrix td.dr-main3-r{border-right:2px solid var(--ink);}
 .dr-wrap table.matrix td.dr-main3-bottom{border-bottom:2px solid var(--ink);}
+/* Classification -- collapsible, collapsed by default, same idea as All
+   Products' own Classification group (COLUMN_LAYOUT key:'class'). The
+   collapsed strip and the expanded group's own title bar share one class
+   so either state is a single click target; the 8 field headers underneath
+   it (only present while expanded) get a quieter shade to read as "part of
+   that group", same relationship the main grid draws with its own slate
+   sub-headers. */
+.dr-wrap table.matrix th.dr-class-toggle{cursor:pointer;user-select:none;background:var(--s-300);}
+.dr-wrap table.matrix th.dr-class-toggle:hover{background:var(--s-400);}
+.dr-wrap table.matrix th.dr-class-toggle .chev{font-family:'IBM Plex Mono',monospace;margin-right:4px;opacity:.7;}
+.dr-wrap table.matrix th.dr-class-field{background:var(--s-150);color:var(--ink-soft);}
+.dr-wrap table.matrix td.collapsed-cell{padding-left:1px;padding-right:1px;background:var(--s-100);}
 .dr-empty{padding:var(--sp-6);text-align:center;color:var(--ink-faint);}
 .wk-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-4);margin-bottom:var(--sp-5);}
 .wk-head h3{margin:0 0 3px;font-size:var(--fs-lg);font-weight:600;color:var(--ink);letter-spacing:-.01em;}
