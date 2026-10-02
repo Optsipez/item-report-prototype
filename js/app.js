@@ -2536,6 +2536,19 @@ function parseDMY(raw){
   refresh();
 })();
 
+// Match on LRCV (default) or Sales -- picked before or after the dates are
+// typed, same as everything else here it just re-filters live if the
+// popup's already open.
+(function(){
+  const sel = document.getElementById('dateRangeModeSelect');
+  if(!sel) return;
+  sel.addEventListener('change', () => {
+    gridDateRangeMode = sel.value;
+    const modal = document.getElementById('dateRangeModal');
+    if(modal && !modal.hidden) buildDateRangeTable();
+  });
+})();
+
 /* Date-range popup -- opens automatically (see announce() above) once both
    From and To are set and not backwards; closes itself if they stop being
    so. Lists every item whose own Lrcv Date falls inside the range (day-
@@ -2575,8 +2588,16 @@ function parseLrcvDate(v){
   const m = v ? String(v).match(/^(\d{2})-(\d{2})-(\d{4})$/) : null;
   return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null;
 }
-// Day-precise match against the picked range, on the item's own Lrcv Date.
+// 'lrcv' (default): day-precise match against the item's own Lrcv Date.
+// 'sales': the item sold anything in any month the range touches -- sales
+// data is monthly, not day-precise, so a range landing mid-month still
+// counts that whole month, same as monthsBetween()/rangeSum() do everywhere
+// else in this popup.
+let gridDateRangeMode = 'lrcv';
 function dateRangeMatch(item){
+  if(gridDateRangeMode === 'sales'){
+    return rangeSum(item, monthsBetween(gridDateRange.from, gridDateRange.to), 'sales') > 0;
+  }
   const d = parseLrcvDate(item['Lrcv Date']);
   return !!d && d >= gridDateRange.from && d <= gridDateRange.to;
 }
@@ -2830,15 +2851,16 @@ function buildDateRangeTable(){
   const months = monthsBetween(from, to);
   const items = ITEMS.filter(dateRangeMatch).filter(it => dashItemInScope(it, drScope));
 
+  const modeLabel = gridDateRangeMode === 'sales' ? 'matched on sales' : 'matched on LRCV date';
   document.getElementById('drSub').textContent =
-    formatDMY(from) + ' – ' + formatDMY(to) + '  ·  matched on LRCV date' +
+    formatDMY(from) + ' – ' + formatDMY(to) + '  ·  ' + modeLabel +
     '  ·  ' + items.length + (items.length === 1 ? ' item' : ' items');
 
   const body = document.getElementById('drBody');
   const clearSortBtn = document.getElementById('drClearSort');
   if(clearSortBtn) clearSortBtn.hidden = dateRangeSort.length === 0;
   if(!items.length){
-    body.innerHTML = '<p class="dr-empty">No items match this range on LRCV date.</p>';
+    body.innerHTML = '<p class="dr-empty">No items ' + modeLabel + ' in this range.</p>';
     return;
   }
 

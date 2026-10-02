@@ -206,6 +206,13 @@
           <div class="grid-actions">
             <button id="collapseAllBtn">Collapse all sections</button>
             <button id="expandAllBtn">Expand all sections</button>
+            <label class="stats-window-field dr-mode-field" title="Choose whether the dates below match items by their Lrcv Date, or by having any sales in that period.">
+              <span class="dsf-label">Match on</span>
+              <select id="dateRangeModeSelect">
+                <option value="lrcv" selected>LRCV</option>
+                <option value="sales">Sales</option>
+              </select>
+            </label>
             <div class="date-field" id="dateFromField" title="From date: type it as DD-MMM-YY (for example 05-Mar-26) or pick it from the calendar">
               <span class="dsf-label">From</span>
               <input type="text" id="dateFrom" class="date-text" placeholder="DD-MMM-YY" maxlength="11" autocomplete="off" spellcheck="false" aria-label="From date: type it as DD-MMM-YY (for example 05-Mar-26) or pick it from the calendar">
