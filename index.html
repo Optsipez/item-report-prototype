@@ -204,6 +204,18 @@
         </div>
         <div class="toolbar-row">
           <div class="grid-actions">
+            <button id="collapseAllBtn">Collapse all sections</button>
+            <button id="expandAllBtn">Expand all sections</button>
+            <button id="omanToggleBtn" type="button" class="oman-toggle"></button>
+            <label class="stats-window-field" title="Recalculate AVG, YTD Sold (renamed to match), and Total Received Qty over a shorter trailing window instead of the full history — the window is always that many months back PLUS the current month.">
+              <span class="dsf-label">Window</span>
+              <select id="statsWindowSelect">
+                <option value="all" selected>All</option>
+                <option value="3">3 mo</option>
+                <option value="6">6 mo</option>
+                <option value="9">9 mo</option>
+              </select>
+            </label>
             <div class="date-range-group">
               <label class="stats-window-field dr-mode-field" title="Choose whether the dates below match items by their Lrcv Date, or by having any sales in that period.">
                 <span class="dsf-label">Match on</span>
@@ -231,18 +243,6 @@
                 </div>
               </div>
             </div>
-            <label class="stats-window-field" title="Recalculate AVG, YTD Sold (renamed to match), and Total Received Qty over a shorter trailing window instead of the full history — the window is always that many months back PLUS the current month.">
-              <span class="dsf-label">Window</span>
-              <select id="statsWindowSelect">
-                <option value="all" selected>All</option>
-                <option value="3">3 mo</option>
-                <option value="6">6 mo</option>
-                <option value="9">9 mo</option>
-              </select>
-            </label>
-            <button id="collapseAllBtn">Collapse all sections</button>
-            <button id="expandAllBtn">Expand all sections</button>
-            <button id="omanToggleBtn" type="button" class="oman-toggle"></button>
             <button id="clearSortBtn" hidden>Clear sort</button>
           </div>
         </div>
