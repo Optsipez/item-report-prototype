@@ -216,36 +216,32 @@
                 <option value="9">9 mo</option>
               </select>
             </label>
-            <div class="date-range-group">
-              <label class="stats-window-field dr-mode-field" title="Choose whether the dates below match items by their Lrcv Date, or by having any sales in that period.">
-                <span class="dsf-label">Match on</span>
-                <select id="dateRangeModeSelect">
-                  <option value="lrcv" selected>LRCV</option>
-                  <option value="sales">Sales</option>
-                </select>
-              </label>
-              <div class="date-range-fields">
-                <div class="date-field" id="dateFromField" title="From date: type it as DD-MMM-YY (for example 05-Mar-26) or pick it from the calendar">
-                  <span class="dsf-label">From</span>
-                  <input type="text" id="dateFrom" class="date-text" placeholder="DD-MMM-YY" maxlength="11" autocomplete="off" spellcheck="false" aria-label="From date: type it as DD-MMM-YY (for example 05-Mar-26) or pick it from the calendar">
-                  <button type="button" class="cal-btn" id="dateFromBtn" aria-label="Open calendar for from date" title="Pick from a calendar">
-                    <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>
-                  </button>
-                  <input type="date" class="cal-native" id="dateFromNative" tabindex="-1" aria-hidden="true">
-                </div>
-                <div class="date-field" id="dateToField" title="To date: type it as DD-MMM-YY (for example 05-Mar-26) or pick it from the calendar">
-                  <span class="dsf-label">To</span>
-                  <input type="text" id="dateTo" class="date-text" placeholder="DD-MMM-YY" maxlength="11" autocomplete="off" spellcheck="false" aria-label="To date: type it as DD-MMM-YY (for example 05-Mar-26) or pick it from the calendar">
-                  <button type="button" class="cal-btn" id="dateToBtn" aria-label="Open calendar for to date" title="Pick from a calendar">
-                    <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>
-                  </button>
-                  <input type="date" class="cal-native" id="dateToNative" tabindex="-1" aria-hidden="true">
-                </div>
-              </div>
+            <div class="date-field" id="dateFromField" title="From date: type it as DD-MMM-YY (for example 05-Mar-26) or pick it from the calendar">
+              <span class="dsf-label">From</span>
+              <input type="text" id="dateFrom" class="date-text" placeholder="DD-MMM-YY" maxlength="11" autocomplete="off" spellcheck="false" aria-label="From date: type it as DD-MMM-YY (for example 05-Mar-26) or pick it from the calendar">
+              <button type="button" class="cal-btn" id="dateFromBtn" aria-label="Open calendar for from date" title="Pick from a calendar">
+                <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>
+              </button>
+              <input type="date" class="cal-native" id="dateFromNative" tabindex="-1" aria-hidden="true">
+            </div>
+            <div class="date-field" id="dateToField" title="To date: type it as DD-MMM-YY (for example 05-Mar-26) or pick it from the calendar">
+              <span class="dsf-label">To</span>
+              <input type="text" id="dateTo" class="date-text" placeholder="DD-MMM-YY" maxlength="11" autocomplete="off" spellcheck="false" aria-label="To date: type it as DD-MMM-YY (for example 05-Mar-26) or pick it from the calendar">
+              <button type="button" class="cal-btn" id="dateToBtn" aria-label="Open calendar for to date" title="Pick from a calendar">
+                <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>
+              </button>
+              <input type="date" class="cal-native" id="dateToNative" tabindex="-1" aria-hidden="true">
             </div>
             <button id="clearSortBtn" hidden>Clear sort</button>
           </div>
         </div>
+        <label class="stats-window-field dr-mode-field" id="dateRangeModeField" title="Choose whether the dates below match items by their Lrcv Date, or by having any sales in that period.">
+          <span class="dsf-label">Match on</span>
+          <select id="dateRangeModeSelect">
+            <option value="lrcv" selected>LRCV</option>
+            <option value="sales">Sales</option>
+          </select>
+        </label>
         <div id="filterChips" class="filter-chips" hidden></div>
       </div>
       <div class="grid-scroll">

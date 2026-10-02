@@ -3343,15 +3343,32 @@ function renderGrid(){
   syncOmanToggle();
   syncStickyHeader();
   syncTopbarWidth();
+  syncDateModeFieldPosition();
   // On the very first render web fonts may still be loading; the rotated
   // collapsed-group labels change height once they swap in, which throws the
   // measurement below off until the next re-render. Re-measure after paint and
   // once fonts settle so the two header rows always sit flush.
-  requestAnimationFrame(() => { syncStickyHeader(); syncTopbarWidth(); });
+  requestAnimationFrame(() => { syncStickyHeader(); syncTopbarWidth(); syncDateModeFieldPosition(); });
   if(document.fonts && document.fonts.ready){
-    document.fonts.ready.then(() => requestAnimationFrame(() => { syncStickyHeader(); syncTopbarWidth(); }));
+    document.fonts.ready.then(() => requestAnimationFrame(() => { syncStickyHeader(); syncTopbarWidth(); syncDateModeFieldPosition(); }));
   }
 }
+// Match on (see .dr-mode-field in styles.css) floats above the From/To
+// pair, centered over them regardless of how wide the preceding toolbar
+// buttons are -- measured and positioned here rather than guessed with a
+// fixed CSS offset (c.f. the Oman toggle's own fixed-offset nudge above
+// SR Qty, which only ever has to be "roughly" right; this one shouldn't be).
+function syncDateModeFieldPosition(){
+  const field = document.getElementById('dateRangeModeField');
+  const from = document.getElementById('dateFromField');
+  const to = document.getElementById('dateToField');
+  const toolbar = document.querySelector('.grid-toolbar');
+  if(!field || !from || !to || !toolbar) return;
+  const toolbarLeft = toolbar.getBoundingClientRect().left;
+  const centerX = (from.getBoundingClientRect().left + to.getBoundingClientRect().right) / 2;
+  field.style.left = (centerX - toolbarLeft - field.offsetWidth / 2) + 'px';
+}
+window.addEventListener('resize', syncDateModeFieldPosition);
 
 /* When a wide grid pushes the page into horizontal scroll, stretch the dark
    top bar (and the now-sticky .grid-toolbar right below it — see there) so
