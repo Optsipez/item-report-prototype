@@ -1136,7 +1136,12 @@ table.grid tbody tr.row-item td.wk-cell:hover{
    new row, and with no white-space:nowrap on the buttons themselves that
    squeeze wraps their OWN label text ("Collapse all sections" breaking
    into two lines) rather than the row just growing taller. */
-.grid-actions{display:flex;flex-wrap:wrap;gap:var(--sp-2);}
+.grid-actions{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-2);}
+/* Match on sits right above the From/To pair, centered over them -- its own
+   narrow dropdown is shorter than the two date fields together, so
+   align-items:center keeps it centered rather than pinned to one side. */
+.date-range-group{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.date-range-fields{display:flex;gap:var(--sp-2);}
 .grid-actions button{
   background:var(--panel);border:1px solid var(--line-strong);border-radius:var(--r-sm);
   font-size:var(--fs-xs);font-weight:600;color:var(--ink);padding:7px 13px;cursor:pointer;
