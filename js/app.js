@@ -3024,6 +3024,7 @@ function closeDateRangeModal(){
    ============================================================ */
 let tripCode = '';               // resolved vendor code, or '' if none/unresolved
 let tripVendorAmbiguous = null;  // { raw, codes } or null -- see vendorNameLookup()
+let tripCpcFilter = '';          // Current Plan Code, or '' for all
 function tripVendorAmbiguousTip(){
   if(!tripVendorAmbiguous) return '';
   const showNames = canSeeVendorName();
@@ -3167,9 +3168,14 @@ function renderTrip(){
       '</div>';
     return;
   }
-  const rows = tripCode ? tripRows(tripCode).sort((a, b) => a.it['Description'].localeCompare(b.it['Description'])) : null;
+  const allRows = tripCode ? tripRows(tripCode) : null;
+  const cpcOptions = allRows ? [...new Set(allRows.map(r => r.it['Current Plan Code']).filter(Boolean))].sort() : [];
+  const rows = allRows
+    ? allRows.filter(r => !tripCpcFilter || r.it['Current Plan Code'] === tripCpcFilter)
+        .sort((a, b) => a.it['Description'].localeCompare(b.it['Description']))
+    : null;
   const body = !tripCode ? tripEmptyState()
-    : !rows.length ? '<p class="dr-empty">No items found for vendor ' + escHtml(tripCode) + '.</p>'
+    : !rows.length ? '<p class="dr-empty">No items found for vendor ' + escHtml(tripCode) + (tripCpcFilter ? ' with CPC ' + escHtml(tripCpcFilter) : '') + '.</p>'
     : renderTripSummary(tripCode, rows) + renderTripTable(rows);
   root.innerHTML =
     '<div class="dash-hero"><div>' +
@@ -3185,6 +3191,10 @@ function renderTrip(){
         escHtml(tripVendorAmbiguous ? tripVendorAmbiguous.raw : tripCode) + '" title="' + escHtml(tripVendorAmbiguousTip()) + '" placeholder="Type a vendor code or name…" autocomplete="off">' +
         '</span>' + tripVendorOptionsHtml() + '</label>' +
       '<datalist id="tripVendorList">' + [...VENDOR_CODES].sort().map(v => '<option value="' + escHtml(v) + '">').join('') + '</datalist>' +
+      (tripCode ? '<label class="stats-window-field">CPC<select id="tripCpc">' +
+        '<option value="">All</option>' +
+        cpcOptions.map(v => '<option' + (v === tripCpcFilter ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('') +
+        '</select></label>' : '') +
     '</div>' +
     body;
 
@@ -3192,11 +3202,13 @@ function renderTrip(){
   const change = () => {
     const raw = $('tripVendor').value;
     const lookup = vendorNameLookup(raw);
+    const prevCode = tripCode;
     if(lookup.type === 'code' || lookup.type === 'unmatched') tripCode = raw.trim().toUpperCase();
     else if(lookup.type === 'resolved') tripCode = lookup.code;
     else if(lookup.type === 'empty') tripCode = '';
     // 'ambiguous' leaves tripCode untouched -- don't guess which vendor was meant
     tripVendorAmbiguous = lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null;
+    if(tripCode !== prevCode) tripCpcFilter = '';   // a CPC that doesn't exist for the new vendor shouldn't linger
     renderTrip();
   };
   const vendorInput = $('tripVendor');
@@ -3233,6 +3245,11 @@ function renderTrip(){
     vendorInput.value = btn.dataset.code;
     change();
   }));
+  const cpcSelect = $('tripCpc');
+  if(cpcSelect) cpcSelect.addEventListener('change', () => {
+    tripCpcFilter = cpcSelect.value;
+    renderTrip();
+  });
 }
 
 /* "Focus": a specific set of items handed over by the dashboard (e.g. "Reorder
