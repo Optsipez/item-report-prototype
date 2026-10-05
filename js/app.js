@@ -3113,9 +3113,9 @@ function tripEmptyState(){
   '</div>';
 }
 function renderTripTable(rows){
-  const cols = '<th class="branch-sno">No</th><th>2XL Barcode No</th><th>Photo</th>' +
+  const cols = '<th class="branch-sno">No</th><th>Range Name</th><th>CPC</th><th>Purchase Qty</th>' +
+    '<th>2XL Barcode No</th><th>Photo</th>' +
     '<th class="l">Description</th>' +
-    '<th class="trip-group trip-group-l">Range Name</th><th class="trip-group">CPC</th><th class="trip-group trip-group-r">Purchase Qty</th>' +
     '<th class="dr-soh">SOH</th><th>Sold (since Lrcv)</th>' +
     '<th>Recovery %</th><th>Disct%</th><th>Sale Mrg</th><th>Last Posting Date</th>';
   const body = rows.map((row, i) => {
@@ -3125,18 +3125,14 @@ function renderTripTable(rows){
       ? '<span class="spark-empty" title="' + recTitle + '">—</span>'
       : miniVBar(soh, sold, recTitle, recTitle);
     const mrg = typeof it['MRG Factor'] === 'number' ? it['MRG Factor'].toFixed(2) + 'x' : '—';
-    // The Range Name/CPC/Purchase Qty box's bottom edge only belongs on the
-    // actual last row -- see the identical pattern on the date-range
-    // popup's own Sold/LRCV/Rcvd box (dr-main3, js/app.js).
-    const last = i === rows.length - 1 ? ' trip-group-bottom' : '';
     return '<tr>' +
       '<td class="branch-sno">' + (i + 1) + '</td>' +
+      '<td>' + escHtml(it['Range Name']) + '</td>' +
+      '<td>' + escHtml(it['Current Plan Code']) + '</td>' +
+      '<td>' + fmtInt(it['PO-Qty']) + '</td>' +
       '<td>' + escHtml(it['Item Code']) + '</td>' +
       '<td><span class="trip-photo-ph" title="Not yet available"></span></td>' +
       '<td class="l">' + escHtml(it['Description']) + '</td>' +
-      '<td class="trip-group trip-group-l' + last + '">' + escHtml(it['Range Name']) + '</td>' +
-      '<td class="trip-group' + last + '">' + escHtml(it['Current Plan Code']) + '</td>' +
-      '<td class="trip-group trip-group-r' + last + '">' + fmtInt(it['PO-Qty']) + '</td>' +
       '<td class="dr-soh">' + fmtInt(soh) + '</td>' +
       '<td>' + (sold == null ? '—' : fmtInt(sold)) + '</td>' +
       '<td>' + recovery + '</td>' +
