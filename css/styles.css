@@ -451,9 +451,14 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .trip-vendor-input-wrap{position:relative;}
 .trip-vendor-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--ink-faint);pointer-events:none;}
 .trip-scope input#tripVendor{padding:10px 12px 10px 34px;font-size:var(--fs-base);}
-.trip-tbd{color:var(--ink-faint);}
 .trip-photo-ph{display:inline-block;width:28px;height:28px;border-radius:var(--r-sm);
   background:var(--s-100);border:1px dashed var(--line-strong);}
+/* Range Name / CPC / Purchase Qty framed as one group -- same bold-outline
+   idea as the date-range popup's Sold/LRCV/Rcvd box (dr-main3). */
+.trip-wrap table.matrix th.trip-group{border-top:2px solid var(--ink);}
+.trip-wrap table.matrix th.trip-group-l,.trip-wrap table.matrix td.trip-group-l{border-left:2px solid var(--ink);}
+.trip-wrap table.matrix th.trip-group-r,.trip-wrap table.matrix td.trip-group-r{border-right:2px solid var(--ink);}
+.trip-wrap table.matrix td.trip-group-bottom{border-bottom:2px solid var(--ink);}
 /* Each KPI tile picks up the same colour its own metric already wears in
    the table below (SOH teal, Sold/Recovery blue, Items the app's own
    brass accent) -- a fixed per-metric identity, not a value-based flag. */
