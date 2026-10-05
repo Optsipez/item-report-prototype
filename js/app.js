@@ -3168,10 +3168,15 @@ function renderTrip(){
       '</div>';
     return;
   }
+  // Normalized the same way every other Plan-Code comparison in this app is
+  // (trim + uppercase) -- raw values are fine for display (see the CPC
+  // column itself below) but not for an equality/dedupe check, matching the
+  // established convention anywhere Current Plan Code is actually compared.
+  const cpcOf = r => String(r.it['Current Plan Code'] || '').trim().toUpperCase();
   const allRows = tripCode ? tripRows(tripCode) : null;
-  const cpcOptions = allRows ? [...new Set(allRows.map(r => r.it['Current Plan Code']).filter(Boolean))].sort() : [];
+  const cpcOptions = allRows ? [...new Set(allRows.map(cpcOf).filter(Boolean))].sort() : [];
   const rows = allRows
-    ? allRows.filter(r => !tripCpcFilter || r.it['Current Plan Code'] === tripCpcFilter)
+    ? allRows.filter(r => !tripCpcFilter || cpcOf(r) === tripCpcFilter)
         .sort((a, b) => a.it['Description'].localeCompare(b.it['Description']))
     : null;
   const body = !tripCode ? tripEmptyState()
