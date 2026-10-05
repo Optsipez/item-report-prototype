@@ -244,20 +244,20 @@ function dashCompute(){
     if(DASH_PLAN_CODES.has(dashPlan(it))){
       if(rate > 0 && sohRaw <= 0 && po <= 0) R.oos.push({ it, rate, s3 });
       // Repeat-order criteria, either case qualifies:
-      // Case 1: combined cover (stock SM + on-order PM) under 5 months --
-      // AVG floored at 1 (not 0) so a zero-sales item with something
-      // already on order comes out as a huge, correctly-disqualifying
-      // cover number instead of a divide-by-zero.
+      // Case 1: combined cover (stock SM + on-order PM) under 5 months AND
+      // Recovery% at least 30 -- AVG floored at 1 (not 0) so a zero-sales
+      // item with something already on order comes out as a huge,
+      // correctly-disqualifying cover number instead of a divide-by-zero.
       // Case 2: Recovery% (sold since the last receipt ÷ (sold since +
       // SOH), same formula as Trip Requirement/13-mo Trend) over 30 on its
-      // own -- selling fast enough to be running down its cushion even
-      // with cover that Case 1 wouldn't flag.
+      // own, regardless of cover -- selling fast enough to be running down
+      // its cushion even when Case 1's cover check wouldn't flag it.
       const avg = Number(it['AVG']) || 0;
       const sm = soh / Math.max(avg, 1);
       const pm = po / Math.max(avg, 1);
       const soldSinceLrcv = tripSoldSinceReceipt(it);
       const recovery = soldSinceLrcv == null ? null : sellThroughPct(soldSinceLrcv, soh);
-      const case1 = sm + pm < 5;
+      const case1 = sm + pm < 5 && recovery != null && recovery >= 30;
       const case2 = recovery != null && recovery > 30;
       if(case1 || case2){
         R.reorder.push({ it, soh, po, avg, sm, pm, recovery, atRisk: rate * price });
@@ -376,7 +376,7 @@ function dashActions(R){
   const lateCodes = new Set(); R.latePOs.forEach(p => p.codes.forEach(c => lateCodes.add(c)));
   const tabs = [
     { id: 'reorder', title: 'Reorder now', n: R.reorder.length, sub: R.reorderVendors.length + ' vendors \u00b7 AED ' + dashCompact(R.reorderAtRisk) + '/mo sales at risk', tone: 'warn',
-      note: 'Selling items (Plan Codes A, K, C and P only) qualify either way: combined cover (stock + on order) under 5 months, OR Recovery over 30% regardless of cover. Recovery = sold since the last receipt ÷ (sold since + SOH). Ranked by Recovery%. Buyers order per vendor; click a vendor to open its items in All Products.',
+      note: 'Selling items (Plan Codes A, K, C and P only) qualify either way: combined cover (stock + on order) under 5 months AND 30%+ Recovery, OR Recovery alone over 30% regardless of cover. Recovery = sold since the last receipt ÷ (sold since + SOH). Ranked by Recovery%. Buyers order per vendor; click a vendor to open its items in All Products.',
       table: '<table class="dash-table"><thead><tr><th class="l vend">Vendor</th><th>CPC</th><th>SKUs</th><th>Avg Recovery%</th><th>Sales at risk / mo</th></tr></thead><tbody>' +
           R.reorderVendors.slice(0, 10).map(g => '<tr class="dash-pick" data-vendor="' + dashEsc(g.vendor) + '" data-goto="reorder" title="Open this vendor’s items in All Products"><td class="l"><b>' + dashEsc(vname(g.vendor)) + '</b></td><td class="plan-cell dash-cpc">' + ['A', 'K', 'C', 'P'].filter(p => g.plans.has(p)).join(' ') + '</td><td>' + g.items + '</td><td>' + (g.avgRecovery == null ? '—' : Math.round(g.avgRecovery) + '%') + '</td><td><b>AED ' + dashCompact(g.atRisk) + '</b></td></tr>').join('') + '</tbody></table>',
       codes: R.reorder.map(x => x.it['Item Code']), sort: null },
