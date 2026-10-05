@@ -3191,7 +3191,7 @@ function renderTrip(){
         escHtml(tripVendorAmbiguous ? tripVendorAmbiguous.raw : tripCode) + '" title="' + escHtml(tripVendorAmbiguousTip()) + '" placeholder="Type a vendor code or name…" autocomplete="off">' +
         '</span>' + tripVendorOptionsHtml() + '</label>' +
       '<datalist id="tripVendorList">' + [...VENDOR_CODES].sort().map(v => '<option value="' + escHtml(v) + '">').join('') + '</datalist>' +
-      (tripCode ? '<label class="stats-window-field">CPC<select id="tripCpc">' +
+      (tripCode ? '<label>CPC<select id="tripCpc">' +
         '<option value="">All</option>' +
         cpcOptions.map(v => '<option' + (v === tripCpcFilter ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('') +
         '</select></label>' : '') +

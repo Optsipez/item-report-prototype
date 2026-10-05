@@ -446,7 +446,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    left unconstrained it would stretch edge to edge (the 150px flex-basis
    assumes several fields sharing a row), so this caps it to a sane width. */
 .trip-scope .dash-vendor-field{flex:0 1 420px;}
-.trip-scope .stats-window-field{flex:0 1 140px;}
+.trip-scope label{flex:0 1 140px;}
 /* A small icon inside the field -- "this box takes a vendor" at a glance,
    same stroke-icon style as the date fields' calendar glyph elsewhere. */
 .trip-vendor-input-wrap{position:relative;}
