@@ -243,25 +243,20 @@ function dashCompute(){
     MONTH_WINDOW.forEach((w, i) => { R.monthTotals[i] += unitsIn(it, [w]); });
     if(DASH_PLAN_CODES.has(dashPlan(it))){
       if(rate > 0 && sohRaw <= 0 && po <= 0) R.oos.push({ it, rate, s3 });
-      // Repeat-order criteria, either case qualifies:
-      // Case 1: stock cover (SM) under 4 months OR on-order cover (PM)
-      // under 3 months, AND Recovery% at least 30 -- AVG floored at 1 (not
-      // 0) so a zero-sales item with something already on order comes out
-      // as a huge, correctly-disqualifying cover number instead of a
-      // divide-by-zero.
-      // Case 2: Recovery% (sold since the last receipt ÷ (sold since +
-      // SOH), same formula as Trip Requirement/13-mo Trend) over 30 on its
-      // own, regardless of cover -- selling fast enough to be running down
-      // its cushion even when Case 1's cover check wouldn't flag it.
+      // Repeat-order criteria: combined cover -- stock (SM) plus what's
+      // already on order (PM), both in months at the item's own best-
+      // average sales pace -- under 5 months. AVG floored at 1 (not 0) so
+      // a zero-sales item with something already on order comes out as a
+      // huge, correctly-disqualifying cover number instead of a divide-by-
+      // zero. avg > 0 is its own separate gate: without it, an item with
+      // no sales history, no stock and nothing on order (soh=po=avg=0)
+      // would read as "0 months of cover" and wrongly qualify -- it has
+      // nothing to reorder FOR, there's no demand on file for it.
       const avg = Number(it['AVG']) || 0;
       const sm = soh / Math.max(avg, 1);
       const pm = po / Math.max(avg, 1);
-      const soldSinceLrcv = tripSoldSinceReceipt(it);
-      const recovery = soldSinceLrcv == null ? null : sellThroughPct(soldSinceLrcv, soh);
-      const case1 = (sm < 4 || pm < 3) && recovery != null && recovery >= 30;
-      const case2 = recovery != null && recovery > 30;
-      if(case1 || case2){
-        R.reorder.push({ it, soh, po, avg, sm, pm, recovery, atRisk: rate * price });
+      if(avg > 0 && sm + pm < 5){
+        R.reorder.push({ it, soh, po, avg, sm, pm, atRisk: rate * price });
       }
     }
     const age = soh > 0 ? stkAgeFor(it) : null;
@@ -272,29 +267,17 @@ function dashCompute(){
     }
     if(Math.max(s3, p3) >= 15) R.movers.push({ it, s3, p3, d: s3 - p3 });
   });
-  // Highest sell-through (least cushion) first -- recovery is null for
-  // items with no Lrcv Date (possible now that Case 1 no longer requires a
-  // recovery figure at all), and those always sort last rather than
-  // breaking the numeric comparison.
-  R.reorder.sort((a, b) => {
-    if(a.recovery == null && b.recovery == null) return 0;
-    if(a.recovery == null) return 1;
-    if(b.recovery == null) return -1;
-    return b.recovery - a.recovery;
-  });
+  R.reorder.sort((a, b) => (a.sm + a.pm) - (b.sm + b.pm));   // least cover first -- most urgent
   // Buyers place orders per vendor, so also group the reorder list that way
   // -- vendor + its SKU count is the actual ask here, sorted by SKU count.
-  // avgRecovery is only averaged over items that actually have a recovery
-  // figure, not diluted by treating "no Lrcv Date" as 0%.
   const rv = {};
   R.reorder.forEach(x => {
     const v = x.it['Vendor Code'];
-    const g = rv[v] = rv[v] || { vendor: v, items: 0, atRisk: 0, recoverySum: 0, recoveryCount: 0, plans: new Set() };
+    const g = rv[v] = rv[v] || { vendor: v, items: 0, atRisk: 0, coverSum: 0, plans: new Set() };
     g.plans.add(dashPlan(x.it));
-    g.items++; g.atRisk += x.atRisk;
-    if(x.recovery != null){ g.recoverySum += x.recovery; g.recoveryCount++; }
+    g.items++; g.atRisk += x.atRisk; g.coverSum += x.sm + x.pm;
   });
-  R.reorderVendors = Object.values(rv).map(g => ({ ...g, avgRecovery: g.recoveryCount ? g.recoverySum / g.recoveryCount : null }))
+  R.reorderVendors = Object.values(rv).map(g => ({ ...g, avgCover: g.coverSum / g.items }))
     .sort((a, b) => b.items - a.items);
   R.reorderAtRisk = R.reorder.reduce((a, x) => a + x.atRisk, 0);
   R.oos.sort((a, b) => b.rate - a.rate);
@@ -377,9 +360,9 @@ function dashActions(R){
   const lateCodes = new Set(); R.latePOs.forEach(p => p.codes.forEach(c => lateCodes.add(c)));
   const tabs = [
     { id: 'reorder', title: 'Reorder now', n: R.reorder.length, sub: R.reorderVendors.length + ' vendors \u00b7 AED ' + dashCompact(R.reorderAtRisk) + '/mo sales at risk', tone: 'warn',
-      note: 'Selling items (Plan Codes A, K, C and P only) qualify either way: under 4 months of cover in stock OR under 3 on order (either one), AND 30%+ Recovery, OR Recovery alone over 30% regardless of cover. Recovery = sold since the last receipt ÷ (sold since + SOH). Ranked by Recovery%. Buyers order per vendor; click a vendor to open its items in All Products.',
-      table: '<table class="dash-table"><thead><tr><th class="l vend">Vendor</th><th>CPC</th><th>SKUs</th><th>Avg Recovery%</th><th>Sales at risk / mo</th></tr></thead><tbody>' +
-          R.reorderVendors.slice(0, 10).map(g => '<tr class="dash-pick" data-vendor="' + dashEsc(g.vendor) + '" data-goto="reorder" title="Open this vendor’s items in All Products"><td class="l"><b>' + dashEsc(vname(g.vendor)) + '</b></td><td class="plan-cell dash-cpc">' + ['A', 'K', 'C', 'P'].filter(p => g.plans.has(p)).join(' ') + '</td><td>' + g.items + '</td><td>' + (g.avgRecovery == null ? '—' : Math.round(g.avgRecovery) + '%') + '</td><td><b>AED ' + dashCompact(g.atRisk) + '</b></td></tr>').join('') + '</tbody></table>',
+      note: 'Selling items (Plan Codes A, K, C and P only) whose combined cover — stock (SM) plus what’s already on order (PM), both in months at the item’s own best-average sales pace — is under 5 months. Ranked by combined cover, least first. Buyers order per vendor; click a vendor to open its items in All Products.',
+      table: '<table class="dash-table"><thead><tr><th class="l vend">Vendor</th><th>CPC</th><th>SKUs</th><th>Avg Cover</th><th>Sales at risk / mo</th></tr></thead><tbody>' +
+          R.reorderVendors.slice(0, 10).map(g => '<tr class="dash-pick" data-vendor="' + dashEsc(g.vendor) + '" data-goto="reorder" title="Open this vendor’s items in All Products"><td class="l"><b>' + dashEsc(vname(g.vendor)) + '</b></td><td class="plan-cell dash-cpc">' + ['A', 'K', 'C', 'P'].filter(p => g.plans.has(p)).join(' ') + '</td><td>' + g.items + '</td><td>' + g.avgCover.toFixed(1) + ' mo</td><td><b>AED ' + dashCompact(g.atRisk) + '</b></td></tr>').join('') + '</tbody></table>',
       codes: R.reorder.map(x => x.it['Item Code']), sort: null },
     { id: 'oos', title: 'Out of stock, no PO', n: R.oos.length, sub: 'selling, none on hand, nothing on order', tone: 'bad',
       note: 'Sold in the last 3 months, no stock, and no open PO: the items losing sales right now. Plan Codes A, K, C and P only.',
