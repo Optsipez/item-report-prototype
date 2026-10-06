@@ -41,6 +41,7 @@ const DAY = 86400000;
 let dashTab = null;                // which action list is open
 let dashScope = null;              // { dept, cat, vendor } — loaded per employee
 let dashCurrentTab = null;
+let dashReorderMonths = 5;         // Reorder now's combined-cover cutoff (SM+PM < this), editable in the UI
 
 function dashPartOfDay(){
   const h = new Date().getHours();
@@ -245,17 +246,18 @@ function dashCompute(){
       if(rate > 0 && sohRaw <= 0 && po <= 0) R.oos.push({ it, rate, s3 });
       // Repeat-order criteria: combined cover -- stock (SM) plus what's
       // already on order (PM), both in months at the item's own best-
-      // average sales pace -- under 5 months. AVG floored at 1 (not 0) so
-      // a zero-sales item with something already on order comes out as a
-      // huge, correctly-disqualifying cover number instead of a divide-by-
-      // zero. avg > 0 is its own separate gate: without it, an item with
-      // no sales history, no stock and nothing on order (soh=po=avg=0)
-      // would read as "0 months of cover" and wrongly qualify -- it has
-      // nothing to reorder FOR, there's no demand on file for it.
+      // average sales pace -- under dashReorderMonths (5 by default,
+      // adjustable in the UI). AVG floored at 1 (not 0) so a zero-sales
+      // item with something already on order comes out as a huge,
+      // correctly-disqualifying cover number instead of a divide-by-zero.
+      // avg > 0 is its own separate gate: without it, an item with no
+      // sales history, no stock and nothing on order (soh=po=avg=0) would
+      // read as "0 months of cover" and wrongly qualify -- it has nothing
+      // to reorder FOR, there's no demand on file for it.
       const avg = Number(it['AVG']) || 0;
       const sm = soh / Math.max(avg, 1);
       const pm = po / Math.max(avg, 1);
-      if(avg > 0 && sm + pm < 5){
+      if(avg > 0 && sm + pm < dashReorderMonths){
         R.reorder.push({ it, soh, po, avg, sm, pm, atRisk: rate * price });
       }
     }
@@ -360,7 +362,7 @@ function dashActions(R){
   const lateCodes = new Set(); R.latePOs.forEach(p => p.codes.forEach(c => lateCodes.add(c)));
   const tabs = [
     { id: 'reorder', title: 'Reorder now', n: R.reorder.length, sub: R.reorderVendors.length + ' vendors \u00b7 AED ' + dashCompact(R.reorderAtRisk) + '/mo sales at risk', tone: 'warn',
-      note: 'Selling items (Plan Codes A, K, C and P only) whose combined cover — stock (SM) plus what’s already on order (PM), both in months at the item’s own best-average sales pace — is under 5 months. Ranked by combined cover, least first. Buyers order per vendor; click a vendor to open its items in All Products.',
+      note: 'Selling items (Plan Codes A, K, C and P only) whose combined cover — stock (SM) plus what’s already on order (PM), both in months at the item’s own best-average sales pace — is under ' + dashReorderMonths + ' months (adjustable below; 5 is the default). Ranked by combined cover, least first. Buyers order per vendor; click a vendor to open its items in All Products.',
       table: '<table class="dash-table"><thead><tr><th class="l vend">Vendor</th><th>CPC</th><th>SKUs</th><th>Avg Cover</th><th>Sales at risk / mo</th></tr></thead><tbody>' +
           R.reorderVendors.slice(0, 10).map(g => '<tr class="dash-pick" data-vendor="' + dashEsc(g.vendor) + '" data-goto="reorder" title="Open this vendor’s items in All Products"><td class="l"><b>' + dashEsc(vname(g.vendor)) + '</b></td><td class="plan-cell dash-cpc">' + ['A', 'K', 'C', 'P'].filter(p => g.plans.has(p)).join(' ') + '</td><td>' + g.items + '</td><td>' + g.avgCover.toFixed(1) + ' mo</td><td><b>AED ' + dashCompact(g.atRisk) + '</b></td></tr>').join('') + '</tbody></table>',
       codes: R.reorder.map(x => x.it['Item Code']), sort: null },
@@ -385,6 +387,7 @@ function dashActions(R){
       '<button type="button" class="dash-tile' + (t.id === dashTab ? ' on' : '') + (t.n && t.tone ? ' ' + t.tone : '') + '" data-tab="' + t.id + '">' +
         '<span class="dash-tile-k">' + t.title + '</span><span class="dash-tile-v">' + dashInt(t.n) + '</span><span class="dash-tile-n">' + dashEsc(t.sub) + '</span></button>').join('') + '</div>' +
     '<section class="dash-card dash-detail"><div class="dash-detail-head"><h3>' + cur.title + ' <span>' + (cur.id === 'reorder' ? dashInt(R.reorderVendors.length) + ' vendors, ' + dashInt(cur.n) + ' items' + (R.reorderVendors.length > 10 ? ', top 10 vendors shown' : '') : dashInt(cur.n) + (cur.id === 'late' ? ' POs' : ' items') + (cur.n > 10 ? ', top 10 shown' : '')) + '</span></h3>' +
+      (cur.id === 'reorder' ? '<label class="page-jump" title="Items qualify when combined SM+PM cover is under this many months. Default is 5.">Under<input type="number" id="dashReorderMonthsInput" min="0.5" step="0.5" value="' + dashReorderMonths + '">months</label>' : '') +
       (cur.n ? '<button type="button" class="dash-btn" id="dashOpenAll">Open ' + (cur.id === 'late' ? 'their ' + dashInt(cur.codes.length) + ' items' : 'all ' + dashInt(cur.n)) + ' in All Products &rarr;</button>' : '') + '</div>' +
       '<p class="dash-note">' + dashEsc(cur.note) + '</p>' +
       (cur.n ? cur.table : '<p class="dash-empty">Nothing here for this selection. Good.</p>') + '</section>';
@@ -510,6 +513,20 @@ function renderDashboard(){
     const up = b.dataset.movers === 'up', list = up ? R.risersAll : R.fallersAll;
     openGridFocus((up ? 'Rising' : 'Falling') + suffix, list.map(x => x.it['Item Code']), null);
   }));
+  // Reorder now's cover cutoff -- same blur + Enter commit pattern as the
+  // grid's own "Go to page" number field, not live-as-you-type (a full
+  // dashboard recompute on every keystroke would both be wasteful and keep
+  // kicking focus out of the field mid-type).
+  const reorderMonthsInput = $('dashReorderMonthsInput');
+  if(reorderMonthsInput){
+    const commitReorderMonths = () => {
+      const v = Number(reorderMonthsInput.value);
+      dashReorderMonths = v > 0 ? v : 5;
+      renderDashboard();
+    };
+    reorderMonthsInput.addEventListener('blur', commitReorderMonths);
+    reorderMonthsInput.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); commitReorderMonths(); } });
+  }
   const open = $('dashOpenAll');
   if(open) open.addEventListener('click', () => {
     const c = dashCurrentTab;
