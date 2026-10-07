@@ -861,6 +861,10 @@ table.matrix td.neg{color:var(--neg);}
    spacer row between groups, matching the buying team's reference sheet:
    the first group is tan, the next three are blue, everything after that
    is a plain grey (not a strict two-tone alternation). */
+/* Bigger text + roomier cells than the shared table.matrix default -- this
+   table gets read at a glance across the room, not just at a desk. */
+table.branch-matrix{font-size:15px;}
+table.branch-matrix th, table.branch-matrix td{padding:11px 13px;}
 table.branch-matrix th.branch-sno, table.branch-matrix td.branch-sno{
   text-align:right;font-family:inherit;font-weight:400;color:var(--ink-soft);
 }
@@ -871,7 +875,7 @@ table.branch-matrix th:nth-child(2), table.branch-matrix td:nth-child(2){
   text-align:left;font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--ink);
 }
 table.branch-matrix th.branch-month, table.branch-matrix td.branch-month{
-  font-size:var(--fs-2xs);padding-left:5px;padding-right:5px;white-space:nowrap;
+  font-size:13px;padding-left:8px;padding-right:8px;white-space:nowrap;
 }
 table.branch-matrix th.branch-month{line-height:1.25;letter-spacing:.02em;}
 /* table.matrix's own td.zero rule uses --ink-faint (a light grey) for de-
