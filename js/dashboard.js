@@ -468,18 +468,7 @@ function renderDashboard(){
   const winLabel = monthColLabel(W.rate[0]) + '–' + monthColLabel(W.rate[2]);
   const kpi = (k, v, n, tone) => '<div class="dash-kpi' + (tone ? ' ' + tone : '') + '"><span class="dash-kpi-k">' + k + '</span><span class="dash-kpi-v">' + v + '</span><span class="dash-kpi-n">' + n + '</span></div>';
 
-  const trend = MONTH_WINDOW.map((w, i) => {
-    const nodata = i > W.lastIdx, partial = i === W.lastIdx && W.partial;
-    return { label: monthColLabel(w), value: R.monthTotals[i], nodata, partial, title: monthColLabel(w) + ': ' + (nodata ? 'no data yet' : dashInt(R.monthTotals[i]) + ' units' + (partial ? ' so far (month in progress)' : '')) };
-  }).reverse();   // newest month first
   const inbound = R.inbound.map(b => ({ label: b.label, value: b.units, color: 'var(--stock)', title: b.label + ': ' + dashInt(b.units) + ' units due' }));
-  // UAE_STORES only (app.js) -- R.branch's raw keys also include non-store
-  // channels (WEBSTR, MOMAN/OMNWEB for Oman, CLRNC clearance, a back-office
-  // code) that aren't physical branches and shouldn't be in a branch
-  // breakdown. Showing all 10, not a top-N slice -- a slice would silently
-  // drop real stores from the total once there are more than N of them,
-  // which is exactly what made the totals here read wrong.
-  const branches = UAE_STORES.filter(k => R.branch[k]).map(k => ({ label: branchDisplayLabel(k), value: R.branch[k], color: 'var(--pos)' })).sort((a, b) => b.value - a.value);
 
   const scopeParts = [
     dashScope.dept, dashScope.cat, dashScope.vendor && 'Vendor ' + dashScope.vendor,
@@ -503,7 +492,6 @@ function renderDashboard(){
       kpi('Late on order', dashCompact(R.lateUnits), dashInt(R.latePOs.length) + ' POs past ETA', R.lateUnits ? 'warn' : '') +
     '</div>' +
     '<div class="dash-grid">' +
-      '<section class="dash-card wide"><h3>Units sold by month <span>' + dashEsc(scopeLine) + '</span></h3>' + dashColumns(trend) + '</section>' +
       '<section class="dash-card"><h3>Rising <span>units vs the 3 months before</span></h3>' + dashMoverTable(R.risers, true, R.risersAll.length) + '</section>' +
       '<section class="dash-card"><h3>Falling <span>units vs the 3 months before</span></h3>' + dashMoverTable(R.fallers, false, R.fallersAll.length) + '</section>' +
       '<section class="dash-card"><h3>Landing soon <span>next 30 days, ' + dashInt(R.soonUnits) + ' units</span></h3>' +
@@ -517,7 +505,6 @@ function renderDashboard(){
             '<button type="button" class="dash-btn ghost dash-more" data-list="chase">See all ' + dashInt(R.chase.length) + ' vendors (' + dashInt(dashPOCodes(R.latePOs).size) + ' items) &rarr;</button>'
           : '<p class="dash-empty">No late POs. Good.</p>') + '</section>' +
       '<section class="dash-card"><h3>Units due by month <span>all open POs</span></h3>' + dashColumns(inbound) + '</section>' +
-      '<section class="dash-card"><h3>Sales by branch <span>last 12 months</span></h3>' + dashBarList(branches) + '</section>' +
     '</div>';
 
   // wiring
