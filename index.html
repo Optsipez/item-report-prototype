@@ -25,6 +25,7 @@
   <div class="topbar-right">
     <div class="topbar-user">
       <span id="topbarUserLabel"></span>
+      <button id="openPrimaryBtn" type="button" title="Open launcher">Menu</button>
       <button id="logoutBtn" type="button">Log out</button>
     </div>
     <div class="env">Prototype — sample data from Navision_Report_Format.xlsx</div>
@@ -318,6 +319,18 @@
     <p id="loginError" class="login-error"></p>
     <button type="submit">Sign in</button>
   </form>
+</div>
+
+<!-- Primary dashboard / launcher — role-gated front door shown right after
+     sign-in and reopenable via the "Menu" topbar button. Overlays the whole
+     app (nothing underneath is visible) so a role only ever sees the
+     sections it's allowed into. See PRIMARY_VIEWS in js/auth.js. -->
+<div id="primaryOverlay" class="primary-overlay" hidden>
+  <div class="primary-card">
+    <h2>Inventory Intelligence</h2>
+    <p class="primary-sub" id="primaryGreeting"></p>
+    <div class="primary-grid" id="primaryGrid"></div>
+  </div>
 </div>
 
 <script src="js/auth.js"></script>

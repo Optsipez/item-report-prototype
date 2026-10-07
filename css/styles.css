@@ -557,6 +557,29 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .login-card button:hover{background:var(--primary-hover);border-color:var(--primary-hover);box-shadow:var(--sh-sm);}
 .lookup-box button:active{transform:translateY(1px);box-shadow:none;}
 
+/* Primary launcher — same full-screen-cover pattern as .login-overlay
+   (z-index just below it: the two are mutually exclusive, but if that ever
+   changed, the login gate should still win). */
+.primary-overlay{
+  display:none;position:fixed;inset:0;z-index:495;
+  align-items:center;justify-content:center;
+  background:var(--canvas);
+}
+.primary-overlay:not([hidden]){display:flex;}
+.primary-card{
+  width:min(640px,100%);background:var(--panel);border:1px solid var(--line-strong);
+  border-radius:var(--r-lg);box-shadow:var(--sh-lg);padding:var(--sp-7);
+}
+.primary-card h2{margin:0 0 var(--sp-1);font-size:var(--fs-lg);font-weight:600;color:var(--ink);letter-spacing:-.01em;}
+.primary-sub{margin:0 0 var(--sp-6);font-size:var(--fs-sm);color:var(--ink-soft);}
+.primary-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--sp-4);}
+.primary-tile{
+  padding:var(--sp-6) var(--sp-4);font-size:var(--fs-md);font-weight:600;color:var(--ink);
+  background:var(--sunken);border:1px solid var(--line-strong);border-radius:var(--r-md);
+  cursor:pointer;text-align:center;transition:background var(--t-fast),box-shadow var(--t-fast);
+}
+.primary-tile:hover{background:var(--primary-weak);border-color:var(--primary-line);box-shadow:var(--sh-sm);}
+
 .result-list{
   border:1px solid var(--line);border-radius:var(--r-sm);
   max-height:236px;overflow-y:auto;margin-bottom:var(--sp-6);background:var(--panel);

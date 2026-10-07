@@ -69,6 +69,38 @@ function restoreSession(){
   return true;
 }
 
+// Primary dashboard / launcher — role-gated front door, shown full-screen
+// (nothing of the app visible underneath) right after sign-in and
+// reopenable via the topbar's Menu button. Every role gets every view for
+// now; restrict one later by trimming its `roles` array.
+const PRIMARY_VIEWS = [
+  { label: 'Dashboard',        hash: 'dashboard', roles: ['buyer', 'manager', 'ceo', 'admin'] },
+  { label: 'All Products',     hash: 'products',  roles: ['buyer', 'manager', 'ceo', 'admin'] },
+  { label: 'Trip Requirement', hash: 'trip',       roles: ['buyer', 'manager', 'ceo', 'admin'] },
+  { label: 'Item Lookup',      hash: 'lookup',     roles: ['buyer', 'manager', 'ceo', 'admin'] },
+];
+function renderPrimaryOverlay(){
+  const grid = document.getElementById('primaryGrid');
+  if(!grid) return;
+  grid.innerHTML = PRIMARY_VIEWS.filter(v => v.roles.includes(CURRENT_ROLE))
+    .map(v => '<button type="button" class="primary-tile" data-hash="' + v.hash + '">' + v.label + '</button>').join('');
+  grid.querySelectorAll('.primary-tile').forEach(btn => btn.addEventListener('click', () => {
+    hidePrimaryOverlay();
+    if(typeof navigate === 'function') navigate(btn.dataset.hash);
+  }));
+  const greet = document.getElementById('primaryGreeting');
+  if(greet) greet.textContent = CURRENT_EMPLOYEE_NAME ? 'Welcome back, ' + CURRENT_EMPLOYEE_NAME + '.' : 'Welcome back.';
+}
+function showPrimaryOverlay(){
+  renderPrimaryOverlay();
+  const overlay = document.getElementById('primaryOverlay');
+  if(overlay) overlay.hidden = false;
+}
+function hidePrimaryOverlay(){
+  const overlay = document.getElementById('primaryOverlay');
+  if(overlay) overlay.hidden = true;
+}
+
 function showLoginOverlay(msg){
   const overlay = document.getElementById('loginOverlay');
   if(!overlay) return;
@@ -116,6 +148,7 @@ function enterApp(emp){
   hideLoginOverlay();
   updateTopbarUser();
   applyRoleClass();
+  showPrimaryOverlay();
   // app.js already ran its first render before login happened (with
   // CURRENT_ROLE still null, which activeColumnLayout() treats as
   // full access) — re-render now that the real role is known, so e.g.
@@ -134,9 +167,13 @@ function enterApp(emp){
     hideLoginOverlay();
     updateTopbarUser();
     applyRoleClass();
+    showPrimaryOverlay();
   } else {
     showLoginOverlay();
   }
+
+  const openPrimaryBtn = document.getElementById('openPrimaryBtn');
+  if(openPrimaryBtn) openPrimaryBtn.addEventListener('click', showPrimaryOverlay);
 
   const form = document.getElementById('loginForm');
   if(form){
