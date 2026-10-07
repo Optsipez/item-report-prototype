@@ -470,7 +470,13 @@ function renderDashboard(){
     return { label: monthColLabel(w), value: R.monthTotals[i], nodata, partial, title: monthColLabel(w) + ': ' + (nodata ? 'no data yet' : dashInt(R.monthTotals[i]) + ' units' + (partial ? ' so far (month in progress)' : '')) };
   }).reverse();   // newest month first
   const inbound = R.inbound.map(b => ({ label: b.label, value: b.units, color: 'var(--stock)', title: b.label + ': ' + dashInt(b.units) + ' units due' }));
-  const branches = Object.keys(R.branch).map(k => ({ label: branchDisplayLabel(k), value: R.branch[k], color: 'var(--pos)' })).sort((a, b) => b.value - a.value).slice(0, 8);
+  // UAE_STORES only (app.js) -- R.branch's raw keys also include non-store
+  // channels (WEBSTR, MOMAN/OMNWEB for Oman, CLRNC clearance, a back-office
+  // code) that aren't physical branches and shouldn't be in a branch
+  // breakdown. Showing all 10, not a top-N slice -- a slice would silently
+  // drop real stores from the total once there are more than N of them,
+  // which is exactly what made the totals here read wrong.
+  const branches = UAE_STORES.filter(k => R.branch[k]).map(k => ({ label: branchDisplayLabel(k), value: R.branch[k], color: 'var(--pos)' })).sort((a, b) => b.value - a.value);
 
   const scopeParts = [
     dashScope.dept, dashScope.cat, dashScope.vendor && 'Vendor ' + dashScope.vendor,
