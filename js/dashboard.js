@@ -41,7 +41,9 @@ const DAY = 86400000;
 let dashTab = null;                // which action list is open
 let dashScope = null;              // { dept, cat, vendor } — loaded per employee
 let dashCurrentTab = null;
-let dashReorderMonths = 5;         // Reorder now's combined-cover cutoff (SM+PM < this), editable in the UI
+let dashReorderMode = 'cover';     // 'cover' (SM+PM) | 'recovery' (Recovery%) -- buyer's choice of lens
+let dashReorderMonths = 5;         // Cover mode's cutoff (SM+PM < this), editable in the UI
+let dashReorderRecoveryPct = 30;   // Recovery mode's cutoff (Recovery% > this), editable in the UI
 
 function dashPartOfDay(){
   const h = new Date().getHours();
@@ -244,21 +246,30 @@ function dashCompute(){
     MONTH_WINDOW.forEach((w, i) => { R.monthTotals[i] += unitsIn(it, [w]); });
     if(DASH_PLAN_CODES.has(dashPlan(it))){
       if(rate > 0 && sohRaw <= 0 && po <= 0) R.oos.push({ it, rate, s3 });
-      // Repeat-order criteria: combined cover -- stock (SM) plus what's
-      // already on order (PM), both in months at the item's own best-
-      // average sales pace -- under dashReorderMonths (5 by default,
-      // adjustable in the UI). AVG floored at 1 (not 0) so a zero-sales
-      // item with something already on order comes out as a huge,
-      // correctly-disqualifying cover number instead of a divide-by-zero.
-      // avg > 0 is its own separate gate: without it, an item with no
-      // sales history, no stock and nothing on order (soh=po=avg=0) would
-      // read as "0 months of cover" and wrongly qualify -- it has nothing
-      // to reorder FOR, there's no demand on file for it.
+      // Repeat-order criteria -- buyer picks the lens (dashReorderMode):
+      // 'cover': combined cover -- stock (SM) plus what's already on order
+      // (PM), both in months at the item's own best-average sales pace --
+      // under dashReorderMonths (5 by default). AVG floored at 1 (not 0)
+      // so a zero-sales item with something already on order comes out as
+      // a huge, correctly-disqualifying cover number instead of a divide-
+      // by-zero. avg > 0 is its own separate gate: without it, an item
+      // with no sales history, no stock and nothing on order (soh=po=
+      // avg=0) would read as "0 months of cover" and wrongly qualify.
+      // 'recovery': Recovery% (sold since the last receipt ÷ (sold since +
+      // SOH), same formula as Trip Requirement/13-mo Trend) over
+      // dashReorderRecoveryPct (30 by default) -- selling fast enough to
+      // be running down its cushion, regardless of cover. Both figures are
+      // always computed so switching modes doesn't need a recompute pass.
       const avg = Number(it['AVG']) || 0;
       const sm = soh / Math.max(avg, 1);
       const pm = po / Math.max(avg, 1);
-      if(avg > 0 && sm + pm < dashReorderMonths){
-        R.reorder.push({ it, soh, po, avg, sm, pm, atRisk: rate * price });
+      const soldSinceLrcv = tripSoldSinceReceipt(it);
+      const recovery = soldSinceLrcv == null ? null : sellThroughPct(soldSinceLrcv, soh);
+      const qualifies = dashReorderMode === 'recovery'
+        ? (recovery != null && recovery > dashReorderRecoveryPct)
+        : (avg > 0 && sm + pm < dashReorderMonths);
+      if(qualifies){
+        R.reorder.push({ it, soh, po, avg, sm, pm, recovery, atRisk: rate * price });
       }
     }
     const age = soh > 0 ? stkAgeFor(it) : null;
@@ -269,18 +280,26 @@ function dashCompute(){
     }
     if(Math.max(s3, p3) >= 15) R.movers.push({ it, s3, p3, d: s3 - p3 });
   });
-  R.reorder.sort((a, b) => (a.sm + a.pm) - (b.sm + b.pm));   // least cover first -- most urgent
+  // Least cover first in cover mode (most urgent), highest Recovery% first
+  // in recovery mode (recovery is never null here -- the qualifying filter
+  // above already requires it in this mode).
+  R.reorder.sort((a, b) => dashReorderMode === 'recovery' ? b.recovery - a.recovery : (a.sm + a.pm) - (b.sm + b.pm));
   // Buyers place orders per vendor, so also group the reorder list that way
   // -- vendor + its SKU count is the actual ask here, sorted by SKU count.
+  // avgRecovery is only averaged over items that actually have one (cover
+  // mode can include items with no Lrcv Date, so recovery may be null).
   const rv = {};
   R.reorder.forEach(x => {
     const v = x.it['Vendor Code'];
-    const g = rv[v] = rv[v] || { vendor: v, items: 0, atRisk: 0, coverSum: 0, plans: new Set() };
+    const g = rv[v] = rv[v] || { vendor: v, items: 0, atRisk: 0, coverSum: 0, recoverySum: 0, recoveryCount: 0, plans: new Set() };
     g.plans.add(dashPlan(x.it));
     g.items++; g.atRisk += x.atRisk; g.coverSum += x.sm + x.pm;
+    if(x.recovery != null){ g.recoverySum += x.recovery; g.recoveryCount++; }
   });
-  R.reorderVendors = Object.values(rv).map(g => ({ ...g, avgCover: g.coverSum / g.items }))
-    .sort((a, b) => b.items - a.items);
+  R.reorderVendors = Object.values(rv).map(g => ({ ...g,
+    avgCover: g.coverSum / g.items,
+    avgRecovery: g.recoveryCount ? g.recoverySum / g.recoveryCount : null,
+  })).sort((a, b) => b.items - a.items);
   R.reorderAtRisk = R.reorder.reduce((a, x) => a + x.atRisk, 0);
   R.oos.sort((a, b) => b.rate - a.rate);
   R.over.sort((a, b) => b.tied - a.tied);
@@ -362,9 +381,11 @@ function dashActions(R){
   const lateCodes = new Set(); R.latePOs.forEach(p => p.codes.forEach(c => lateCodes.add(c)));
   const tabs = [
     { id: 'reorder', title: 'Reorder now', n: R.reorder.length, sub: R.reorderVendors.length + ' vendors \u00b7 AED ' + dashCompact(R.reorderAtRisk) + '/mo sales at risk', tone: 'warn',
-      note: 'Selling items (Plan Codes A, K, C and P only) whose combined cover — stock (SM) plus what’s already on order (PM), both in months at the item’s own best-average sales pace — is under ' + dashReorderMonths + ' months (adjustable below; 5 is the default). Ranked by combined cover, least first. Buyers order per vendor; click a vendor to open its items in All Products.',
-      table: '<table class="dash-table"><thead><tr><th class="l vend">Vendor</th><th>CPC</th><th>SKUs</th><th>Avg Cover</th><th>Sales at risk / mo</th></tr></thead><tbody>' +
-          R.reorderVendors.slice(0, 10).map(g => '<tr class="dash-pick" data-vendor="' + dashEsc(g.vendor) + '" data-goto="reorder" title="Open this vendor’s items in All Products"><td class="l"><b>' + dashEsc(vname(g.vendor)) + '</b></td><td class="plan-cell dash-cpc">' + ['A', 'K', 'C', 'P'].filter(p => g.plans.has(p)).join(' ') + '</td><td>' + g.items + '</td><td>' + g.avgCover.toFixed(1) + ' mo</td><td><b>AED ' + dashCompact(g.atRisk) + '</b></td></tr>').join('') + '</tbody></table>',
+      note: dashReorderMode === 'recovery'
+        ? 'Selling items (Plan Codes A, K, C and P only) with Recovery % (sold since the last receipt ÷ (sold since + SOH)) over ' + dashReorderRecoveryPct + '% (adjustable below; 30 is the default). Ranked by Recovery%, highest first. Buyers order per vendor; click a vendor to open its items in All Products.'
+        : 'Selling items (Plan Codes A, K, C and P only) whose combined cover — stock (SM) plus what’s already on order (PM), both in months at the item’s own best-average sales pace — is under ' + dashReorderMonths + ' months (adjustable below; 5 is the default). Ranked by combined cover, least first. Buyers order per vendor; click a vendor to open its items in All Products.',
+      table: '<table class="dash-table"><thead><tr><th class="l vend">Vendor</th><th>CPC</th><th>SKUs</th><th>' + (dashReorderMode === 'recovery' ? 'Avg Recovery%' : 'Avg Cover') + '</th><th>Sales at risk / mo</th></tr></thead><tbody>' +
+          R.reorderVendors.slice(0, 10).map(g => '<tr class="dash-pick" data-vendor="' + dashEsc(g.vendor) + '" data-goto="reorder" title="Open this vendor’s items in All Products"><td class="l"><b>' + dashEsc(vname(g.vendor)) + '</b></td><td class="plan-cell dash-cpc">' + ['A', 'K', 'C', 'P'].filter(p => g.plans.has(p)).join(' ') + '</td><td>' + g.items + '</td><td>' + (dashReorderMode === 'recovery' ? (g.avgRecovery == null ? '—' : Math.round(g.avgRecovery) + '%') : g.avgCover.toFixed(1) + ' mo') + '</td><td><b>AED ' + dashCompact(g.atRisk) + '</b></td></tr>').join('') + '</tbody></table>',
       codes: R.reorder.map(x => x.it['Item Code']), sort: null },
     { id: 'oos', title: 'Out of stock, no PO', n: R.oos.length, sub: 'selling, none on hand, nothing on order', tone: 'bad',
       note: 'Sold in the last 3 months, no stock, and no open PO: the items losing sales right now. Plan Codes A, K, C and P only.',
@@ -387,7 +408,13 @@ function dashActions(R){
       '<button type="button" class="dash-tile' + (t.id === dashTab ? ' on' : '') + (t.n && t.tone ? ' ' + t.tone : '') + '" data-tab="' + t.id + '">' +
         '<span class="dash-tile-k">' + t.title + '</span><span class="dash-tile-v">' + dashInt(t.n) + '</span><span class="dash-tile-n">' + dashEsc(t.sub) + '</span></button>').join('') + '</div>' +
     '<section class="dash-card dash-detail"><div class="dash-detail-head"><h3>' + cur.title + ' <span>' + (cur.id === 'reorder' ? dashInt(R.reorderVendors.length) + ' vendors, ' + dashInt(cur.n) + ' items' + (R.reorderVendors.length > 10 ? ', top 10 vendors shown' : '') : dashInt(cur.n) + (cur.id === 'late' ? ' POs' : ' items') + (cur.n > 10 ? ', top 10 shown' : '')) + '</span></h3>' +
-      (cur.id === 'reorder' ? '<label class="page-jump" title="Items qualify when combined SM+PM cover is under this many months. Default is 5.">Under<input type="number" id="dashReorderMonthsInput" min="0.5" step="0.5" value="' + dashReorderMonths + '">months</label>' : '') +
+      (cur.id === 'reorder' ? '<div class="dash-seg" id="dashReorderModeSeg">' +
+          '<button type="button" data-mode="cover" class="' + (dashReorderMode === 'cover' ? 'on' : '') + '">Cover</button>' +
+          '<button type="button" data-mode="recovery" class="' + (dashReorderMode === 'recovery' ? 'on' : '') + '">Recovery%</button>' +
+        '</div>' +
+        (dashReorderMode === 'recovery'
+          ? '<label class="page-jump" title="Items qualify when Recovery% is over this. Default is 30.">Over<input type="number" id="dashReorderRecoveryInput" min="0" max="100" step="1" value="' + dashReorderRecoveryPct + '">%</label>'
+          : '<label class="page-jump" title="Items qualify when combined SM+PM cover is under this many months. Default is 5.">Under<input type="number" id="dashReorderMonthsInput" min="0.5" step="0.5" value="' + dashReorderMonths + '">months</label>') : '') +
       (cur.n ? '<button type="button" class="dash-btn" id="dashOpenAll">Open ' + (cur.id === 'late' ? 'their ' + dashInt(cur.codes.length) + ' items' : 'all ' + dashInt(cur.n)) + ' in All Products &rarr;</button>' : '') + '</div>' +
       '<p class="dash-note">' + dashEsc(cur.note) + '</p>' +
       (cur.n ? cur.table : '<p class="dash-empty">Nothing here for this selection. Good.</p>') + '</section>';
@@ -513,10 +540,16 @@ function renderDashboard(){
     const up = b.dataset.movers === 'up', list = up ? R.risersAll : R.fallersAll;
     openGridFocus((up ? 'Rising' : 'Falling') + suffix, list.map(x => x.it['Item Code']), null);
   }));
-  // Reorder now's cover cutoff -- same blur + Enter commit pattern as the
+  // Reorder now's lens (Cover vs Recovery%) and its threshold -- the
+  // threshold field uses the same blur + Enter commit pattern as the
   // grid's own "Go to page" number field, not live-as-you-type (a full
   // dashboard recompute on every keystroke would both be wasteful and keep
   // kicking focus out of the field mid-type).
+  const reorderModeSeg = $('dashReorderModeSeg');
+  if(reorderModeSeg) reorderModeSeg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    dashReorderMode = b.dataset.mode;
+    renderDashboard();
+  }));
   const reorderMonthsInput = $('dashReorderMonthsInput');
   if(reorderMonthsInput){
     const commitReorderMonths = () => {
@@ -526,6 +559,16 @@ function renderDashboard(){
     };
     reorderMonthsInput.addEventListener('blur', commitReorderMonths);
     reorderMonthsInput.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); commitReorderMonths(); } });
+  }
+  const reorderRecoveryInput = $('dashReorderRecoveryInput');
+  if(reorderRecoveryInput){
+    const commitReorderRecovery = () => {
+      const v = Number(reorderRecoveryInput.value);
+      dashReorderRecoveryPct = v >= 0 ? v : 30;
+      renderDashboard();
+    };
+    reorderRecoveryInput.addEventListener('blur', commitReorderRecovery);
+    reorderRecoveryInput.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); commitReorderRecovery(); } });
   }
   const open = $('dashOpenAll');
   if(open) open.addEventListener('click', () => {
