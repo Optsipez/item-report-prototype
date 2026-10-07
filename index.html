@@ -326,8 +326,11 @@
      app (nothing underneath is visible) so a role only ever sees the
      sections it's allowed into. See PRIMARY_VIEWS in js/auth.js. -->
 <div id="primaryOverlay" class="primary-overlay" hidden>
-  <div class="primary-card">
-    <h2>Inventory Intelligence</h2>
+  <div class="primary-head">
+    <div class="primary-brand"><span class="dot"></span>Inventory Intelligence</div>
+    <div class="primary-user" id="primaryUser"></div>
+  </div>
+  <div class="primary-body">
     <p class="primary-sub" id="primaryGreeting"></p>
     <div class="primary-grid" id="primaryGrid"></div>
   </div>

@@ -557,28 +557,52 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .login-card button:hover{background:var(--primary-hover);border-color:var(--primary-hover);box-shadow:var(--sh-sm);}
 .lookup-box button:active{transform:translateY(1px);box-shadow:none;}
 
-/* Primary launcher — same full-screen-cover pattern as .login-overlay
-   (z-index just below it: the two are mutually exclusive, but if that ever
-   changed, the login gate should still win). */
+/* Primary launcher — full-screen (z-index just below .login-overlay: the
+   two are mutually exclusive, but if that ever changed, the login gate
+   should still win), laid out as a real page (header strip + centered
+   content) rather than a small floating card, so it reads as the app's
+   own home screen and not a modal. */
 .primary-overlay{
-  display:none;position:fixed;inset:0;z-index:495;
-  align-items:center;justify-content:center;
-  background:var(--canvas);
+  display:none;position:fixed;inset:0;z-index:495;flex-direction:column;
+  background:linear-gradient(180deg,var(--s-50) 0%,var(--canvas) 55%);
+  overflow:auto;
 }
 .primary-overlay:not([hidden]){display:flex;}
-.primary-card{
-  width:min(640px,100%);background:var(--panel);border:1px solid var(--line-strong);
-  border-radius:var(--r-lg);box-shadow:var(--sh-lg);padding:var(--sp-7);
+.primary-head{
+  flex:none;display:flex;align-items:center;justify-content:space-between;
+  padding:var(--sp-6) var(--sp-8);border-bottom:1px solid var(--line);
 }
-.primary-card h2{margin:0 0 var(--sp-1);font-size:var(--fs-lg);font-weight:600;color:var(--ink);letter-spacing:-.01em;}
-.primary-sub{margin:0 0 var(--sp-6);font-size:var(--fs-sm);color:var(--ink-soft);}
-.primary-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--sp-4);}
+.primary-brand{display:flex;align-items:center;gap:10px;font-size:var(--fs-lg);font-weight:700;color:var(--ink);letter-spacing:-.01em;}
+.primary-brand .dot{width:9px;height:9px;border-radius:50%;background:var(--primary);}
+.primary-user{font-size:var(--fs-xs);color:var(--ink-soft);font-weight:600;letter-spacing:.02em;text-transform:uppercase;}
+.primary-body{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:var(--sp-8);text-align:center;
+}
+.primary-sub{margin:0 0 var(--sp-7);font-size:var(--fs-xl);font-weight:600;color:var(--ink);letter-spacing:-.01em;}
+.primary-grid{
+  width:100%;max-width:1040px;display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--sp-5);
+}
 .primary-tile{
-  padding:var(--sp-6) var(--sp-4);font-size:var(--fs-md);font-weight:600;color:var(--ink);
-  background:var(--sunken);border:1px solid var(--line-strong);border-radius:var(--r-md);
-  cursor:pointer;text-align:center;transition:background var(--t-fast),box-shadow var(--t-fast);
+  display:flex;flex-direction:column;align-items:flex-start;gap:var(--sp-4);
+  text-align:left;padding:var(--sp-6);background:var(--panel);
+  border:1px solid var(--line);border-radius:var(--r-lg);cursor:pointer;
+  box-shadow:var(--sh-sm);
+  transition:transform var(--t-fast),box-shadow var(--t-fast),border-color var(--t-fast);
 }
-.primary-tile:hover{background:var(--primary-weak);border-color:var(--primary-line);box-shadow:var(--sh-sm);}
+.primary-tile:hover{
+  transform:translateY(-3px);box-shadow:var(--sh-md);
+  border-color:var(--tile-accent,var(--primary-line));
+}
+.primary-tile-icon{
+  width:42px;height:42px;border-radius:var(--r-md);flex:none;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--tile-accent-bg);color:var(--tile-accent);
+}
+.primary-tile-icon svg{width:22px;height:22px;}
+.primary-tile-title{font-size:var(--fs-md);font-weight:650;color:var(--ink);}
+.primary-tile-desc{font-size:var(--fs-xs);color:var(--ink-soft);line-height:1.45;}
 
 .result-list{
   border:1px solid var(--line);border-radius:var(--r-sm);

@@ -73,23 +73,39 @@ function restoreSession(){
 // (nothing of the app visible underneath) right after sign-in and
 // reopenable via the topbar's Menu button. Every role gets every view for
 // now; restrict one later by trimming its `roles` array.
+const PRIMARY_ICONS = {
+  dashboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="8"></rect><rect x="10" y="7" width="4" height="13"></rect><rect x="17" y="3" width="4" height="17"></rect></svg>',
+  products: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>',
+  trip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>',
+  lookup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>',
+};
 const PRIMARY_VIEWS = [
-  { label: 'Dashboard',        hash: 'dashboard', roles: ['buyer', 'manager', 'ceo', 'admin'] },
-  { label: 'All Products',     hash: 'products',  roles: ['buyer', 'manager', 'ceo', 'admin'] },
-  { label: 'Trip Requirement', hash: 'trip',       roles: ['buyer', 'manager', 'ceo', 'admin'] },
-  { label: 'Item Lookup',      hash: 'lookup',     roles: ['buyer', 'manager', 'ceo', 'admin'] },
+  { label: 'Dashboard',        desc: 'Business overview & KPIs', hash: 'dashboard', accent: '--primary', accentBg: '--primary-weak', roles: ['buyer', 'manager', 'ceo', 'admin'] },
+  { label: 'All Products',     desc: 'Full inventory grid',      hash: 'products',  accent: '--stock',   accentBg: '--stock-bg',     roles: ['buyer', 'manager', 'ceo', 'admin'] },
+  { label: 'Trip Requirement', desc: 'Vendor trip planning',     hash: 'trip',       accent: '--sr',      accentBg: '--sr-bg',        roles: ['buyer', 'manager', 'ceo', 'admin'] },
+  { label: 'Item Lookup',      desc: 'Single item detail',       hash: 'lookup',     accent: '--soh',     accentBg: '--soh-bg',       roles: ['buyer', 'manager', 'ceo', 'admin'] },
 ];
 function renderPrimaryOverlay(){
   const grid = document.getElementById('primaryGrid');
   if(!grid) return;
-  grid.innerHTML = PRIMARY_VIEWS.filter(v => v.roles.includes(CURRENT_ROLE))
-    .map(v => '<button type="button" class="primary-tile" data-hash="' + v.hash + '">' + v.label + '</button>').join('');
+  grid.innerHTML = PRIMARY_VIEWS.filter(v => v.roles.includes(CURRENT_ROLE)).map(v =>
+    '<button type="button" class="primary-tile" data-hash="' + v.hash + '" style="--tile-accent:var(' + v.accent + ');--tile-accent-bg:var(' + v.accentBg + ')">' +
+      '<span class="primary-tile-icon">' + PRIMARY_ICONS[v.hash] + '</span>' +
+      '<span class="primary-tile-title">' + v.label + '</span>' +
+      '<span class="primary-tile-desc">' + v.desc + '</span>' +
+    '</button>'
+  ).join('');
   grid.querySelectorAll('.primary-tile').forEach(btn => btn.addEventListener('click', () => {
     hidePrimaryOverlay();
     if(typeof navigate === 'function') navigate(btn.dataset.hash);
   }));
   const greet = document.getElementById('primaryGreeting');
   if(greet) greet.textContent = CURRENT_EMPLOYEE_NAME ? 'Welcome back, ' + CURRENT_EMPLOYEE_NAME + '.' : 'Welcome back.';
+  const user = document.getElementById('primaryUser');
+  if(user){
+    const roleLabel = CURRENT_ROLE === 'ceo' ? 'CEO' : CURRENT_ROLE === 'manager' ? 'Manager' : CURRENT_ROLE === 'admin' ? 'Admin' : 'Buyer';
+    user.textContent = CURRENT_EMPLOYEE_ID + ' · ' + (CURRENT_EMPLOYEE_NAME || roleLabel);
+  }
 }
 function showPrimaryOverlay(){
   renderPrimaryOverlay();
