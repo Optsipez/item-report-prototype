@@ -308,9 +308,12 @@ function dashCompute(){
   R.risersAll = R.movers.filter(x => x.d > 0).sort((a, b) => b.d - a.d);
   R.fallersAll = R.movers.filter(x => x.d < 0).sort((a, b) => a.d - b.d);
 
-  // branch sales over the last 12 complete months, for items in scope
+  // branch sales over the last 12 complete months. Includes discontinued
+  // items (they're not in ITEMS so can't be scope-checked) when no
+  // dept/cat/vendor/etc filter is active; a filter falls back to live
+  // items only, since a discontinued item has no attributes to match it against.
   Object.keys(BRANCH_MONTHLY_SOLD_BY_ITEM).forEach(code => {
-    if(!R.codes.has(code)) return;
+    if(dashScopeIsSet() && !R.codes.has(code)) return;
     const byBranch = BRANCH_MONTHLY_SOLD_BY_ITEM[code];
     Object.keys(byBranch).forEach(b => {
       let t = 0;
