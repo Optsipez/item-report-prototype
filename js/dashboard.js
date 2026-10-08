@@ -451,9 +451,13 @@ function renderPOPage(poNo){
   }
   const [, , , , eta, vendorCode] = lines[0];
   const vendorName = canSeeVendorName() ? VENDOR_CODE_TO_NAME[vendorCode] : null;
-  const infoRow = (label, value) => '<div class="metric-row"><span class="k">' + label + '</span><span class="v">' + dashEsc(value || '—') + '</span></div>';
   let totalQty = 0, totalValue = 0;
-  const rowsHtml = lines.map(l => {
+  // The 6 shipment columns are the same for every line on a PO, so -- like
+  // the reference sheet's merged cells -- they only print once, on the
+  // first row, spanning every line via rowspan.
+  const shipCells = ['—', '—', dashDate(eta), '—', '—', '—']
+    .map(v => '<td class="po-ship" rowspan="' + lines.length + '">' + v + '</td>').join('');
+  const rowsHtml = lines.map((l, i) => {
     const [, code, desc, qty, , , dept, cat] = l;
     const it = DASH_ITEM_BY_CODE[code];
     const puda = it ? it['PUDA Desc'] : '';
@@ -461,7 +465,7 @@ function renderPOPage(poNo){
     const cost = it ? Number(it['L-Cost (Aed)']) || 0 : 0;
     const value = cost * qty;
     totalQty += qty; totalValue += value;
-    return '<tr>' + dashItemCell({ 'Item Code': code, Description: desc }) +
+    return '<tr>' + (i === 0 ? shipCells : '') + dashItemCell({ 'Item Code': code, Description: desc }) +
       '<td class="l">' + dashEsc(cat) + '</td><td class="l">' + dashEsc(dept) + '</td><td class="l">' + dashEsc(puda || '—') + '</td>' +
       '<td class="plan-cell dash-cpc">' + dashEsc(plan || '—') + '</td><td>' + dashInt(qty) + '</td><td>—</td>' +
       '<td>' + (cost ? 'AED ' + dashInt(value) : '—') + '</td></tr>';
@@ -472,15 +476,14 @@ function renderPOPage(poNo){
       (vendorName ? '<span class="desc">' + dashEsc(vendorName) + '</span>' : '') +
       '<span class="tag mono">' + dashEsc(vendorCode) + '</span>' +
     '</div>' +
-    '<div class="metric-group po-info-band"><h4>Shipment</h4>' +
-      infoRow('Ship Date', null) + infoRow('Revised-Ship', null) + infoRow('Revised-ETA', dashDate(eta)) +
-      infoRow('Status', null) + infoRow('Port Of Origin', null) + infoRow('Discharge Port', null) +
-    '</div>' +
     '<div class="dash-detail-head"><h3>Items on this PO <span>' + dashInt(lines.length) + ' lines</span></h3>' +
       '<button type="button" class="dash-btn" id="poOpenAll">Open in All Products &rarr;</button></div>' +
-    '<table class="dash-table po-table"><thead><tr><th class="l">Item Code</th><th class="l">Description</th><th class="l">Catg</th><th class="l">Dpt</th><th class="l">PUDA</th><th>Plan</th><th>Order Qty</th><th>Container Size</th><th>Total</th></tr></thead><tbody>' +
+    '<table class="dash-table po-sheet"><thead><tr>' +
+      '<th>Ship Date</th><th>Revised-Ship</th><th>Revised-ETA</th><th>Status</th><th>Port Of Origin</th><th>Discharge Port</th>' +
+      '<th class="l">Item Code</th><th class="l">Description</th><th class="l">Catg</th><th class="l">Dpt</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th>Total</th>' +
+    '</tr></thead><tbody>' +
       rowsHtml +
-    '</tbody><tfoot><tr><td class="l" colspan="6"><b>Total</b></td><td><b>' + dashInt(totalQty) + '</b></td><td></td><td><b>' + (totalValue ? 'AED ' + dashInt(totalValue) : '—') + '</b></td></tr></tfoot></table>';
+    '</tbody><tfoot><tr class="po-total-row"><td colspan="11"><b>' + dashEsc(poNo) + ' Total</b></td><td><b>' + dashInt(totalQty) + '</b></td><td></td><td><b>' + (totalValue ? 'AED ' + dashInt(totalValue) : '—') + '</b></td></tr></tfoot></table>';
   const openAll = document.getElementById('poOpenAll');
   if(openAll) openAll.addEventListener('click', () => openGridFocus(poNo, lines.map(l => l[1]), null));
 }

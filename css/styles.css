@@ -349,6 +349,13 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    so the ellipsis truncation above -- tuned for the dashboard's 2-column
    cards -- just wastes the extra room. Let its text columns wrap instead. */
 #poRoot .dash-table td.l{max-width:none;overflow:visible;text-overflow:clip;white-space:normal;}
+/* The 6 shipment columns (Ship Date..Discharge Port) are merged via rowspan
+   across every line on the PO -- a light fill + divider sets that block
+   apart from the per-item columns, echoing the reference sheet's grouped
+   look without needing its multi-PO/vendor banding (this page is always
+   just one PO). */
+#poRoot .po-ship{vertical-align:middle;background:var(--sunken);border-right:2px solid var(--line-strong);}
+#poRoot .po-total-row td{background:var(--sr-bg);color:var(--sr);border-top:2px solid var(--sr);border-bottom:none;}
 .dash-table th.item{width:54%;}
 .dash-table td.po,.dash-table th.po{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;width:1%;padding-right:14px;}
 .dash-table td.vcode,.dash-table th.vcode{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;width:1%;padding-right:14px;}
