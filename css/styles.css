@@ -460,10 +460,28 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    those two leaked straight through uncontested, stacking the checkbox
    above the label text instead of beside it. flex-direction/flex here
    override them explicitly rather than relying on specificity alone. */
-.dr-ms-panel label.dr-ms-opt{display:flex;flex-direction:row;flex:none;align-items:center;gap:8px;padding:7px 9px;border-radius:var(--r-sm);
-  font-size:var(--fs-sm);font-weight:500;color:var(--ink);text-transform:none;letter-spacing:0;cursor:pointer;white-space:nowrap;}
-.dr-ms-opt:hover{background:var(--s-100);}
-.dr-ms-opt input{margin:0;width:14px;height:14px;flex:none;accent-color:var(--primary);cursor:pointer;}
+.dr-ms-panel label.dr-ms-opt{display:flex;flex-direction:row;flex:none;align-items:center;gap:9px;padding:7px 10px;border-radius:var(--r-sm);
+  font-size:var(--fs-sm);font-weight:500;color:var(--ink-soft);text-transform:none;letter-spacing:0;cursor:pointer;white-space:nowrap;
+  transition:background var(--t-fast);}
+.dr-ms-opt:hover{background:var(--s-50);}
+.dr-ms-opt.dr-ms-checked{background:var(--primary-weak);}
+.dr-ms-opt.dr-ms-checked .dr-ms-lbl{color:var(--primary-hover);font-weight:600;}
+/* Same custom checkmark-box as the main filter rail's own checkboxes
+   (.filter-opt) -- reusing that proven look here instead of the plain
+   native checkbox, for a more polished, presentation-ready result. */
+.dr-ms-opt input{
+  appearance:none;-webkit-appearance:none;flex:none;width:16px;height:16px;margin:0;position:relative;cursor:pointer;
+  border:1.5px solid var(--line-strong);border-radius:5px;background:var(--panel);
+  transition:background var(--t-fast),border-color var(--t-fast);
+}
+.dr-ms-opt input:hover{border-color:var(--primary-line);}
+.dr-ms-opt input:checked{background:var(--primary);border-color:var(--primary);}
+.dr-ms-opt input:checked::after{
+  content:'';position:absolute;left:4.5px;top:1px;width:4px;height:8px;
+  border:solid #fff;border-width:0 2px 2px 0;transform:rotate(43deg);
+  animation:checkPop .22s cubic-bezier(.2,1.4,.4,1);
+}
+.dr-ms-opt input:focus-visible{box-shadow:var(--ring);outline:none;}
 .dr-ms-clear{align-self:flex-start;margin:2px 2px 4px;padding:3px 9px;font-size:var(--fs-2xs);font-weight:600;
   color:var(--primary);background:none;border:1px solid var(--line-strong);border-radius:var(--r-pill);cursor:pointer;}
 .dr-ms-clear:hover{background:var(--primary-weak);}

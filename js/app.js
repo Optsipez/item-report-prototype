@@ -2634,7 +2634,7 @@ function drMultiSelectHtml(key, label, options){
   const panel = drOpenMultiSelect === key
     ? '<div class="dr-ms-panel" data-ms="' + key + '">' +
         (selected.length ? '<button type="button" class="dr-ms-clear" data-ms="' + key + '">Clear</button>' : '') +
-        options.map(v => '<label class="dr-ms-opt"><input type="checkbox" value="' + escHtml(v) + '"' + (selected.includes(v) ? ' checked' : '') + '>' + escHtml(v) + '</label>').join('') +
+        options.map(v => '<label class="dr-ms-opt' + (selected.includes(v) ? ' dr-ms-checked' : '') + '"><input type="checkbox" value="' + escHtml(v) + '"' + (selected.includes(v) ? ' checked' : '') + '><span class="dr-ms-lbl">' + escHtml(v) + '</span></label>').join('') +
       '</div>'
     : '';
   return '<label class="dash-vendor-field dr-ms-field">' + label +
