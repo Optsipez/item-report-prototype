@@ -376,9 +376,9 @@ const dashItemCell = it => '<td class="l"><a ' + dashLink(it['Item Code']) + '><
 function dashActions(R){
   const showVendor = canSeeVendorName();
   const vname = c => showVendor ? (R.vendorName[c] || c) : c;
-  const poTable = rows => '<table class="dash-table"><thead><tr><th class="l vend">Vendor code</th><th class="l po">PO</th><th class="l vend">Vendor</th><th>Lines</th><th>Units</th><th>ETA</th><th>Late by</th></tr></thead><tbody>' +
+  const poTable = rows => '<table class="dash-table"><thead><tr><th class="l vcode">Vendor code</th><th class="l po">PO</th><th class="l vend">Vendor</th><th>Lines</th><th>Units</th><th>ETA</th><th>Late by</th></tr></thead><tbody>' +
     rows.map(p =>
-      '<tr><td class="l mono">' + dashEsc(p.vendor) + '</td><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l muted" title="' + dashEsc(vname(p.vendor)) + '">' + dashEsc(vname(p.vendor)) + '</td>' +
+      '<tr><td class="l vcode mono">' + dashEsc(p.vendor) + '</td><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l muted" title="' + dashEsc(vname(p.vendor)) + '">' + dashEsc(vname(p.vendor)) + '</td>' +
       '<td>' + p.lines + '</td><td>' + dashInt(p.units) + '</td><td>' + dashEsc(dashDate(p.eta)) + '</td><td class="bad">' + p.late + ' d</td></tr>').join('') + '</tbody></table>';
 
   const lateCodes = new Set(); R.latePOs.forEach(p => p.codes.forEach(c => lateCodes.add(c)));

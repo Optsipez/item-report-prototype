@@ -347,6 +347,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .dash-table td.l{max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .dash-table th.item{width:54%;}
 .dash-table td.po,.dash-table th.po{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;width:1%;padding-right:14px;}
+.dash-table td.vcode,.dash-table th.vcode{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;width:1%;padding-right:14px;}
 .dash-table th.vend{width:24%;}
 .dash-table td.rk{color:var(--ink-faint);width:24px;text-align:left;}
 .dash-table td.muted{color:var(--ink-soft);}
