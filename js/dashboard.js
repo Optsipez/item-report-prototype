@@ -78,6 +78,7 @@ function dashDate(iso){
 }
 const dashAsOf = () => new Date(DATA_AS_OF + 'T00:00:00');
 const dashLink = code => 'href="#item=' + encodeURIComponent(code) + '"';
+const dashPOLink = po => 'href="#po=' + encodeURIComponent(po) + '"';
 
 /* ---------- scope (per employee, remembered in this browser) ---------- */
 // Same seven fields the All Products filter panel offers (FILTER_FIELD_MAP
@@ -378,7 +379,7 @@ function dashActions(R){
   const vname = c => showVendor ? (R.vendorName[c] || c) : c;
   const poTable = rows => '<table class="dash-table"><thead><tr><th class="l vcode">Vendor code</th><th class="l po">PO</th><th class="l vend">Vendor</th><th>Lines</th><th>Units</th><th>ETA</th><th>Late by</th></tr></thead><tbody>' +
     rows.map(p =>
-      '<tr><td class="l vcode mono">' + dashEsc(p.vendor) + '</td><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l muted" title="' + dashEsc(vname(p.vendor)) + '">' + dashEsc(vname(p.vendor)) + '</td>' +
+      '<tr><td class="l vcode mono">' + dashEsc(p.vendor) + '</td><td class="l po"><a ' + dashPOLink(p.po) + ' title="Open this PO"><b class="mono">' + dashEsc(p.po) + '</b></a></td><td class="l muted" title="' + dashEsc(vname(p.vendor)) + '">' + dashEsc(vname(p.vendor)) + '</td>' +
       '<td>' + p.lines + '</td><td>' + dashInt(p.units) + '</td><td>' + dashEsc(dashDate(p.eta)) + '</td><td class="bad">' + p.late + ' d</td></tr>').join('') + '</tbody></table>';
 
   const lateCodes = new Set(); R.latePOs.forEach(p => p.codes.forEach(c => lateCodes.add(c)));
@@ -429,6 +430,59 @@ function dashMoverTable(rows, up, total){
   return '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>Before</th><th>Now</th><th>Change</th></tr></thead><tbody>' +
     rows.map(x => '<tr>' + dashItemCell(x.it) + '<td>' + dashInt(x.p3) + '</td><td>' + dashInt(x.s3) + '</td><td class="' + (up ? 'good' : 'bad') + '">' + (up ? '+' : '') + dashInt(x.d) + '</td></tr>').join('') + '</tbody></table>' +
     '<button type="button" class="dash-btn ghost dash-more" data-movers="' + (up ? 'up' : 'down') + '">See all ' + dashInt(total) + ' ' + (up ? 'rising' : 'falling') + ' items &rarr;</button>';
+}
+
+/* ---------- PO detail page (reached via #po=<PO No>, e.g. a Late POs row)
+   ----------
+   PO_LINES only carries [po, item, desc, qty, eta, vendor, dept, cat] -- no
+   Ship Date, Revised-Ship, Status, Port Of Origin, Discharge Port or
+   Container Size (never imported from the source Excel). Those columns
+   still render, empty ("—"), so the layout already matches the buying
+   team's reference sheet and just needs populating once that data exists.
+   Category/Department come straight off the PO line; PUDA/Plan Code/L-Cost
+   are item attributes, joined in via DASH_ITEM_BY_CODE. */
+function renderPOPage(poNo){
+  const root = document.getElementById('poRoot');
+  if(!root) return;
+  const lines = PO_LINES.filter(l => l[0] === poNo);
+  if(!lines.length){
+    root.innerHTML = '<p class="dash-empty">PO ' + dashEsc(poNo) + ' not found.</p>';
+    return;
+  }
+  const [, , , , eta, vendorCode] = lines[0];
+  const vendorName = canSeeVendorName() ? VENDOR_CODE_TO_NAME[vendorCode] : null;
+  const infoRow = (label, value) => '<div class="metric-row"><span class="k">' + label + '</span><span class="v">' + dashEsc(value || '—') + '</span></div>';
+  let totalQty = 0, totalValue = 0;
+  const rowsHtml = lines.map(l => {
+    const [, code, desc, qty, , , dept, cat] = l;
+    const it = DASH_ITEM_BY_CODE[code];
+    const puda = it ? it['PUDA Desc'] : '';
+    const plan = it ? dashPlan(it) : '';
+    const cost = it ? Number(it['L-Cost (Aed)']) || 0 : 0;
+    const value = cost * qty;
+    totalQty += qty; totalValue += value;
+    return '<tr>' + dashItemCell({ 'Item Code': code, Description: desc }) +
+      '<td class="l">' + dashEsc(cat) + '</td><td class="l">' + dashEsc(dept) + '</td><td class="l">' + dashEsc(puda || '—') + '</td>' +
+      '<td class="plan-cell dash-cpc">' + dashEsc(plan || '—') + '</td><td>' + dashInt(qty) + '</td><td>—</td>' +
+      '<td>' + (cost ? 'AED ' + dashInt(value) : '—') + '</td></tr>';
+  }).join('');
+  root.innerHTML =
+    '<div class="item-header">' +
+      '<span class="code mono">' + dashEsc(poNo) + '</span>' +
+      (vendorName ? '<span class="desc">' + dashEsc(vendorName) + '</span>' : '') +
+      '<span class="tag mono">' + dashEsc(vendorCode) + '</span>' +
+    '</div>' +
+    '<div class="metric-group po-info-band"><h4>Shipment</h4>' +
+      infoRow('Ship Date', null) + infoRow('Revised-Ship', null) + infoRow('Revised-ETA', dashDate(eta)) +
+      infoRow('Status', null) + infoRow('Port Of Origin', null) + infoRow('Discharge Port', null) +
+    '</div>' +
+    '<div class="dash-detail-head"><h3>Items on this PO <span>' + dashInt(lines.length) + ' lines</span></h3>' +
+      '<button type="button" class="dash-btn" id="poOpenAll">Open in All Products &rarr;</button></div>' +
+    '<table class="dash-table po-table"><thead><tr><th class="l">Item Code</th><th class="l">Description</th><th class="l">Catg</th><th class="l">Dpt</th><th class="l">PUDA</th><th>Plan</th><th>Order Qty</th><th>Container Size</th><th>Total</th></tr></thead><tbody>' +
+      rowsHtml +
+    '</tbody><tfoot><tr><td class="l" colspan="6"><b>Total</b></td><td><b>' + dashInt(totalQty) + '</b></td><td></td><td><b>' + (totalValue ? 'AED ' + dashInt(totalValue) : '—') + '</b></td></tr></tfoot></table>';
+  const openAll = document.getElementById('poOpenAll');
+  if(openAll) openAll.addEventListener('click', () => openGridFocus(poNo, lines.map(l => l[1]), null));
 }
 
 function dashScopeBar(){

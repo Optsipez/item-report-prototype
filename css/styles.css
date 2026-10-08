@@ -345,6 +345,10 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .dash-table tr:last-child td{border-bottom:none;}
 .dash-table th.l, .dash-table td.l{text-align:left;}
 .dash-table td.l{max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* The PO detail page's table is full-page width (not a narrow dash-card),
+   so the ellipsis truncation above -- tuned for the dashboard's 2-column
+   cards -- just wastes the extra room. Let its text columns wrap instead. */
+#poRoot .dash-table td.l{max-width:none;overflow:visible;text-overflow:clip;white-space:normal;}
 .dash-table th.item{width:54%;}
 .dash-table td.po,.dash-table th.po{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;width:1%;padding-right:14px;}
 .dash-table td.vcode,.dash-table th.vcode{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;width:1%;padding-right:14px;}

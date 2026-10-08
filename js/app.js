@@ -182,7 +182,7 @@ function trendBucketIdx(n){
   const idx = [];
   for(let i = 0; i < n - 1; i += 3) idx.push([i, i + 1, i + 2]);
   idx.push([n - 1]);
-  return idx;
+  return idx; 
 }
 function trendBars(item){
   const n = statsWindowMonthCount();
@@ -652,9 +652,10 @@ const navDash = document.getElementById('navDash');
 const viewDash = document.getElementById('viewDash');
 const navTrip = document.getElementById('navTrip');
 const viewTrip = document.getElementById('viewTrip');
+const viewPO = document.getElementById('viewPO');
 
 function setView(view){
-  const isLookup = view === 'lookup', isDash = view === 'dashboard', isAll = view === 'all', isTrip = view === 'trip';
+  const isLookup = view === 'lookup', isDash = view === 'dashboard', isAll = view === 'all', isTrip = view === 'trip', isPO = view === 'po';
   navDash.classList.toggle('active', isDash);
   navLookup.classList.toggle('active', isLookup);
   navAll.classList.toggle('active', isAll);
@@ -665,15 +666,16 @@ function setView(view){
   viewLookup.classList.toggle('active', isLookup);
   viewAll.classList.toggle('active', isAll);
   viewTrip.classList.toggle('active', isTrip);
-  // The dashboard (and Trip Requirement, same single-column layout) is
-  // full-width: no filter rail, no rail-sized left margin.
-  document.body.classList.toggle('view-dashboard', isDash || isTrip);
+  viewPO.classList.toggle('active', isPO);
+  // The dashboard (and Trip Requirement / PO Detail, same single-column
+  // layout) is full-width: no filter rail, no rail-sized left margin.
+  document.body.classList.toggle('view-dashboard', isDash || isTrip || isPO);
   // .main's left padding is trimmed to 22px (not the usual 32px) specifically
   // for the grid's frozen columns (see the comment on .main in styles.css) —
   // Item Lookup has no such column to align with, so that tight padding just
   // read as its title/text crowding the rail's edge. .flush restores the
   // fuller padding for this view only, leaving the grid's alignment alone.
-  document.querySelector('.main').classList.toggle('flush', isLookup || isDash || isTrip);
+  document.querySelector('.main').classList.toggle('flush', isLookup || isDash || isTrip || isPO);
   if(isAll) renderGrid();
   if(isTrip) renderTrip();
   if(typeof syncTopbarWidth === 'function') syncTopbarWidth();
@@ -733,6 +735,7 @@ let resumeCode = null;
 function routeFromHash(){
   const h = decodeURIComponent(location.hash.replace(/^#/, ''));
   if(h.indexOf('item=') === 0) return { view: 'lookup', code: h.slice(5) };
+  if(h.indexOf('po=') === 0) return { view: 'po', po: h.slice(3) };
   if(h === 'lookup') return { view: 'lookup', code: null };
   if(h === 'trip') return { view: 'trip' };
   // No hash = a fresh visit or a just-signed-in user: land on the dashboard.
@@ -759,6 +762,10 @@ function applyRoute(route){
     setView('lookup');
   } else if(route.view === 'trip'){
     setView('trip');                      // renders the vendor search + table
+  } else if(route.view === 'po'){
+    if(typeof renderPOPage === 'function') renderPOPage(route.po);
+    setView('po');
+    window.scrollTo({ top: 0, left: 0 });
   } else {
     setView('all');                       // rebuilds the grid
     if(resumeCode) flashResumeRow(resumeCode);
