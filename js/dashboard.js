@@ -401,7 +401,7 @@ function dashActions(R){
     { id: 'over', title: 'Overstock / slow', n: R.over.length, sub: 'AED ' + dashCompact(R.overValue) + ' tied up', tone: '',
       note: 'Stock 6+ months old with over 12 months of cover at the recent pace, or no sales at all. Largest first. Margin = (price − landed cost) ÷ price at today’s price, so it is also roughly how deep a markdown can go before selling at cost.',
       table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>Stock</th><th>Cover</th><th>Age</th><th>Tied up (AED)</th><th>Price</th><th>Margin</th></tr></thead><tbody>' +
-        R.over.map(x => '<tr>' + dashItemCell(x.it) + '<td>' + dashInt(x.soh) + '</td><td>' + (x.cover == null ? 'no sales' : x.cover.toFixed(0) + ' mo') + '</td><td>' + dashEsc(x.age) + '</td><td><b>' + dashInt(x.tied) + '</b></td><td>' + (x.price ? dashInt(x.price) : '—') + '</td><td class="' + (x.margin != null && x.margin < 0.15 ? 'bad' : '') + '">' + (x.margin == null ? '—' : Math.round(x.margin * 100) + '%') + '</td></tr>').join('') + '</tbody></table>',
+        R.over.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + '<td>' + dashInt(x.soh) + '</td><td>' + (x.cover == null ? 'no sales' : x.cover.toFixed(0) + ' mo') + '</td><td>' + dashEsc(x.age) + '</td><td><b>' + dashInt(x.tied) + '</b></td><td>' + (x.price ? dashInt(x.price) : '—') + '</td><td class="' + (x.margin != null && x.margin < 0.15 ? 'bad' : '') + '">' + (x.margin == null ? '—' : Math.round(x.margin * 100) + '%') + '</td></tr>').join('') + '</tbody></table>',
       codes: R.over.map(x => x.it['Item Code']), sort: [{ field: 'SOH', dir: 'desc' }] },
   ];
   if(!tabs.some(t => t.id === dashTab)) dashTab = (tabs.find(t => t.n > 0) || tabs[0]).id;
@@ -410,7 +410,7 @@ function dashActions(R){
   return '<div class="dash-tiles">' + tabs.map(t =>
       '<button type="button" class="dash-tile' + (t.id === dashTab ? ' on' : '') + (t.n && t.tone ? ' ' + t.tone : '') + '" data-tab="' + t.id + '">' +
         '<span class="dash-tile-k">' + t.title + '</span><span class="dash-tile-v">' + dashInt(t.n) + '</span><span class="dash-tile-n">' + dashEsc(t.sub) + '</span></button>').join('') + '</div>' +
-    '<section class="dash-card dash-detail"><div class="dash-detail-head"><h3>' + cur.title + ' <span>' + (cur.id === 'reorder' ? dashInt(R.reorderVendors.length) + ' vendors, ' + dashInt(cur.n) + ' items' : dashInt(cur.n) + (cur.id === 'late' ? ' POs' : ' items')) + '</span></h3>' +
+    '<section class="dash-card dash-detail"><div class="dash-detail-head"><h3>' + cur.title + ' <span>' + (cur.id === 'reorder' ? dashInt(R.reorderVendors.length) + ' vendors, ' + dashInt(cur.n) + ' items' : dashInt(cur.n) + (cur.id === 'late' ? ' POs' : ' items') + (cur.id === 'over' && cur.n > 10 ? ', top 10 shown' : '')) + '</span></h3>' +
       (cur.id === 'reorder' ? '<div class="dash-seg" id="dashReorderModeSeg">' +
           '<button type="button" data-mode="cover" class="' + (dashReorderMode === 'cover' ? 'on' : '') + '">Cover</button>' +
           '<button type="button" data-mode="recovery" class="' + (dashReorderMode === 'recovery' ? 'on' : '') + '">Recovery%</button>' +
@@ -420,7 +420,7 @@ function dashActions(R){
           : '<label class="page-jump" title="Items qualify when combined SM+PM cover is under this many months. Default is 5.">Under<input type="number" id="dashReorderMonthsInput" min="0.5" step="0.5" value="' + dashReorderMonths + '">months</label>') : '') +
       (cur.n ? '<button type="button" class="dash-btn" id="dashOpenAll">Open ' + (cur.id === 'late' ? 'their ' + dashInt(cur.codes.length) + ' items' : 'all ' + dashInt(cur.n)) + ' in All Products &rarr;</button>' : '') + '</div>' +
       '<p class="dash-note">' + dashEsc(cur.note) + '</p>' +
-      (cur.n ? '<div class="dash-table-scroll">' + cur.table + '</div>' : '<p class="dash-empty">Nothing here for this selection. Good.</p>') + '</section>';
+      (cur.n ? (cur.id === 'over' ? cur.table : '<div class="dash-table-scroll">' + cur.table + '</div>') : '<p class="dash-empty">Nothing here for this selection. Good.</p>') + '</section>';
 }
 
 const dashPOCodes = pos => { const s = new Set(); pos.forEach(p => p.codes.forEach(c => s.add(c))); return s; };
