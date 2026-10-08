@@ -771,7 +771,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 
 /* metrics band */
 .metrics-band{
-  display:grid;grid-template-columns:2fr repeat(3, 1fr);gap:var(--sp-4);align-items:start;
+  display:grid;grid-template-columns:2fr repeat(3, 1fr);gap:var(--sp-4);
   border:none;border-radius:0;background:none;
   margin-bottom:var(--sp-6);overflow:visible;
 }
