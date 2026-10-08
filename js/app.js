@@ -3137,7 +3137,7 @@ function tripEmptyState(){
   '</div>';
 }
 function renderTripTable(rows){
-  const cols = '<th class="trip-hide-col"></th><th class="branch-sno">No</th><th>Range Name</th><th>CPC</th><th>Purchase Qty</th>' +
+  const cols = '<th class="trip-hide-col"></th><th class="branch-sno">No</th><th>Range Name</th><th>CPC</th><th>PUDA Code</th><th class="l">PUDA Desc</th><th>Purchase Qty</th>' +
     '<th>2XL Barcode No</th><th>Photo</th>' +
     '<th class="l">Description</th>' +
     '<th class="dr-soh">SOH</th><th>Sold (since Lrcv)</th>' +
@@ -3156,6 +3156,8 @@ function renderTripTable(rows){
       '<td class="branch-sno">' + (i + 1) + '</td>' +
       '<td>' + escHtml(it['Range Name']) + '</td>' +
       '<td>' + escHtml(it['Current Plan Code']) + '</td>' +
+      '<td>' + escHtml(it['PUDA Code']) + '</td>' +
+      '<td class="l">' + escHtml(it['PUDA Desc']) + '</td>' +
       '<td>' + fmtInt(it['PO-Qty']) + '</td>' +
       '<td>' + escHtml(code) + '</td>' +
       '<td><span class="trip-photo-ph" title="Not yet available"></span></td>' +
