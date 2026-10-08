@@ -442,9 +442,14 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .dr-ms-btn:focus{outline:none;border-color:var(--primary);box-shadow:var(--ring);}
 .dr-ms-btn.dr-ms-active{border-color:var(--primary);background:var(--primary-weak);}
 .dr-ms-caret{font-size:9px;color:var(--ink-faint);flex:none;}
-.dr-ms-panel{position:absolute;top:100%;left:0;right:0;z-index:30;margin-top:4px;
-  background:var(--panel);border:1px solid var(--line-strong);border-radius:var(--r-sm);box-shadow:var(--sh-md);
-  padding:4px;display:flex;flex-direction:column;gap:1px;max-height:240px;overflow-y:auto;}
+/* Wider than the narrow trigger field it hangs off -- min-width matches the
+   field, width:max-content lets it grow to fit the longest option (capped),
+   so two-word categories like "Floor Covering" get one line instead of
+   wrapping into a misaligned mess. */
+.dr-ms-panel{position:absolute;top:100%;left:0;z-index:30;margin-top:4px;
+  min-width:100%;width:max-content;max-width:260px;
+  background:var(--panel);border:1px solid var(--line-strong);border-radius:var(--r-md);box-shadow:var(--sh-md);
+  padding:5px;display:flex;flex-direction:column;gap:1px;max-height:260px;overflow-y:auto;}
 /* .dash-scope label's uppercase/letter-spacing/faint-colour styling (meant
    for the field labels like "DEPARTMENT") would otherwise cascade onto
    these nested option labels too -- label.dr-ms-opt matches its specificity
@@ -455,10 +460,10 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    those two leaked straight through uncontested, stacking the checkbox
    above the label text instead of beside it. flex-direction/flex here
    override them explicitly rather than relying on specificity alone. */
-.dr-ms-panel label.dr-ms-opt{display:flex;flex-direction:row;flex:none;align-items:center;gap:7px;padding:6px 8px;border-radius:var(--r-sm);
-  font-size:var(--fs-xs);font-weight:500;color:var(--ink);text-transform:none;letter-spacing:0;cursor:pointer;}
+.dr-ms-panel label.dr-ms-opt{display:flex;flex-direction:row;flex:none;align-items:center;gap:8px;padding:7px 9px;border-radius:var(--r-sm);
+  font-size:var(--fs-sm);font-weight:500;color:var(--ink);text-transform:none;letter-spacing:0;cursor:pointer;white-space:nowrap;}
 .dr-ms-opt:hover{background:var(--s-100);}
-.dr-ms-opt input{margin:0;accent-color:var(--primary);}
+.dr-ms-opt input{margin:0;width:14px;height:14px;flex:none;accent-color:var(--primary);cursor:pointer;}
 .dr-ms-clear{align-self:flex-start;margin:2px 2px 4px;padding:3px 9px;font-size:var(--fs-2xs);font-weight:600;
   color:var(--primary);background:none;border:1px solid var(--line-strong);border-radius:var(--r-pill);cursor:pointer;}
 .dr-ms-clear:hover{background:var(--primary-weak);}
