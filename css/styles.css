@@ -448,8 +448,14 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 /* .dash-scope label's uppercase/letter-spacing/faint-colour styling (meant
    for the field labels like "DEPARTMENT") would otherwise cascade onto
    these nested option labels too -- label.dr-ms-opt matches its specificity
-   so this one wins instead. */
-.dr-ms-panel label.dr-ms-opt{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:var(--r-sm);
+   so it wins on every property the two rules both set (display, color,
+   font-size, etc). But .dash-scope label ALSO sets flex-direction:column
+   and flex:1 1 150px, which this rule never re-declared -- cascade is
+   resolved per PROPERTY, not per rule, so with no competing declaration
+   those two leaked straight through uncontested, stacking the checkbox
+   above the label text instead of beside it. flex-direction/flex here
+   override them explicitly rather than relying on specificity alone. */
+.dr-ms-panel label.dr-ms-opt{display:flex;flex-direction:row;flex:none;align-items:center;gap:7px;padding:6px 8px;border-radius:var(--r-sm);
   font-size:var(--fs-xs);font-weight:500;color:var(--ink);text-transform:none;letter-spacing:0;cursor:pointer;}
 .dr-ms-opt:hover{background:var(--s-100);}
 .dr-ms-opt input{margin:0;accent-color:var(--primary);}
