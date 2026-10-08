@@ -521,6 +521,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    columns use higher-specificity selectors and win regardless). */
 .trip-wrap table.matrix tbody tr:nth-child(even) td:not(.dr-soh){background:var(--s-25);}
 .trip-wrap table.matrix tbody tr:hover td:not(.dr-soh){background:var(--s-100);}
+.trip-wrap table.matrix{width:max-content;min-width:100%;}
 /* Hide-this-line checkbox -- narrow, no header label needed (its purpose is
    obvious from the checkbox itself + its title tooltip). Checking it drops
    the row from the printed list; "Show hidden lines" brings it back into
@@ -1086,6 +1087,14 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .dr-wrap table.matrix{font-size:clamp(var(--fs-2xs), 0.27vw + 7px, 14px);}
 .dr-wrap table.matrix th,.dr-wrap table.matrix td{padding:4px 5px;white-space:nowrap;}
 .dr-wrap table.matrix th.l,.dr-wrap table.matrix td.l{text-align:left;white-space:normal;max-width:160px;}
+/* Trip Requirement has grown enough of its own columns (CPC, PUDA Code,
+   PUDA Desc, Description...) that the 160px cap above -- fine for the
+   date-range popup's dozens of tight columns -- wrapped its Description/
+   PUDA Desc onto 2-3 lines and crowded the numeric columns beside them.
+   Comes after that rule (equal specificity, later wins) so this table
+   grows to its natural width instead and scrolls horizontally (.dr-wrap
+   already supports that) -- reads far better than mangled wrapped text. */
+.trip-wrap table.matrix td.l,.trip-wrap table.matrix th.l{white-space:nowrap;max-width:none;}
 .dr-wrap th.dr-sort{cursor:pointer;user-select:none;}
 .dr-wrap th.dr-sort:hover{background:var(--s-200);}
 .dr-sort-ind{margin-left:3px;font-size:8px;color:var(--primary);}
