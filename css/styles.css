@@ -333,7 +333,13 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .dash-agekey span{display:inline-flex;align-items:center;gap:6px;}
 .dash-agekey i{width:10px;height:10px;border-radius:3px;display:inline-block;}
 .dash-agekey b{color:var(--ink);font-weight:650;margin-left:2px;}
+/* Needs attention's detail table (Reorder now / OOS / Late POs / Overstock)
+   shows every row -- could be thousands -- but scrolls inside its own fixed
+   box instead of stretching the whole dashboard page. Header stays pinned
+   while that happens. */
+.dash-table-scroll{max-height:460px;overflow-y:auto;}
 .dash-table{width:100%;border-collapse:collapse;font-size:var(--fs-sm);font-variant-numeric:tabular-nums;}
+.dash-table-scroll thead th{position:sticky;top:0;background:var(--panel);z-index:1;}
 .dash-table th{font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:600;text-align:right;padding:0 6px 8px;border-bottom:1px solid var(--line-strong);}
 .dash-table td{padding:8px 6px;text-align:right;border-bottom:1px solid var(--line);color:var(--ink);}
 .dash-table tr:last-child td{border-bottom:none;}

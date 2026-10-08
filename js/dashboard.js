@@ -34,12 +34,13 @@ let dashGreetingIdx = Math.floor(Math.random() * DASH_GREETINGS.length);
 // A fresh pick each time someone signs in (called from auth.js's enterApp).
 function reshuffleDashGreeting(){
   dashGreetingIdx = Math.floor(Math.random() * DASH_GREETINGS.length);
-  dashScope = null;      // the next person gets their own remembered scope
+  dashScope = null; dashTab = null;      // the next person gets their own remembered scope
 }
 
 const DAY = 86400000;
+let dashTab = null;                // which action list is open
 let dashScope = null;              // { dept, cat, vendor } — loaded per employee
-let dashActionTabs = [];           // Reorder/OOS/Late/Overstock tab data, set by dashActions()
+let dashCurrentTab = null;
 let dashReorderMode = 'cover';     // 'cover' (SM+PM) | 'recovery' (Recovery%) -- buyer's choice of lens
 let dashReorderMonths = 5;         // Cover mode's cutoff (SM+PM < this), editable in the UI
 let dashReorderRecoveryPct = 30;   // Recovery mode's cutoff (Recovery% > this), editable in the UI
@@ -403,16 +404,13 @@ function dashActions(R){
         R.over.map(x => '<tr>' + dashItemCell(x.it) + '<td>' + dashInt(x.soh) + '</td><td>' + (x.cover == null ? 'no sales' : x.cover.toFixed(0) + ' mo') + '</td><td>' + dashEsc(x.age) + '</td><td><b>' + dashInt(x.tied) + '</b></td><td>' + (x.price ? dashInt(x.price) : '—') + '</td><td class="' + (x.margin != null && x.margin < 0.15 ? 'bad' : '') + '">' + (x.margin == null ? '—' : Math.round(x.margin * 100) + '%') + '</td></tr>').join('') + '</tbody></table>',
       codes: R.over.map(x => x.it['Item Code']), sort: [{ field: 'SOH', dir: 'desc' }] },
   ];
-  dashActionTabs = tabs;
-  const tilesHtml = '<div class="dash-tiles">' + tabs.map(t =>
-      '<button type="button" class="dash-tile' + (t.n && t.tone ? ' ' + t.tone : '') + '" data-tab="' + t.id + '">' +
-        '<span class="dash-tile-k">' + t.title + '</span><span class="dash-tile-v">' + dashInt(t.n) + '</span><span class="dash-tile-n">' + dashEsc(t.sub) + '</span></button>').join('') + '</div>';
-  // Every list renders in full below, stacked -- no more click-to-swap, so
-  // Reorder now / Out of stock / Late POs / Overstock are all reachable by
-  // scrolling, same as Rising/Falling/Landing soon already were. The tiles
-  // above are now just KPI summaries that scroll-jump to their own section.
-  const sectionsHtml = tabs.map(cur =>
-    '<section class="dash-card dash-detail" id="dash-tab-' + cur.id + '"><div class="dash-detail-head"><h3>' + cur.title + ' <span>' + (cur.id === 'reorder' ? dashInt(R.reorderVendors.length) + ' vendors, ' + dashInt(cur.n) + ' items' : dashInt(cur.n) + (cur.id === 'late' ? ' POs' : ' items')) + '</span></h3>' +
+  if(!tabs.some(t => t.id === dashTab)) dashTab = (tabs.find(t => t.n > 0) || tabs[0]).id;
+  const cur = tabs.find(t => t.id === dashTab);
+  dashCurrentTab = cur;
+  return '<div class="dash-tiles">' + tabs.map(t =>
+      '<button type="button" class="dash-tile' + (t.id === dashTab ? ' on' : '') + (t.n && t.tone ? ' ' + t.tone : '') + '" data-tab="' + t.id + '">' +
+        '<span class="dash-tile-k">' + t.title + '</span><span class="dash-tile-v">' + dashInt(t.n) + '</span><span class="dash-tile-n">' + dashEsc(t.sub) + '</span></button>').join('') + '</div>' +
+    '<section class="dash-card dash-detail"><div class="dash-detail-head"><h3>' + cur.title + ' <span>' + (cur.id === 'reorder' ? dashInt(R.reorderVendors.length) + ' vendors, ' + dashInt(cur.n) + ' items' : dashInt(cur.n) + (cur.id === 'late' ? ' POs' : ' items')) + '</span></h3>' +
       (cur.id === 'reorder' ? '<div class="dash-seg" id="dashReorderModeSeg">' +
           '<button type="button" data-mode="cover" class="' + (dashReorderMode === 'cover' ? 'on' : '') + '">Cover</button>' +
           '<button type="button" data-mode="recovery" class="' + (dashReorderMode === 'recovery' ? 'on' : '') + '">Recovery%</button>' +
@@ -420,11 +418,9 @@ function dashActions(R){
         (dashReorderMode === 'recovery'
           ? '<label class="page-jump" title="Items qualify when Recovery% is over this. Default is 30.">Over<input type="number" id="dashReorderRecoveryInput" min="0" max="100" step="1" value="' + dashReorderRecoveryPct + '">%</label>'
           : '<label class="page-jump" title="Items qualify when combined SM+PM cover is under this many months. Default is 5.">Under<input type="number" id="dashReorderMonthsInput" min="0.5" step="0.5" value="' + dashReorderMonths + '">months</label>') : '') +
-      (cur.n ? '<button type="button" class="dash-btn dash-open-tab" data-tab="' + cur.id + '">Open ' + (cur.id === 'late' ? 'their ' + dashInt(cur.codes.length) + ' items' : 'all ' + dashInt(cur.n)) + ' in All Products &rarr;</button>' : '') + '</div>' +
+      (cur.n ? '<button type="button" class="dash-btn" id="dashOpenAll">Open ' + (cur.id === 'late' ? 'their ' + dashInt(cur.codes.length) + ' items' : 'all ' + dashInt(cur.n)) + ' in All Products &rarr;</button>' : '') + '</div>' +
       '<p class="dash-note">' + dashEsc(cur.note) + '</p>' +
-      (cur.n ? cur.table : '<p class="dash-empty">Nothing here for this selection. Good.</p>') + '</section>'
-  ).join('');
-  return tilesHtml + sectionsHtml;
+      (cur.n ? '<div class="dash-table-scroll">' + cur.table + '</div>' : '<p class="dash-empty">Nothing here for this selection. Good.</p>') + '</section>';
 }
 
 const dashPOCodes = pos => { const s = new Set(); pos.forEach(p => p.codes.forEach(c => s.add(c))); return s; };
@@ -513,19 +509,15 @@ function renderDashboard(){
 
   // wiring
   const $ = id => document.getElementById(id);
-  root.querySelectorAll('.dash-tile').forEach(b => b.addEventListener('click', () => {
-    const target = document.getElementById('dash-tab-' + b.dataset.tab);
-    if(target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }));
+  root.querySelectorAll('.dash-tile').forEach(b => b.addEventListener('click', () => { dashTab = b.dataset.tab; renderDashboard(); }));
   root.querySelectorAll('.dash-po').forEach(tr => tr.addEventListener('click', () => {
     const p = R.soonPOs.find(x => x.po === tr.dataset.po);
     if(p) openGridFocus(p.po, p.codes, null);
   }));
   root.querySelectorAll('.dash-pick:not(.dash-po)').forEach(tr => tr.addEventListener('click', () => {
     dashScope = { ...dashScope, vendor: tr.dataset.vendor }; dashSaveScope();
+    dashTab = tr.dataset.goto || 'late';
     renderDashboard();
-    const target = document.getElementById('dash-tab-' + (tr.dataset.goto || 'late'));
-    if(target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }));
   root.querySelectorAll('.dash-more').forEach(b => b.addEventListener('click', () => {
     const suffix = scopeParts.length ? ' – ' + scopeParts.join(' · ') : '';
@@ -567,10 +559,11 @@ function renderDashboard(){
     reorderRecoveryInput.addEventListener('blur', commitReorderRecovery);
     reorderRecoveryInput.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); commitReorderRecovery(); } });
   }
-  root.querySelectorAll('.dash-open-tab').forEach(b => b.addEventListener('click', () => {
-    const c = dashActionTabs.find(t => t.id === b.dataset.tab);
-    if(c) openGridFocus(c.title + (scopeParts.length ? ' – ' + scopeParts.join(' · ') : ''), c.codes, c.sort);
-  }));
+  const open = $('dashOpenAll');
+  if(open) open.addEventListener('click', () => {
+    const c = dashCurrentTab;
+    openGridFocus(c.title + (scopeParts.length ? ' – ' + scopeParts.join(' · ') : ''), c.codes, c.sort);
+  });
   const change = () => {
     const raw = $('dashVendor').value;
     const lookup = vendorNameLookup(raw);
