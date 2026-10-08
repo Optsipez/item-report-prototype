@@ -775,6 +775,15 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .report{display:none;max-width:clamp(1500px,62vw,2000px);}
 .report.visible{display:block;}
 
+/* Pinned below the topbar (top:56px matches its height) so the item's
+   identity + key numbers stay visible while scrolling through the Branch
+   Wise table or Overview matrices beneath. Opaque background so content
+   scrolling under it doesn't show through once stuck. */
+.report-sticky{
+  position:sticky;top:56px;z-index:10;background:var(--canvas);
+  padding-top:var(--sp-1);margin-top:calc(-1 * var(--sp-1));
+}
+
 /* header strip */
 .item-header{
   display:flex;align-items:center;flex-wrap:wrap;gap:var(--sp-2) var(--sp-3);
