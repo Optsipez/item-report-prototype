@@ -90,6 +90,7 @@ function renderPrimaryOverlay(){
   if(!grid) return;
   grid.innerHTML = PRIMARY_VIEWS.filter(v => v.roles.includes(CURRENT_ROLE)).map(v =>
     '<button type="button" class="primary-tile" data-hash="' + v.hash + '" style="--tile-accent:var(' + v.accent + ');--tile-accent-bg:var(' + v.accentBg + ')">' +
+      '<span class="primary-tile-arrow">&rarr;</span>' +
       '<span class="primary-tile-icon">' + PRIMARY_ICONS[v.hash] + '</span>' +
       '<span class="primary-tile-title">' + v.label + '</span>' +
       '<span class="primary-tile-desc">' + v.desc + '</span>' +
@@ -101,6 +102,8 @@ function renderPrimaryOverlay(){
   }));
   const greet = document.getElementById('primaryGreeting');
   if(greet) greet.textContent = CURRENT_EMPLOYEE_NAME ? 'Welcome back, ' + CURRENT_EMPLOYEE_NAME + '.' : 'Welcome back.';
+  const date = document.getElementById('primaryDate');
+  if(date) date.textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const user = document.getElementById('primaryUser');
   if(user){
     const roleLabel = CURRENT_ROLE === 'ceo' ? 'CEO' : CURRENT_ROLE === 'manager' ? 'Manager' : CURRENT_ROLE === 'admin' ? 'Admin' : 'Buyer';
