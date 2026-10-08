@@ -3032,6 +3032,12 @@ function closeDateRangeModal(){
 let tripCode = '';               // resolved vendor code, or '' if none/unresolved
 let tripVendorAmbiguous = null;  // { raw, codes } or null -- see vendorNameLookup()
 let tripCpcFilter = '';          // Current Plan Code, or '' for all
+// Hiding a line is just a printing convenience -- "I don't want to show this
+// one to them" -- not a data filter, so it never touches KPIs, only which
+// rows the table itself renders. Per vendor session: reset whenever the
+// vendor changes (see change() below), not persisted across reloads.
+let tripHidden = new Set();      // Item Codes hidden from the printed list
+let tripShowHidden = false;      // true while reviewing/restoring hidden lines
 function tripVendorAmbiguousTip(){
   if(!tripVendorAmbiguous) return '';
   const showNames = canSeeVendorName();
@@ -3121,24 +3127,27 @@ function tripEmptyState(){
   '</div>';
 }
 function renderTripTable(rows){
-  const cols = '<th class="branch-sno">No</th><th>Range Name</th><th>CPC</th><th>Purchase Qty</th>' +
+  const cols = '<th class="trip-hide-col"></th><th class="branch-sno">No</th><th>Range Name</th><th>CPC</th><th>Purchase Qty</th>' +
     '<th>2XL Barcode No</th><th>Photo</th>' +
     '<th class="l">Description</th>' +
     '<th class="dr-soh">SOH</th><th>Sold (since Lrcv)</th>' +
     '<th>Recovery %</th><th>Disct%</th><th>Sale Mrg</th><th>Last Posting Date</th>';
   const body = rows.map((row, i) => {
     const { it, soh, sold } = row;
+    const code = it['Item Code'];
+    const hidden = tripHidden.has(code);
     const recTitle = sold == null ? 'No Lrcv Date on record' : 'SOH ' + soh.toLocaleString('en-US') + '  ·  Sold ' + sold.toLocaleString('en-US') + ' since last received';
     const recovery = sold == null
       ? '<span class="spark-empty" title="' + recTitle + '">—</span>'
       : miniVBar(soh, sold, recTitle, recTitle);
     const mrg = typeof it['MRG Factor'] === 'number' ? it['MRG Factor'].toFixed(2) + 'x' : '—';
-    return '<tr>' +
+    return '<tr class="' + (hidden ? 'trip-row-hidden' : '') + '">' +
+      '<td class="trip-hide-col"><input type="checkbox" class="trip-hide-cb" data-code="' + escHtml(code) + '"' + (hidden ? ' checked' : '') + ' title="Hide this line from the printed list"></td>' +
       '<td class="branch-sno">' + (i + 1) + '</td>' +
       '<td>' + escHtml(it['Range Name']) + '</td>' +
       '<td>' + escHtml(it['Current Plan Code']) + '</td>' +
       '<td>' + fmtInt(it['PO-Qty']) + '</td>' +
-      '<td>' + escHtml(it['Item Code']) + '</td>' +
+      '<td>' + escHtml(code) + '</td>' +
       '<td><span class="trip-photo-ph" title="Not yet available"></span></td>' +
       '<td class="l">' + escHtml(it['Description']) + '</td>' +
       '<td class="dr-soh">' + fmtInt(soh) + '</td>' +
@@ -3165,9 +3174,14 @@ function renderTrip(){
     ? allRows.filter(r => !tripCpcFilter || cpcOf(r) === tripCpcFilter)
         .sort((a, b) => a.it['Description'].localeCompare(b.it['Description']))
     : null;
+  // Hiding a line is a printing convenience, not a filter -- KPIs above
+  // still reflect every item for this vendor (rows), only the table itself
+  // drops hidden lines, unless tripShowHidden is on for review/restore.
+  const displayRows = rows && !tripShowHidden ? rows.filter(r => !tripHidden.has(r.it['Item Code'])) : rows;
+  const hiddenCount = rows ? rows.filter(r => tripHidden.has(r.it['Item Code'])).length : 0;
   const body = !tripCode ? tripEmptyState()
     : !rows.length ? '<p class="dr-empty">No items found for vendor ' + escHtml(tripCode) + (tripCpcFilter ? ' with CPC ' + escHtml(tripCpcFilter) : '') + '.</p>'
-    : renderTripSummary(tripCode, rows) + renderTripTable(rows);
+    : renderTripSummary(tripCode, rows) + renderTripTable(displayRows);
   root.innerHTML =
     '<div class="dash-hero"><div>' +
       '<div class="dash-date">Trip Requirement</div>' +
@@ -3182,6 +3196,9 @@ function renderTrip(){
         escHtml(tripVendorAmbiguous ? tripVendorAmbiguous.raw : tripCode) + '" title="' + escHtml(tripVendorAmbiguousTip()) + '" placeholder="Type a vendor code or name…" autocomplete="off">' +
         '</span>' + tripVendorOptionsHtml() + '</label>' +
       '<datalist id="tripVendorList">' + [...VENDOR_CODES].sort().map(v => '<option value="' + escHtml(v) + '">').join('') + '</datalist>' +
+      (hiddenCount ? '<button type="button" id="tripHiddenToggle" class="dash-btn ghost filters-active-btn trip-hidden-toggle">' +
+        (tripShowHidden ? 'Hide them again' : 'Show hidden lines (' + hiddenCount + ')') + '</button>' : '') +
+      (hiddenCount && tripShowHidden ? '<button type="button" id="tripRestoreAll" class="dash-btn ghost">Restore all ' + hiddenCount + '</button>' : '') +
       (tripCode ? '<label>CPC<select id="tripCpc">' +
         '<option value="">All</option>' +
         cpcOptions.map(v => '<option' + (v === tripCpcFilter ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('') +
@@ -3199,7 +3216,10 @@ function renderTrip(){
     else if(lookup.type === 'empty') tripCode = '';
     // 'ambiguous' leaves tripCode untouched -- don't guess which vendor was meant
     tripVendorAmbiguous = lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null;
-    if(tripCode !== prevCode) tripCpcFilter = '';   // a CPC that doesn't exist for the new vendor shouldn't linger
+    if(tripCode !== prevCode){
+      tripCpcFilter = '';   // a CPC that doesn't exist for the new vendor shouldn't linger
+      tripHidden = new Set(); tripShowHidden = false;   // hidden lines belong to the old vendor's sheet, not this one
+    }
     renderTrip();
   };
   const vendorInput = $('tripVendor');
@@ -3241,6 +3261,15 @@ function renderTrip(){
     tripCpcFilter = cpcSelect.value;
     renderTrip();
   });
+  root.querySelectorAll('.trip-hide-cb').forEach(cb => cb.addEventListener('change', () => {
+    if(cb.checked) tripHidden.add(cb.dataset.code);
+    else tripHidden.delete(cb.dataset.code);
+    renderTrip();
+  }));
+  const hiddenToggle = $('tripHiddenToggle');
+  if(hiddenToggle) hiddenToggle.addEventListener('click', () => { tripShowHidden = !tripShowHidden; renderTrip(); });
+  const restoreAll = $('tripRestoreAll');
+  if(restoreAll) restoreAll.addEventListener('click', () => { tripHidden = new Set(); tripShowHidden = false; renderTrip(); });
 }
 
 /* "Focus": a specific set of items handed over by the dashboard (e.g. "Reorder

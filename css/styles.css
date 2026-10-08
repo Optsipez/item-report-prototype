@@ -492,6 +492,16 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    columns use higher-specificity selectors and win regardless). */
 .trip-wrap table.matrix tbody tr:nth-child(even) td:not(.dr-soh){background:var(--s-25);}
 .trip-wrap table.matrix tbody tr:hover td:not(.dr-soh){background:var(--s-100);}
+/* Hide-this-line checkbox -- narrow, no header label needed (its purpose is
+   obvious from the checkbox itself + its title tooltip). Checking it drops
+   the row from the printed list; "Show hidden lines" brings it back into
+   view here, dimmed + struck through, so it's still checked and one click
+   restores it. */
+.trip-hide-col{width:1%;padding:0 4px;text-align:center;}
+.trip-hide-cb{margin:0;accent-color:var(--primary);cursor:pointer;}
+.trip-row-hidden td{opacity:.45;text-decoration:line-through;}
+.trip-row-hidden td.trip-hide-col{opacity:1;text-decoration:none;}
+.trip-hidden-toggle{white-space:nowrap;}
 .dash-h{margin:var(--sp-6) 0 var(--sp-3);font-size:var(--fs-lg);font-weight:650;color:var(--ink);letter-spacing:-.01em;display:flex;align-items:baseline;gap:var(--sp-3);flex-wrap:wrap;}
 .dash-h span{font-size:var(--fs-sm);font-weight:500;color:var(--ink-faint);}
 .dash-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-4);margin-bottom:var(--sp-4);}
