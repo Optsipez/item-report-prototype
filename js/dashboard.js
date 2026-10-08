@@ -376,7 +376,7 @@ function dashActions(R){
   const showVendor = canSeeVendorName();
   const vname = c => showVendor ? (R.vendorName[c] || c) : c;
   const poTable = rows => '<table class="dash-table"><thead><tr><th class="l po">PO</th><th class="l vend">Vendor</th><th>Lines</th><th>Units</th><th>ETA</th><th>Late by</th></tr></thead><tbody>' +
-    rows.slice(0, 10).map(p =>
+    rows.map(p =>
       '<tr><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l muted" title="' + dashEsc(vname(p.vendor)) + '">' + dashEsc(vname(p.vendor)) + '</td>' +
       '<td>' + p.lines + '</td><td>' + dashInt(p.units) + '</td><td>' + dashEsc(dashDate(p.eta)) + '</td><td class="bad">' + p.late + ' d</td></tr>').join('') + '</tbody></table>';
 
@@ -386,13 +386,13 @@ function dashActions(R){
       note: dashReorderMode === 'recovery'
         ? 'Selling items (Plan Codes A, K, C and P only) with Recovery % (sold since the last receipt ÷ (sold since + SOH)) over ' + dashReorderRecoveryPct + '% (adjustable below; 30 is the default). Ranked by Recovery%, highest first. Buyers order per vendor; click a vendor to open its items in All Products.'
         : 'Selling items (Plan Codes A, K, C and P only) whose combined cover — stock (SM) plus what’s already on order (PM), both in months at the item’s own best-average sales pace — is under ' + dashReorderMonths + ' months (adjustable below; 5 is the default). Ranked by combined cover, least first. Buyers order per vendor; click a vendor to open its items in All Products.',
-      table: '<table class="dash-table"><thead><tr><th class="l vend">Vendor</th><th>CPC</th><th>SKUs</th><th>' + (dashReorderMode === 'recovery' ? 'Avg Recovery%' : 'Avg Cover') + '</th><th>Sales at risk / mo</th></tr></thead><tbody>' +
-          R.reorderVendors.slice(0, 10).map(g => '<tr class="dash-pick" data-vendor="' + dashEsc(g.vendor) + '" data-goto="reorder" title="Open this vendor’s items in All Products"><td class="l"><b>' + dashEsc(vname(g.vendor)) + '</b></td><td class="plan-cell dash-cpc">' + ['A', 'K', 'C', 'P'].filter(p => g.plans.has(p)).join(' ') + '</td><td>' + g.items + '</td><td>' + (dashReorderMode === 'recovery' ? (g.avgRecovery == null ? '—' : Math.round(g.avgRecovery) + '%') : g.avgCover.toFixed(1) + ' mo') + '</td><td><b>AED ' + dashCompact(g.atRisk) + '</b></td></tr>').join('') + '</tbody></table>',
+      table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>CPC</th><th class="l vend">Vendor</th><th>' + (dashReorderMode === 'recovery' ? 'Recovery%' : 'Cover') + '</th><th>Sales at risk / mo</th></tr></thead><tbody>' +
+          R.reorder.map(x => '<tr>' + dashItemCell(x.it) + dashPlanCell(x.it) + '<td class="l muted">' + dashEsc(vname(x.it['Vendor Code'])) + '</td><td>' + (dashReorderMode === 'recovery' ? (x.recovery == null ? '—' : Math.round(x.recovery) + '%') : (x.sm + x.pm).toFixed(1) + ' mo') + '</td><td><b>AED ' + dashCompact(x.atRisk) + '</b></td></tr>').join('') + '</tbody></table>',
       codes: R.reorder.map(x => x.it['Item Code']), sort: null },
     { id: 'oos', title: 'Out of stock, no PO', n: R.oos.length, sub: 'selling, none on hand, nothing on order', tone: 'bad',
       note: 'Sold in the last 3 months, no stock, and no open PO: the items losing sales right now. Plan Codes A, K, C and P only.',
       table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>CPC</th><th class="l vend">Vendor</th><th>Sold / mo</th><th>Sold (3 mo)</th><th>Lead time</th></tr></thead><tbody>' +
-        R.oos.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + dashPlanCell(x.it) + '<td class="l muted">' + dashEsc(vname(x.it['Vendor Code'])) + '</td><td>' + x.rate.toFixed(1) + '</td><td>' + dashInt(x.s3) + '</td><td>' + dashInt(dashLeadDays(x.it['Vendor Code'])) + ' d</td></tr>').join('') + '</tbody></table>',
+        R.oos.map(x => '<tr>' + dashItemCell(x.it) + dashPlanCell(x.it) + '<td class="l muted">' + dashEsc(vname(x.it['Vendor Code'])) + '</td><td>' + x.rate.toFixed(1) + '</td><td>' + dashInt(x.s3) + '</td><td>' + dashInt(dashLeadDays(x.it['Vendor Code'])) + ' d</td></tr>').join('') + '</tbody></table>',
       codes: R.oos.map(x => x.it['Item Code']), sort: null },
     { id: 'late', title: 'Late POs', n: R.latePOs.length, sub: dashInt(R.lateUnits) + ' units past ETA', tone: 'bad',
       note: 'Open POs whose ETA was before ' + dashDate(DATA_AS_OF) + ' (the data date) and are still not received.',
@@ -400,7 +400,7 @@ function dashActions(R){
     { id: 'over', title: 'Overstock / slow', n: R.over.length, sub: 'AED ' + dashCompact(R.overValue) + ' tied up', tone: '',
       note: 'Stock 6+ months old with over 12 months of cover at the recent pace, or no sales at all. Largest first. Margin = (price − landed cost) ÷ price at today’s price, so it is also roughly how deep a markdown can go before selling at cost.',
       table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>Stock</th><th>Cover</th><th>Age</th><th>Tied up (AED)</th><th>Price</th><th>Margin</th></tr></thead><tbody>' +
-        R.over.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + '<td>' + dashInt(x.soh) + '</td><td>' + (x.cover == null ? 'no sales' : x.cover.toFixed(0) + ' mo') + '</td><td>' + dashEsc(x.age) + '</td><td><b>' + dashInt(x.tied) + '</b></td><td>' + (x.price ? dashInt(x.price) : '—') + '</td><td class="' + (x.margin != null && x.margin < 0.15 ? 'bad' : '') + '">' + (x.margin == null ? '—' : Math.round(x.margin * 100) + '%') + '</td></tr>').join('') + '</tbody></table>',
+        R.over.map(x => '<tr>' + dashItemCell(x.it) + '<td>' + dashInt(x.soh) + '</td><td>' + (x.cover == null ? 'no sales' : x.cover.toFixed(0) + ' mo') + '</td><td>' + dashEsc(x.age) + '</td><td><b>' + dashInt(x.tied) + '</b></td><td>' + (x.price ? dashInt(x.price) : '—') + '</td><td class="' + (x.margin != null && x.margin < 0.15 ? 'bad' : '') + '">' + (x.margin == null ? '—' : Math.round(x.margin * 100) + '%') + '</td></tr>').join('') + '</tbody></table>',
       codes: R.over.map(x => x.it['Item Code']), sort: [{ field: 'SOH', dir: 'desc' }] },
   ];
   dashActionTabs = tabs;
@@ -412,7 +412,7 @@ function dashActions(R){
   // scrolling, same as Rising/Falling/Landing soon already were. The tiles
   // above are now just KPI summaries that scroll-jump to their own section.
   const sectionsHtml = tabs.map(cur =>
-    '<section class="dash-card dash-detail" id="dash-tab-' + cur.id + '"><div class="dash-detail-head"><h3>' + cur.title + ' <span>' + (cur.id === 'reorder' ? dashInt(R.reorderVendors.length) + ' vendors, ' + dashInt(cur.n) + ' items' + (R.reorderVendors.length > 10 ? ', top 10 vendors shown' : '') : dashInt(cur.n) + (cur.id === 'late' ? ' POs' : ' items') + (cur.n > 10 ? ', top 10 shown' : '')) + '</span></h3>' +
+    '<section class="dash-card dash-detail" id="dash-tab-' + cur.id + '"><div class="dash-detail-head"><h3>' + cur.title + ' <span>' + (cur.id === 'reorder' ? dashInt(R.reorderVendors.length) + ' vendors, ' + dashInt(cur.n) + ' items' : dashInt(cur.n) + (cur.id === 'late' ? ' POs' : ' items')) + '</span></h3>' +
       (cur.id === 'reorder' ? '<div class="dash-seg" id="dashReorderModeSeg">' +
           '<button type="button" data-mode="cover" class="' + (dashReorderMode === 'cover' ? 'on' : '') + '">Cover</button>' +
           '<button type="button" data-mode="recovery" class="' + (dashReorderMode === 'recovery' ? 'on' : '') + '">Recovery%</button>' +
@@ -522,13 +522,6 @@ function renderDashboard(){
     if(p) openGridFocus(p.po, p.codes, null);
   }));
   root.querySelectorAll('.dash-pick:not(.dash-po)').forEach(tr => tr.addEventListener('click', () => {
-    if(tr.dataset.goto === 'reorder'){
-      // Reorder is grouped by vendor only; clicking one opens its items
-      // straight into All Products instead of a second dashboard drill-down.
-      const items = R.reorder.filter(x => x.it['Vendor Code'] === tr.dataset.vendor).map(x => x.it['Item Code']);
-      openGridFocus('Reorder now – ' + vname(tr.dataset.vendor), items, null);
-      return;
-    }
     dashScope = { ...dashScope, vendor: tr.dataset.vendor }; dashSaveScope();
     renderDashboard();
     const target = document.getElementById('dash-tab-' + (tr.dataset.goto || 'late'));
