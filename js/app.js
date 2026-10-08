@@ -2647,6 +2647,15 @@ document.addEventListener('click', e => {
     renderDrScopeBar();
   }
 });
+// Trip Requirement's own CPC multiselect -- same click-outside-closes
+// behaviour as the date-range popup's, just its own open/closed flag since
+// the two never show at the same time.
+document.addEventListener('click', e => {
+  if(tripCpcOpen && !e.target.closest('.dr-ms-field')){
+    tripCpcOpen = false;
+    renderTrip();
+  }
+});
 function drVendorAmbiguousTip(){
   if(!drVendorAmbiguous) return '';
   const showNames = canSeeVendorName();
@@ -3031,7 +3040,8 @@ function closeDateRangeModal(){
    ============================================================ */
 let tripCode = '';               // resolved vendor code, or '' if none/unresolved
 let tripVendorAmbiguous = null;  // { raw, codes } or null -- see vendorNameLookup()
-let tripCpcFilter = '';          // Current Plan Code, or '' for all
+let tripCpcFilter = [];          // Current Plan Codes selected; [] = all
+let tripCpcOpen = false;         // whether the CPC multiselect panel is open
 // Hiding a line is just a printing convenience -- "I don't want to show this
 // one to them" -- not a data filter, so it never touches KPIs, only which
 // rows the table itself renders. Per vendor session: reset whenever the
@@ -3171,7 +3181,7 @@ function renderTrip(){
   const allRows = tripCode ? tripRows(tripCode) : null;
   const cpcOptions = allRows ? [...new Set(allRows.map(cpcOf).filter(Boolean))].sort() : [];
   const rows = allRows
-    ? allRows.filter(r => !tripCpcFilter || cpcOf(r) === tripCpcFilter)
+    ? allRows.filter(r => tripCpcFilter.length === 0 || tripCpcFilter.includes(cpcOf(r)))
         .sort((a, b) => a.it['Description'].localeCompare(b.it['Description']))
     : null;
   // Hiding a line is a printing convenience, not a filter -- KPIs above
@@ -3179,8 +3189,16 @@ function renderTrip(){
   // drops hidden lines, unless tripShowHidden is on for review/restore.
   const displayRows = rows && !tripShowHidden ? rows.filter(r => !tripHidden.has(r.it['Item Code'])) : rows;
   const hiddenCount = rows ? rows.filter(r => tripHidden.has(r.it['Item Code'])).length : 0;
+  const cpcSummary = tripCpcFilter.length === 0 ? 'All' : tripCpcFilter.length === 1 ? tripCpcFilter[0] : tripCpcFilter.length + ' selected';
+  const cpcFieldHtml = !tripCode ? '' : '<label class="dash-vendor-field dr-ms-field">CPC' +
+    '<button type="button" id="tripCpcBtn" class="dr-ms-btn' + (tripCpcFilter.length ? ' dr-ms-active' : '') + '">' + escHtml(cpcSummary) + '<span class="dr-ms-caret">▾</span></button>' +
+    (tripCpcOpen ? '<div class="dr-ms-panel" id="tripCpcPanel">' +
+        (tripCpcFilter.length ? '<button type="button" class="dr-ms-clear" id="tripCpcClear">Clear</button>' : '') +
+        cpcOptions.map(v => '<label class="dr-ms-opt' + (tripCpcFilter.includes(v) ? ' dr-ms-checked' : '') + '"><input type="checkbox" value="' + escHtml(v) + '"' + (tripCpcFilter.includes(v) ? ' checked' : '') + '><span class="dr-ms-lbl">' + escHtml(v) + '</span></label>').join('') +
+      '</div>' : '') +
+    '</label>';
   const body = !tripCode ? tripEmptyState()
-    : !rows.length ? '<p class="dr-empty">No items found for vendor ' + escHtml(tripCode) + (tripCpcFilter ? ' with CPC ' + escHtml(tripCpcFilter) : '') + '.</p>'
+    : !rows.length ? '<p class="dr-empty">No items found for vendor ' + escHtml(tripCode) + (tripCpcFilter.length ? ' with CPC ' + tripCpcFilter.map(escHtml).join(', ') : '') + '.</p>'
     : renderTripSummary(tripCode, rows) + renderTripTable(displayRows);
   root.innerHTML =
     '<div class="dash-hero"><div>' +
@@ -3199,10 +3217,7 @@ function renderTrip(){
       (hiddenCount ? '<button type="button" id="tripHiddenToggle" class="dash-btn ghost filters-active-btn trip-hidden-toggle">' +
         (tripShowHidden ? 'Hide them again' : 'Show hidden lines (' + hiddenCount + ')') + '</button>' : '') +
       (hiddenCount && tripShowHidden ? '<button type="button" id="tripRestoreAll" class="dash-btn ghost">Restore all ' + hiddenCount + '</button>' : '') +
-      (tripCode ? '<label>CPC<select id="tripCpc">' +
-        '<option value="">All</option>' +
-        cpcOptions.map(v => '<option' + (v === tripCpcFilter ? ' selected' : '') + '>' + escHtml(v) + '</option>').join('') +
-        '</select></label>' : '') +
+      cpcFieldHtml +
     '</div>' +
     body;
 
@@ -3217,7 +3232,7 @@ function renderTrip(){
     // 'ambiguous' leaves tripCode untouched -- don't guess which vendor was meant
     tripVendorAmbiguous = lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null;
     if(tripCode !== prevCode){
-      tripCpcFilter = '';   // a CPC that doesn't exist for the new vendor shouldn't linger
+      tripCpcFilter = []; tripCpcOpen = false;   // a CPC that doesn't exist for the new vendor shouldn't linger
       tripHidden = new Set(); tripShowHidden = false;   // hidden lines belong to the old vendor's sheet, not this one
     }
     renderTrip();
@@ -3256,11 +3271,20 @@ function renderTrip(){
     vendorInput.value = btn.dataset.code;
     change();
   }));
-  const cpcSelect = $('tripCpc');
-  if(cpcSelect) cpcSelect.addEventListener('change', () => {
-    tripCpcFilter = cpcSelect.value;
-    renderTrip();
-  });
+  const cpcBtn = $('tripCpcBtn');
+  if(cpcBtn) cpcBtn.addEventListener('click', e => { e.stopPropagation(); tripCpcOpen = !tripCpcOpen; renderTrip(); });
+  const cpcPanel = $('tripCpcPanel');
+  if(cpcPanel){
+    cpcPanel.addEventListener('click', e => e.stopPropagation());
+    cpcPanel.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', () => {
+      const set = new Set(tripCpcFilter);
+      if(cb.checked) set.add(cb.value); else set.delete(cb.value);
+      tripCpcFilter = [...set];
+      renderTrip();
+    }));
+  }
+  const cpcClear = $('tripCpcClear');
+  if(cpcClear) cpcClear.addEventListener('click', e => { e.stopPropagation(); tripCpcFilter = []; renderTrip(); });
   root.querySelectorAll('.trip-hide-cb').forEach(cb => cb.addEventListener('change', () => {
     if(cb.checked) tripHidden.add(cb.dataset.code);
     else tripHidden.delete(cb.dataset.code);
