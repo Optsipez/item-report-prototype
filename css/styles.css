@@ -840,6 +840,16 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
   position:sticky;top:56px;z-index:10;background:var(--canvas);
   padding-top:var(--sp-1);margin-top:calc(-1 * var(--sp-1));
 }
+/* Dashboard's equivalent: greeting + Show me scope bar + Needs attention
+   tiles stay pinned below the topbar while scrolling through the detail
+   card and everything beneath it -- same sticky pattern as Item Lookup's
+   .report-sticky above, just a taller block since the dashboard's header
+   carries more (the scope bar, the KPI tiles) than a single item-header
+   strip does. */
+.dash-sticky{
+  position:sticky;top:56px;z-index:10;background:var(--canvas);
+  padding-top:var(--sp-1);margin-top:calc(-1 * var(--sp-1));
+}
 
 /* header strip */
 .item-header{

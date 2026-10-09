@@ -408,10 +408,13 @@ function dashActions(R){
   if(!tabs.some(t => t.id === dashTab)) dashTab = (tabs.find(t => t.n > 0) || tabs[0]).id;
   const cur = tabs.find(t => t.id === dashTab);
   dashCurrentTab = cur;
-  return '<div class="dash-tiles">' + tabs.map(t =>
+  // Split in two -- the tiles sit inside the dashboard's frozen header band
+  // (see .dash-sticky in renderDashboard()), but the detail card below them
+  // scrolls normally, same as any other section.
+  const tilesHtml = '<div class="dash-tiles">' + tabs.map(t =>
       '<button type="button" class="dash-tile' + (t.id === dashTab ? ' on' : '') + (t.n && t.tone ? ' ' + t.tone : '') + '" data-tab="' + t.id + '">' +
-        '<span class="dash-tile-k">' + t.title + '</span><span class="dash-tile-v">' + dashInt(t.n) + '</span><span class="dash-tile-n">' + dashEsc(t.sub) + '</span></button>').join('') + '</div>' +
-    '<section class="dash-card dash-detail"><div class="dash-detail-head"><h3>' + cur.title + ' <span>' + (cur.id === 'reorder' ? dashInt(R.reorderVendors.length) + ' vendors, ' + dashInt(cur.n) + ' items' : dashInt(cur.n) + (cur.id === 'late' ? ' POs' : ' items') + (cur.id === 'over' && cur.n > 10 ? ', top 10 shown' : '')) + '</span></h3>' +
+        '<span class="dash-tile-k">' + t.title + '</span><span class="dash-tile-v">' + dashInt(t.n) + '</span><span class="dash-tile-n">' + dashEsc(t.sub) + '</span></button>').join('') + '</div>';
+  const detailHtml = '<section class="dash-card dash-detail"><div class="dash-detail-head"><h3>' + cur.title + ' <span>' + (cur.id === 'reorder' ? dashInt(R.reorderVendors.length) + ' vendors, ' + dashInt(cur.n) + ' items' : dashInt(cur.n) + (cur.id === 'late' ? ' POs' : ' items') + (cur.id === 'over' && cur.n > 10 ? ', top 10 shown' : '')) + '</span></h3>' +
       (cur.id === 'reorder' ? '<div class="dash-seg" id="dashReorderModeSeg">' +
           '<button type="button" data-mode="cover" class="' + (dashReorderMode === 'cover' ? 'on' : '') + '">Cover</button>' +
           '<button type="button" data-mode="recovery" class="' + (dashReorderMode === 'recovery' ? 'on' : '') + '">Recovery%</button>' +
@@ -422,6 +425,7 @@ function dashActions(R){
       (cur.n ? '<button type="button" class="dash-btn" id="dashOpenAll">Open ' + (cur.id === 'late' ? 'their ' + dashInt(cur.codes.length) + ' items' : 'all ' + dashInt(cur.n)) + ' in All Products &rarr;</button>' : '') + '</div>' +
       '<p class="dash-note">' + dashEsc(cur.note) + '</p>' +
       (cur.n ? (cur.id === 'over' ? cur.table : '<div class="dash-table-scroll">' + cur.table + '</div>') : '<p class="dash-empty">Nothing here for this selection. Good.</p>') + '</section>';
+  return { tilesHtml, detailHtml };
 }
 
 const dashPOCodes = pos => { const s = new Set(); pos.forEach(p => p.codes.forEach(c => s.add(c))); return s; };
@@ -533,14 +537,18 @@ function renderDashboard(){
   ].filter(Boolean);
   const scopeLine = (scopeParts.length ? scopeParts.join(' · ') + ' · ' : 'All ') + dashInt(R.items) + ' items';
 
+  const actions = dashActions(R);
   root.innerHTML =
+    '<div class="dash-sticky">' +
     '<div class="dash-hero"><div>' +
       '<div class="dash-date">' + dashEsc(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + '</div>' +
       '<h1 class="dash-greet">' + DASH_GREETINGS[dashGreetingIdx](dashEsc(dashName())) + '</h1>' +
       '<p class="dash-sub">' + dashSubtitle() + ' <span class="dash-asof">Data as of ' + dashEsc(dashDate(DATA_AS_OF)) + '.</span></p></div>' +
       '<div class="dash-links"><a class="dash-btn' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#products">All Products &rarr;</a><a class="dash-btn ghost' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#lookup">Item Lookup &rarr;</a></div></div>' +
     dashScopeBar() +
-    '<h2 class="dash-h">Needs attention <span>' + dashEsc(scopeLine) + '</span></h2>' + dashActions(R) +
+    '<h2 class="dash-h">Needs attention <span>' + dashEsc(scopeLine) + '</span></h2>' + actions.tilesHtml +
+    '</div>' +
+    actions.detailHtml +
     '<h2 class="dash-h">How it’s trading <span>last 3 complete months (' + dashEsc(winLabel) + ') vs the 3 before</span></h2>' +
     '<div class="dash-kpis">' +
       kpi('Units sold', dashCompact(R.sold3), delta == null ? 'no prior period' : (delta >= 0 ? '&#9650; ' : '&#9660; ') + Math.abs(delta).toFixed(0) + '% vs the 3 before', delta == null ? '' : (delta >= 0 ? 'up' : 'down')) +
