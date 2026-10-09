@@ -407,7 +407,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .filters-active-btn:hover{filter:brightness(.92);}
 .dash-asof{color:var(--ink-faint);font-size:var(--fs-sm);}
 .dash-scope{
-  display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--sp-4);padding:var(--sp-4) var(--sp-5);margin-bottom:var(--sp-5);
+  display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--sp-4);padding:var(--sp-3) var(--sp-5);margin-bottom:var(--sp-3);
   background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-xs);
 }
 /* The popup's own copy of this bar -- no card, no "Show me" label, sits
@@ -419,8 +419,13 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    Plan on its own after 6 others fill row 1) stretches to fill the row
    instead of leaving a big empty gap -- a fixed grid column count can't do
    that when the field count doesn't divide evenly. */
-.dash-scope-head{flex-basis:100%;display:flex;align-items:center;gap:var(--sp-3);margin-bottom:9px;}
+.dash-scope-head{flex-basis:100%;display:flex;align-items:center;gap:var(--sp-3);margin-bottom:4px;}
 .dash-scope-t{font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--ink-faint);}
+/* "Show everything" is a plain .dash-btn everywhere else it's reused (full
+   size, matches the All Products/Item Lookup hero buttons) -- here it sits
+   inline with the small uppercase "Show me" label, so the usual size reads
+   oversized next to it. Scoped down just in this one spot. */
+.dash-scope-head .dash-btn{padding:4px 10px;font-size:var(--fs-xs);}
 /* 150px, not 170 -- at the dashboard's capped content width (1240px), 7
    fields need to fit in one line: (1240 - padding - 6 gaps) / 7 ≈ 153px is
    the most room there is, so 150 is the widest basis that still lets every
