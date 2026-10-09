@@ -3088,7 +3088,14 @@ function tripRows(code){
     const soh = sohValue(it);
     const sold = tripSoldSinceReceipt(it);
     const pct = sold == null ? null : sellThroughPct(sold, soh);
-    return { it, soh, sold, pct };
+    // How much of the LAST receipt specifically has sold since -- a
+    // narrower read than Recovery % (which weighs against everything still
+    // on hand now, not just that one shipment). Can run over 100% if stock
+    // from before that receipt sold too. '' Lrcv Qty, same as '' Lrcv Date,
+    // means null (no receipt to compare against), not a real zero.
+    const lrcvQty = Number(it['Lrcv Qty']) || 0;
+    const pctOfLrcv = sold != null && lrcvQty > 0 ? (sold / lrcvQty) * 100 : null;
+    return { it, soh, sold, pct, pctOfLrcv };
   });
 }
 // Headline numbers for the resolved vendor, shown as a KPI strip above the
@@ -3141,9 +3148,9 @@ function renderTripTable(rows){
     '<th>2XL Barcode No</th><th>Photo</th>' +
     '<th class="l">Description</th>' +
     '<th class="dr-soh">SOH</th><th>Sold (since Lrcv)</th>' +
-    '<th>Recovery %</th><th>Disct%</th><th>Sale Mrg</th><th>Last Posting Date</th>';
+    '<th>Recovery %</th><th>Sold/Lrcv Qty %</th><th>Disct%</th><th>Sale Mrg</th><th>Last Posting Date</th>';
   const body = rows.map((row, i) => {
-    const { it, soh, sold } = row;
+    const { it, soh, sold, pctOfLrcv } = row;
     const code = it['Item Code'];
     const hidden = tripHidden.has(code);
     const recTitle = sold == null ? 'No Lrcv Date on record' : 'SOH ' + soh.toLocaleString('en-US') + '  ·  Sold ' + sold.toLocaleString('en-US') + ' since last received';
@@ -3165,6 +3172,7 @@ function renderTripTable(rows){
       '<td class="dr-soh">' + fmtInt(soh) + '</td>' +
       '<td>' + (sold == null ? '—' : fmtInt(sold)) + '</td>' +
       '<td>' + recovery + '</td>' +
+      '<td>' + (pctOfLrcv == null ? '—' : Math.round(pctOfLrcv) + '%') + '</td>' +
       '<td>' + fmtPct(it['Disct%']) + '</td>' +
       '<td>' + mrg + '</td>' +
       '<td>' + fmtLrcvDate(it['Lrcv Date']) + '</td>' +
