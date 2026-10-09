@@ -846,8 +846,17 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    a small shift right in the gap above the date. flow-root blocks the
    collapse outright, cleaner than the old padding-top/negative-margin-top
    cancellation trick this used to use for the same purpose. */
+/* will-change:transform -- forces this onto its own GPU-composited layer.
+   Without it, a sticky element's per-frame reposition during real trackpad/
+   wheel scrolling can be handled on the main thread instead of the
+   compositor, which can visibly stutter/jitter by a pixel or more even
+   though the calculated end position (checked programmatically, bypassing
+   the compositor entirely) is exactly correct -- that mismatch is why this
+   never showed up in position testing but is still visible scrolling for
+   real. */
 .report-sticky{
   position:sticky;top:56px;z-index:10;background:var(--canvas);display:flow-root;
+  will-change:transform;
 }
 /* Dashboard's equivalent: greeting + Show me scope bar + Needs attention
    tiles stay pinned below the topbar while scrolling through the detail
@@ -857,6 +866,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    strip does. */
 .dash-sticky{
   position:sticky;top:56px;z-index:10;background:var(--canvas);display:flow-root;
+  will-change:transform;
 }
 
 /* header strip */
