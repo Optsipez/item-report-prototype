@@ -618,10 +618,12 @@ function renderDashboard(){
   const actions = dashActions(R);
   root.innerHTML =
     '<div class="dash-sticky">' +
-    '<div class="dash-hero"><div>' +
-      '<div class="dash-date">' + dashEsc(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + '</div>' +
-      '<h1 class="dash-greet">' + DASH_GREETINGS[dashGreetingIdx](dashEsc(dashName())) + '</h1>' +
-      '<p class="dash-sub">' + dashSubtitle() + ' <span class="dash-asof">Data as of ' + dashEsc(dashDate(DATA_AS_OF)) + '.</span></p></div>' +
+    '<div class="dash-hero">' +
+      '<div class="dash-hero-line">' +
+        '<span class="dash-date">' + dashEsc(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + '</span>' +
+        '<h1 class="dash-greet">' + DASH_GREETINGS[dashGreetingIdx](dashEsc(dashName())) + '</h1>' +
+        '<p class="dash-sub">' + dashSubtitle() + ' <span class="dash-asof">Data as of ' + dashEsc(dashDate(DATA_AS_OF)) + '.</span></p>' +
+      '</div>' +
       '<div class="dash-links"><a class="dash-btn' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#products">All Products &rarr;</a><a class="dash-btn ghost' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#lookup">Item Lookup &rarr;</a></div></div>' +
     dashScopeBar() +
     '<h2 class="dash-h">Needs attention <span>' + dashEsc(scopeLine) + '</span></h2>' + actions.tilesHtml +
