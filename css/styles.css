@@ -836,9 +836,18 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    identity + key numbers stay visible while scrolling through the Branch
    Wise table or Overview matrices beneath. Opaque background so content
    scrolling under it doesn't show through once stuck. */
+/* display:flow-root -- establishes a new block formatting context so a
+   child's top margin (.dash-hero below has margin-top:12px) can't collapse
+   straight through this box and out the top. A sticky element's resting
+   vs. stuck position both still compute fine either way, but letting that
+   margin escape makes the browser's per-frame sticky-offset math use an
+   inconsistent reference during continuous scrolling (not just the one
+   clean jump a position check at fixed scroll values shows) -- visible as
+   a small shift right in the gap above the date. flow-root blocks the
+   collapse outright, cleaner than the old padding-top/negative-margin-top
+   cancellation trick this used to use for the same purpose. */
 .report-sticky{
-  position:sticky;top:56px;z-index:10;background:var(--canvas);
-  padding-top:var(--sp-1);margin-top:calc(-1 * var(--sp-1));
+  position:sticky;top:56px;z-index:10;background:var(--canvas);display:flow-root;
 }
 /* Dashboard's equivalent: greeting + Show me scope bar + Needs attention
    tiles stay pinned below the topbar while scrolling through the detail
@@ -847,8 +856,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    carries more (the scope bar, the KPI tiles) than a single item-header
    strip does. */
 .dash-sticky{
-  position:sticky;top:56px;z-index:10;background:var(--canvas);
-  padding-top:var(--sp-1);margin-top:calc(-1 * var(--sp-1));
+  position:sticky;top:56px;z-index:10;background:var(--canvas);display:flow-root;
 }
 
 /* header strip */
