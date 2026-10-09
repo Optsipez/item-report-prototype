@@ -3401,7 +3401,7 @@ function renderGrid(){
   jumpEl.placeholder = (gridPage + 1) + '/' + totalPages;
   document.getElementById('gridPrevBtn').disabled = gridPage <= 0;
   document.getElementById('gridNextBtn').disabled = gridPage >= totalPages - 1;
-  document.getElementById('clearSortBtn').hidden = gridSort.length === 0 && !gridGroup;
+  document.getElementById('clearSortBtn').classList.toggle('active', gridSort.length > 0 || !!gridGroup);
   if(oldRowTops) flipRows(table.querySelector('tbody'), 'tr[data-code]', 'code', oldRowTops);
   flipGridRows = false;
   if(colResizeActive){

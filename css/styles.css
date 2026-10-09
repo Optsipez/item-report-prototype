@@ -1306,6 +1306,21 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 }
 .grid-actions button:hover{border-color:var(--primary-line);color:var(--primary);background:var(--primary-weak);box-shadow:var(--sh-xs);}
 .grid-actions button:active{transform:translateY(1px);box-shadow:none;}
+/* Clear sort now lives in the title row next to Go to page, not the
+   .grid-actions row below -- same look as those buttons (duplicated here
+   since it's no longer a .grid-actions descendant), always visible like
+   Collapse/Expand/Oman rather than popping in/out, and tinted gold -- same
+   "on" look as .oman-toggle.incl-om -- whenever there's an actual sort or
+   group to clear, so its own color is the only signal needed. */
+#clearSortBtn{
+  background:var(--panel);border:1px solid var(--line-strong);border-radius:var(--r-sm);
+  font-size:var(--fs-xs);font-weight:600;color:var(--ink);padding:7px 13px;cursor:pointer;
+  white-space:nowrap;
+  transition:border-color var(--t-fast),color var(--t-fast),background var(--t-fast),box-shadow var(--t-fast),transform var(--t-fast);
+}
+#clearSortBtn:hover{border-color:var(--primary-line);color:var(--primary);background:var(--primary-weak);box-shadow:var(--sh-xs);}
+#clearSortBtn:active{transform:translateY(1px);box-shadow:none;}
+#clearSortBtn.active{background:var(--primary-weak);color:var(--primary-hover);border-color:var(--primary-line);}
 
 /* From / To date fields — a compact pill matching the toolbar buttons beside it (same
    height/border/radius): a small label, a text box for typing DD-MMM-YY, and a calendar
