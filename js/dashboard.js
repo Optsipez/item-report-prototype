@@ -34,13 +34,18 @@ let dashGreetingIdx = Math.floor(Math.random() * DASH_GREETINGS.length);
 // A fresh pick each time someone signs in (called from auth.js's enterApp).
 function reshuffleDashGreeting(){
   dashGreetingIdx = Math.floor(Math.random() * DASH_GREETINGS.length);
-  dashScope = null; dashTab = null;      // the next person gets their own remembered scope
+  dashScope = null; dashTab = null; dashHeaderCollapsed = false;      // the next person gets their own remembered scope
 }
 
 const DAY = 86400000;
 let dashTab = null;                // which action list is open
 let dashScope = null;              // { dept, cat, vendor } — loaded per employee
 let dashCurrentTab = null;
+// The frozen header (Show me + Needs attention tiles) can be collapsed down
+// to just the greeting line, independently of it being frozen -- freeze
+// and collapse are two different axes (pinned-or-not, shown-or-not), not
+// a single either/or toggle.
+let dashHeaderCollapsed = false;
 let dashReorderMode = 'cover';     // 'cover' (SM+PM) | 'recovery' (Recovery%) -- buyer's choice of lens
 let dashReorderMonths = 5;         // Cover mode's cutoff (SM+PM < this), editable in the UI
 let dashReorderRecoveryPct = 30;   // Recovery mode's cutoff (Recovery% > this), editable in the UI
@@ -624,9 +629,11 @@ function renderDashboard(){
         '<h1 class="dash-greet">' + DASH_GREETINGS[dashGreetingIdx](dashEsc(dashName())) + '</h1>' +
         '<p class="dash-sub">' + dashSubtitle() + ' <span class="dash-asof">Data as of ' + dashEsc(dashDate(DATA_AS_OF)) + '.</span></p>' +
       '</div>' +
-      '<div class="dash-links"><a class="dash-btn' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#products">All Products &rarr;</a><a class="dash-btn ghost' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#lookup">Item Lookup &rarr;</a></div></div>' +
-    dashScopeBar() +
-    '<h2 class="dash-h">Needs attention <span>' + dashEsc(scopeLine) + '</span></h2>' + actions.tilesHtml +
+      '<div class="dash-links"><a class="dash-btn' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#products">All Products &rarr;</a><a class="dash-btn ghost' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#lookup">Item Lookup &rarr;</a>' +
+        '<button type="button" class="dash-btn ghost" id="dashHeaderToggle" title="' + (dashHeaderCollapsed ? 'Show the Show me bar and Needs attention tiles' : 'Hide the Show me bar and Needs attention tiles, keep just this line') + '">' + (dashHeaderCollapsed ? 'Expand &#9662;' : 'Collapse &#9652;') + '</button>' +
+      '</div></div>' +
+    (dashHeaderCollapsed ? '' : dashScopeBar() +
+      '<h2 class="dash-h">Needs attention <span>' + dashEsc(scopeLine) + '</span></h2>' + actions.tilesHtml) +
     '</div>' +
     actions.detailHtml +
     '<h2 class="dash-h">How it’s trading <span>last 3 complete months (' + dashEsc(winLabel) + ') vs the 3 before</span></h2>' +
@@ -709,6 +716,14 @@ function renderDashboard(){
     const c = dashCurrentTab;
     openGridFocus(c.title + (scopeParts.length ? ' – ' + scopeParts.join(' · ') : ''), c.codes, c.sort);
   });
+  // The whole Show me bar is absent from the DOM when the header's
+  // collapsed (see dashHeaderCollapsed above) -- every lookup in this
+  // block assumes its field exists, so skip it entirely rather than
+  // guarding each one. Without this, the first collapse-triggered
+  // re-render throws partway through (e.g. $('dashDept').addEventListener
+  // on null) and never reaches the toggle's own re-wiring below it,
+  // silently breaking the second click.
+  if(!dashHeaderCollapsed){
   const change = () => {
     const raw = $('dashVendor').value;
     const lookup = vendorNameLookup(raw);
@@ -774,6 +789,9 @@ function renderDashboard(){
   })();
   const reset = $('dashReset');
   if(reset) reset.addEventListener('click', () => { dashScope = { ...DASH_SCOPE_DEFAULTS }; dashSaveScope(); renderDashboard(); });
+  }
+  const headerToggle = $('dashHeaderToggle');
+  if(headerToggle) headerToggle.addEventListener('click', () => { dashHeaderCollapsed = !dashHeaderCollapsed; renderDashboard(); });
 }
 // app.js can run its first route before this file has loaded; cover that.
 if(document.getElementById('viewDash') && document.getElementById('viewDash').classList.contains('active')) renderDashboard();
