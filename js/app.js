@@ -653,13 +653,16 @@ const viewDash = document.getElementById('viewDash');
 const navTrip = document.getElementById('navTrip');
 const viewTrip = document.getElementById('viewTrip');
 const viewPO = document.getElementById('viewPO');
+const navPOData = document.getElementById('navPOData');
+const viewPOData = document.getElementById('viewPOData');
 
 function setView(view){
-  const isLookup = view === 'lookup', isDash = view === 'dashboard', isAll = view === 'all', isTrip = view === 'trip', isPO = view === 'po';
+  const isLookup = view === 'lookup', isDash = view === 'dashboard', isAll = view === 'all', isTrip = view === 'trip', isPO = view === 'po', isPOData = view === 'podata';
   navDash.classList.toggle('active', isDash);
   navLookup.classList.toggle('active', isLookup);
   navAll.classList.toggle('active', isAll);
   navTrip.classList.toggle('active', isTrip);
+  navPOData.classList.toggle('active', isPOData);
   railLookup.classList.toggle('active', isLookup);
   railAll.classList.toggle('active', isAll);
   viewDash.classList.toggle('active', isDash);
@@ -667,15 +670,17 @@ function setView(view){
   viewAll.classList.toggle('active', isAll);
   viewTrip.classList.toggle('active', isTrip);
   viewPO.classList.toggle('active', isPO);
-  // The dashboard (and Trip Requirement / PO Detail, same single-column
-  // layout) is full-width: no filter rail, no rail-sized left margin.
-  document.body.classList.toggle('view-dashboard', isDash || isTrip || isPO);
+  viewPOData.classList.toggle('active', isPOData);
+  // The dashboard (and Trip Requirement / PO Detail / PO Data, same
+  // single-column layout) is full-width: no filter rail, no rail-sized
+  // left margin.
+  document.body.classList.toggle('view-dashboard', isDash || isTrip || isPO || isPOData);
   // .main's left padding is trimmed to 22px (not the usual 32px) specifically
   // for the grid's frozen columns (see the comment on .main in styles.css) —
   // Item Lookup has no such column to align with, so that tight padding just
   // read as its title/text crowding the rail's edge. .flush restores the
   // fuller padding for this view only, leaving the grid's alignment alone.
-  document.querySelector('.main').classList.toggle('flush', isLookup || isDash || isTrip || isPO);
+  document.querySelector('.main').classList.toggle('flush', isLookup || isDash || isTrip || isPO || isPOData);
   if(isAll) renderGrid();
   if(isTrip) renderTrip();
   if(typeof syncTopbarWidth === 'function') syncTopbarWidth();
@@ -738,6 +743,7 @@ function routeFromHash(){
   if(h.indexOf('po=') === 0) return { view: 'po', po: h.slice(3) };
   if(h === 'lookup') return { view: 'lookup', code: null };
   if(h === 'trip') return { view: 'trip' };
+  if(h === 'podata') return { view: 'podata' };
   // No hash = a fresh visit or a just-signed-in user: land on the dashboard.
   if(h === '' || h === 'dashboard') return { view: 'dashboard' };
   return { view: 'all' };
@@ -765,6 +771,10 @@ function applyRoute(route){
   } else if(route.view === 'po'){
     if(typeof renderPOPage === 'function') renderPOPage(route.po);
     setView('po');
+    window.scrollTo({ top: 0, left: 0 });
+  } else if(route.view === 'podata'){
+    if(typeof renderPOData === 'function') renderPOData();
+    setView('podata');
     window.scrollTo({ top: 0, left: 0 });
   } else {
     setView('all');                       // rebuilds the grid
@@ -804,6 +814,7 @@ navLookup.addEventListener('click', () =>
 navAll.addEventListener('click', () => navigate('products'));
 navDash.addEventListener('click', () => navigate('dashboard'));
 navTrip.addEventListener('click', () => navigate('trip'));
+navPOData.addEventListener('click', () => navigate('podata'));
 document.querySelector('.topbar .brand').addEventListener('click', () => navigate('dashboard'));
 
 /* ============================================================

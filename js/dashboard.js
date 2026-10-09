@@ -492,6 +492,84 @@ function renderPOPage(poNo){
   if(openAll) openAll.addEventListener('click', () => openGridFocus(poNo, lines.map(l => l[1]), null));
 }
 
+/* ---------- PO Data page (reached via #podata, the "PO Data" nav button)
+   ----------
+   Every open PO, grouped Vendor -> PO No, matching the PO Approval Ship Dt
+   sheet's structure -- with Vendor/PO/Grand Total band rows standing in
+   for the Excel's merged-cell row groups. Territory is kept as its own
+   leading column so it's ready to actually group by once that data exists
+   (see renderPOPage's header comment -- never imported, always "—" today);
+   this page just doesn't bother with per-territory subtotal bands yet
+   since every row currently shares the one blank value, which would make
+   that band identical to the Grand Total.
+   Unlike the single-PO page, this one skips the rowspan-merged-shipment-
+   columns trick -- with ~4,300 lines across ~400 POs, plain repeated
+   per-row cells are far more robust than nested rowspans spanning
+   hundreds of interleaved total rows, for a look no less readable. */
+function renderPOData(){
+  const root = document.getElementById('poDataRoot');
+  if(!root) return;
+  const showVendor = canSeeVendorName();
+  const vname = c => showVendor ? (VENDOR_CODE_TO_NAME[c] || c) : c;
+
+  const byVendor = {};
+  PO_LINES.forEach(l => {
+    const po = l[0], vendor = l[5];
+    if(!byVendor[vendor]) byVendor[vendor] = {};
+    if(!byVendor[vendor][po]) byVendor[vendor][po] = { po, eta: l[4], lines: [] };
+    byVendor[vendor][po].lines.push(l);
+  });
+  const vendorCodes = Object.keys(byVendor).sort();
+
+  let grandQty = 0, grandValue = 0;
+  const bodyHtml = vendorCodes.map(vendor => {
+    const pos = byVendor[vendor];
+    const poNos = Object.keys(pos).sort();
+    let vendorQty = 0, vendorValue = 0;
+    const poRowsHtml = poNos.map(po => {
+      const group = pos[po];
+      let poQty = 0, poValue = 0;
+      const itemRows = group.lines.map(l => {
+        const [, code, desc, qty, eta] = l;
+        const it = DASH_ITEM_BY_CODE[code];
+        const puda = it ? it['PUDA Desc'] : '';
+        const plan = it ? dashPlan(it) : '';
+        const cat = l[7], dept = l[6];
+        const cost = it ? Number(it['L-Cost (Aed)']) || 0 : 0;
+        const value = cost * qty;
+        poQty += qty; poValue += value;
+        return '<tr><td>—</td><td class="l mono">' + dashEsc(vendor) + '</td>' +
+          '<td class="l po"><a ' + dashPOLink(po) + ' title="Open this PO"><b class="mono">' + dashEsc(po) + '</b></a></td>' +
+          '<td>—</td><td>—</td><td>' + dashDate(eta) + '</td><td>—</td><td>—</td><td>—</td>' +
+          dashItemCell({ 'Item Code': code, Description: desc }) +
+          '<td class="l">' + dashEsc(cat) + '</td><td class="l">' + dashEsc(dept) + '</td><td class="l">' + dashEsc(puda || '—') + '</td>' +
+          '<td class="plan-cell dash-cpc">' + dashEsc(plan || '—') + '</td><td>' + dashInt(qty) + '</td><td>—</td>' +
+          '<td>' + (cost ? 'AED ' + dashInt(value) : '—') + '</td></tr>';
+      }).join('');
+      vendorQty += poQty; vendorValue += poValue;
+      const poTotalRow = '<tr class="po-total-row"><td colspan="14"><b>' + dashEsc(po) + ' Total</b></td><td><b>' + dashInt(poQty) + '</b></td><td></td><td><b>' + (poValue ? 'AED ' + dashInt(poValue) : '—') + '</b></td></tr>';
+      return itemRows + poTotalRow;
+    }).join('');
+    grandQty += vendorQty; grandValue += vendorValue;
+    const vendorLabel = dashEsc(vendor) + (showVendor ? ' — ' + dashEsc(vname(vendor)) : '');
+    const vendorTotalRow = '<tr class="vendor-total-row"><td colspan="14"><b>' + vendorLabel + ' Total</b></td><td><b>' + dashInt(vendorQty) + '</b></td><td></td><td><b>' + (vendorValue ? 'AED ' + dashInt(vendorValue) : '—') + '</b></td></tr>';
+    return poRowsHtml + vendorTotalRow;
+  }).join('');
+  const grandTotalRow = '<tr class="grand-total-row"><td colspan="14"><b>Grand Total</b></td><td><b>' + dashInt(grandQty) + '</b></td><td></td><td><b>AED ' + dashInt(grandValue) + '</b></td></tr>';
+
+  root.innerHTML =
+    '<div class="dash-hero"><div>' +
+      '<div class="dash-date">PO Data</div>' +
+      '<h1 class="dash-greet">Every open PO</h1>' +
+      '<p class="dash-sub">' + dashInt(PO_LINES.length) + ' lines across ' + dashInt(Object.keys(byVendor).reduce((n, v) => n + Object.keys(byVendor[v]).length, 0)) + ' POs, ' + dashInt(vendorCodes.length) + ' vendors — grouped by vendor, then PO.</p>' +
+    '</div></div>' +
+    '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead><tr>' +
+      '<th>Territory</th><th class="l">Vendor</th><th class="l">PO No</th>' +
+      '<th>Ship Date</th><th>Revised-Ship</th><th>Revised-ETA</th><th>Status</th><th>Port Of Origin</th><th>Discharge Port</th>' +
+      '<th class="l">Item Code</th><th class="l">Description</th><th class="l">Catg</th><th class="l">Dpt</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th>Total</th>' +
+    '</tr></thead><tbody>' + bodyHtml + grandTotalRow + '</tbody></table></div>';
+}
+
 function dashScopeBar(){
   const uniq = f => [...new Set(ITEMS.map(i => i[f]).filter(Boolean))].sort();
   const opt = (arr, cur) => '<option value="">All</option>' + arr.map(v => '<option' + (v === cur ? ' selected' : '') + '>' + dashEsc(v) + '</option>').join('');

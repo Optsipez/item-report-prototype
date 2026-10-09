@@ -356,6 +356,17 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    just one PO). */
 #poRoot .po-ship{vertical-align:middle;background:var(--sunken);border-right:2px solid var(--line-strong);}
 #poRoot .po-total-row td{background:var(--sr-bg);color:var(--sr);border-top:2px solid var(--sr);border-bottom:none;}
+/* PO Data (every open PO) -- same no-wrap text-column fix as the single-PO
+   page, but this one page-scrolls vertically (no height cap -- it's a
+   dedicated full page, not a card competing for space) while still
+   scrolling horizontally for its ~18 columns. Three total-row tiers (PO,
+   Vendor, Grand) step up in visual weight so the eye can tell which level
+   just closed without reading the label. */
+#poDataRoot .dash-table td.l{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;}
+#poDataRoot .podata-scroll{max-height:none;overflow-x:auto;overflow-y:visible;}
+#poDataRoot .po-total-row td{background:var(--sr-bg);color:var(--sr);border-top:2px solid var(--sr);border-bottom:none;}
+#poDataRoot .vendor-total-row td{background:var(--primary-weak);color:var(--primary-hover);border-top:2px solid var(--primary);border-bottom:none;font-size:var(--fs-sm);}
+#poDataRoot .grand-total-row td{background:var(--ink);color:#fff;border-top:none;border-bottom:none;font-size:var(--fs-md);padding-top:12px;padding-bottom:12px;}
 .dash-table th.item{width:54%;}
 .dash-table td.po,.dash-table th.po{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;width:1%;padding-right:14px;}
 .dash-table td.vcode,.dash-table th.vcode{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;width:1%;padding-right:14px;}

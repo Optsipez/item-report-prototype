@@ -78,12 +78,14 @@ const PRIMARY_ICONS = {
   products: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>',
   trip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>',
   lookup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>',
+  podata: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6"></path><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line></svg>',
 };
 const PRIMARY_VIEWS = [
   { label: 'Dashboard',        desc: 'Business overview & KPIs', hash: 'dashboard', accent: '--primary', accentBg: '--primary-weak', roles: ['buyer', 'manager', 'ceo', 'admin'] },
   { label: 'All Products',     desc: 'Full inventory grid',      hash: 'products',  accent: '--stock',   accentBg: '--stock-bg',     roles: ['buyer', 'manager', 'ceo', 'admin'] },
   { label: 'Trip Requirement', desc: 'Vendor trip planning',     hash: 'trip',       accent: '--sr',      accentBg: '--sr-bg',        roles: ['buyer', 'manager', 'ceo', 'admin'] },
   { label: 'Item Lookup',      desc: 'Single item detail',       hash: 'lookup',     accent: '--soh',     accentBg: '--soh-bg',       roles: ['buyer', 'manager', 'ceo', 'admin'] },
+  { label: 'PO Data',          desc: 'Every open PO',            hash: 'podata',     accent: '--warn',    accentBg: '--warn-bg',      roles: ['buyer', 'manager', 'ceo', 'admin'] },
 ];
 function renderPrimaryOverlay(){
   const grid = document.getElementById('primaryGrid');
