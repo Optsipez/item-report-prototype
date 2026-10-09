@@ -874,9 +874,20 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    card and everything beneath it -- same sticky pattern as Item Lookup's
    .report-sticky above, just a taller block since the dashboard's header
    carries more (the scope bar, the KPI tiles) than a single item-header
-   strip does. */
+   strip does.
+   margin-top cancels .main's own top padding (--sp-6) so this sits flush
+   with the topbar from the very first paint, at the SAME position it'll
+   be once "stuck" -- deliberately removing the breathing room a sticky
+   element normally rests with, so there's nothing to visually catch up to
+   on the first scroll. Chosen over keeping that breathing room: any
+   non-zero rest gap necessarily means a one-time visible close-up motion
+   the moment it locks under the topbar, which read as a glitch even
+   though it's how every sticky header behaves -- flush-from-the-start has
+   zero transition instead, at the cost of less air at the very top of the
+   page before you've scrolled at all. */
 .dash-sticky{
   position:sticky;top:56px;z-index:10;background:var(--canvas);display:flow-root;
+  margin-top:calc(-1 * var(--sp-6));
   will-change:transform;
 }
 
