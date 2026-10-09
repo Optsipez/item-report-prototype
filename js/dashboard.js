@@ -500,17 +500,18 @@ function renderPOPage(poNo){
 /* ---------- PO Data page (reached via #podata, the "PO Data" nav button)
    ----------
    Every open PO, grouped Vendor -> PO No, matching the PO Approval Ship Dt
-   sheet's structure -- with Vendor/PO/Grand Total band rows standing in
-   for the Excel's merged-cell row groups. Territory is kept as its own
-   leading column so it's ready to actually group by once that data exists
-   (see renderPOPage's header comment -- never imported, always "—" today);
-   this page just doesn't bother with per-territory subtotal bands yet
-   since every row currently shares the one blank value, which would make
-   that band identical to the Grand Total.
-   Unlike the single-PO page, this one skips the rowspan-merged-shipment-
-   columns trick -- with ~4,300 lines across ~400 POs, plain repeated
-   per-row cells are far more robust than nested rowspans spanning
-   hundreds of interleaved total rows, for a look no less readable. */
+   sheet's actual merged-cell look -- Vendor and PO No (+ its 6 shipment
+   columns) use real rowspan, same as the single-PO page already does for
+   shipment fields, just nested one level deeper: PO's rowspan covers only
+   its own item rows (its own total row gets its own fresh cells, same as
+   the single-PO page); Vendor's rowspan covers its item rows PLUS every
+   one of its own POs' total rows (that's genuinely "inside" the vendor),
+   stopping right before the vendor's own total row. Territory is kept as
+   a plain per-row column rather than rowspan-merged -- every row shares
+   the one blank value today (never imported, see renderPOPage's header
+   comment), so merging it would be one cell spanning the entire ~4,900-row
+   table for no visual benefit; it'll be worth merging once real data
+   gives it more than one distinct value. */
 function renderPOData(){
   const root = document.getElementById('poDataRoot');
   if(!root) return;
@@ -526,16 +527,20 @@ function renderPOData(){
   });
   const vendorCodes = Object.keys(byVendor).sort();
 
-  let grandQty = 0, grandValue = 0;
-  const bodyHtml = vendorCodes.map(vendor => {
+  let grandQty = 0, grandValue = 0, bodyHtml = '';
+  vendorCodes.forEach(vendor => {
     const pos = byVendor[vendor];
     const poNos = Object.keys(pos).sort();
-    let vendorQty = 0, vendorValue = 0;
-    const poRowsHtml = poNos.map(po => {
+    // +1 per PO so the vendor's own merge covers that PO's own total row
+    // too (still "inside" the vendor), not just its item lines.
+    const vendorRowSpan = poNos.reduce((n, po) => n + pos[po].lines.length + 1, 0);
+    let vendorQty = 0, vendorValue = 0, vendorCellDone = false;
+    poNos.forEach(po => {
       const group = pos[po];
+      const poRowSpan = group.lines.length;
       let poQty = 0, poValue = 0;
-      const itemRows = group.lines.map(l => {
-        const [, code, desc, qty, eta] = l;
+      group.lines.forEach((l, i) => {
+        const [, code, desc, qty] = l;
         const it = DASH_ITEM_BY_CODE[code];
         const puda = it ? it['PUDA Desc'] : '';
         const plan = it ? dashPlan(it) : '';
@@ -543,23 +548,32 @@ function renderPOData(){
         const cost = it ? Number(it['L-Cost (Aed)']) || 0 : 0;
         const value = cost * qty;
         poQty += qty; poValue += value;
-        return '<tr><td>—</td><td class="l mono">' + dashEsc(vendor) + '</td>' +
-          '<td class="l po"><a ' + dashPOLink(po) + ' title="Open this PO"><b class="mono">' + dashEsc(po) + '</b></a></td>' +
-          '<td>—</td><td>—</td><td>' + dashDate(eta) + '</td><td>—</td><td>—</td><td>—</td>' +
-          dashItemCell({ 'Item Code': code, Description: desc }) +
+        let row = '<tr><td>—</td>';
+        if(!vendorCellDone){
+          row += '<td class="l mono po-ship" rowspan="' + vendorRowSpan + '">' + dashEsc(vendor) + '</td>';
+          vendorCellDone = true;
+        }
+        if(i === 0){
+          row += '<td class="l po po-ship" rowspan="' + poRowSpan + '"><a ' + dashPOLink(po) + ' title="Open this PO"><b class="mono">' + dashEsc(po) + '</b></a></td>' +
+            ['—', '—', dashDate(group.eta), '—', '—', '—'].map(v => '<td class="po-ship" rowspan="' + poRowSpan + '">' + v + '</td>').join('');
+        }
+        row += dashItemCell({ 'Item Code': code, Description: desc }) +
           '<td class="l">' + dashEsc(cat) + '</td><td class="l">' + dashEsc(dept) + '</td><td class="l">' + dashEsc(puda || '—') + '</td>' +
           '<td class="plan-cell dash-cpc">' + dashEsc(plan || '—') + '</td><td>' + dashInt(qty) + '</td><td>—</td>' +
           '<td>' + (cost ? 'AED ' + dashInt(value) : '—') + '</td></tr>';
-      }).join('');
+        bodyHtml += row;
+      });
       vendorQty += poQty; vendorValue += poValue;
-      const poTotalRow = '<tr class="po-total-row"><td colspan="14"><b>' + dashEsc(po) + ' Total</b></td><td><b>' + dashInt(poQty) + '</b></td><td></td><td><b>' + (poValue ? 'AED ' + dashInt(poValue) : '—') + '</b></td></tr>';
-      return itemRows + poTotalRow;
-    }).join('');
+      // Vendor column already covered by its own rowspan from above --
+      // this row's own cells start at PO No.
+      bodyHtml += '<tr class="po-total-row"><td>—</td><td colspan="12"><b>' + dashEsc(po) + ' Total</b></td><td><b>' + dashInt(poQty) + '</b></td><td></td><td><b>' + (poValue ? 'AED ' + dashInt(poValue) : '—') + '</b></td></tr>';
+    });
     grandQty += vendorQty; grandValue += vendorValue;
     const vendorLabel = dashEsc(vendor) + (showVendor ? ' — ' + dashEsc(vname(vendor)) : '');
-    const vendorTotalRow = '<tr class="vendor-total-row"><td colspan="14"><b>' + vendorLabel + ' Total</b></td><td><b>' + dashInt(vendorQty) + '</b></td><td></td><td><b>' + (vendorValue ? 'AED ' + dashInt(vendorValue) : '—') + '</b></td></tr>';
-    return poRowsHtml + vendorTotalRow;
-  }).join('');
+    // Vendor's own rowspan has ended by here -- this row gets a fresh
+    // Territory cell plus its own full label span.
+    bodyHtml += '<tr class="vendor-total-row"><td>—</td><td colspan="13"><b>' + vendorLabel + ' Total</b></td><td><b>' + dashInt(vendorQty) + '</b></td><td></td><td><b>' + (vendorValue ? 'AED ' + dashInt(vendorValue) : '—') + '</b></td></tr>';
+  });
   const grandTotalRow = '<tr class="grand-total-row"><td colspan="14"><b>Grand Total</b></td><td><b>' + dashInt(grandQty) + '</b></td><td></td><td><b>AED ' + dashInt(grandValue) + '</b></td></tr>';
 
   root.innerHTML =

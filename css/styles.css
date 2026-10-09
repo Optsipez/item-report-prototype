@@ -360,7 +360,12 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    apart from the per-item columns, echoing the reference sheet's grouped
    look without needing its multi-PO/vendor banding (this page is always
    just one PO). */
-#poRoot .po-ship{vertical-align:middle;background:var(--sunken);border-right:2px solid var(--line-strong);}
+#poRoot .po-ship,#poDataRoot .po-ship{vertical-align:middle;background:var(--sunken);border-right:2px solid var(--line-strong);}
+/* The Vendor column (PO Data only -- merged across every PO it owns, not
+   just one) gets the same treatment as the PO/shipment columns beside it,
+   just its own slightly different tint so the two merge levels read as
+   visually distinct nesting, not one undifferentiated block. */
+#poDataRoot td.po-ship.mono{background:var(--s-100);}
 #poRoot .po-total-row td{background:var(--sr-bg);color:var(--sr);border-top:2px solid var(--sr);border-bottom:none;}
 /* PO Data (every open PO) -- same no-wrap text-column fix as the single-PO
    page, but this one page-scrolls vertically (no height cap -- it's a
