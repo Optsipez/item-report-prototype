@@ -1270,6 +1270,17 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 }
 .pager-btn:hover:not(:disabled){border-color:var(--primary-line);color:var(--primary);background:var(--primary-weak);box-shadow:var(--sh-xs);}
 .pager-btn:disabled{opacity:.35;cursor:not-allowed;}
+/* Item code/description search, right beside the H1 -- picking a match (or
+   typing an exact code + Enter) filters the grid down to just that item via
+   openGridFocus(), the same "jump to X" mechanism every dashboard drill-down
+   already uses, so it shows as the usual removable chip. */
+.grid-item-search input{
+  width:230px;border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--panel);
+  padding:6px 10px;font-size:var(--fs-xs);font-family:inherit;color:var(--ink);
+  transition:border-color var(--t-fast),box-shadow var(--t-fast);
+}
+.grid-item-search input::placeholder{color:var(--ink-faint);}
+.grid-item-search input:focus{outline:none;border-color:var(--primary);box-shadow:var(--ring);}
 /* "Go to page" — sits right next to the row count, next to the H1. */
 .page-jump{
   display:flex;align-items:center;gap:6px;font-size:var(--fs-xs);font-weight:600;color:var(--ink-soft);

@@ -197,6 +197,10 @@
       <div class="grid-toolbar">
         <div class="grid-title">
           <h1>All Products</h1>
+          <label class="grid-item-search" title="Find an item and filter the grid to it">
+            <input type="text" id="gridItemSearch" list="gridItemSearchList" placeholder="Item code or description…" autocomplete="off">
+          </label>
+          <datalist id="gridItemSearchList"></datalist>
           <button id="gridPrevBtn" class="pager-btn" type="button" aria-label="Previous page" title="Previous page (or ← arrow key)">‹</button>
           <div class="rowcount" id="gridRowCount"></div>
           <button id="gridNextBtn" class="pager-btn" type="button" aria-label="Next page" title="Next page (or → arrow key)">›</button>

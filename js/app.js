@@ -2010,6 +2010,28 @@ document.getElementById('clearSortBtn').addEventListener('click', () => {
   gridGroup = null;
   renderGrid();
 });
+// Item code/description search beside the H1 -- ITEMS never changes during
+// a session, so the datalist is built once here rather than rebuilt on
+// every renderGrid(). Picking a match (or typing an exact code + Enter)
+// filters the grid to just that item via openGridFocus() -- the same
+// mechanism every other "jump to X" drill-down in this app already uses,
+// so it shows up as the usual removable chip instead of a new UI idiom.
+(function(){
+  const input = document.getElementById('gridItemSearch');
+  const list = document.getElementById('gridItemSearchList');
+  if(!input || !list) return;
+  list.innerHTML = ITEMS.map(it => '<option value="' + escHtml(it['Item Code']) + '">' + escHtml(it['Item Code']) + ' — ' + escHtml(it['Description']) + '</option>').join('');
+  const commit = () => {
+    const code = input.value.trim();
+    if(!code) return;
+    const item = ITEMS.find(i => i['Item Code'] === code);
+    if(!item) return;   // not an exact match yet -- still typing, leave it
+    openGridFocus(code + ' — ' + item['Description'], [code], null);
+    input.value = '';
+  };
+  input.addEventListener('change', commit);   // picking a datalist option fires 'change'
+  input.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); commit(); } });
+})();
 /* Scroll the page back to the very top (vertically only) — used whenever
    changing pages should return you to row 1 of the new page. Always jumps
    all the way to 0, not a partial nudge toward the grid's edge — a relative
