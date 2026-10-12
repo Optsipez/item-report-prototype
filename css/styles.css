@@ -370,11 +370,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    lines land exactly where the body's do. */
 #poRoot .dash-table td,#poRoot .dash-table th,#poDataRoot .dash-table td,#poDataRoot .dash-table th{border:1px solid var(--line);}
 #poRoot .po-ship-end,#poDataRoot .po-ship-end,#poDataRoot td.terr,#poDataRoot th.terr{border-right:2px solid var(--line-strong);}
-#poRoot .dash-table thead th,#poDataRoot .dash-table thead th{background:var(--ink);color:var(--ink-invert);border-color:rgba(255,255,255,.12);border-bottom:3px solid var(--primary);padding:12px 6px;font-size:var(--fs-xs);letter-spacing:.06em;}
-/* Keep the group-boundary divider visible against the dark header too --
-   without this, the header's higher-specificity border-color above wins
-   and fades it to almost nothing. */
-#poRoot .dash-table thead th.po-ship-end,#poDataRoot .dash-table thead th.po-ship-end,#poDataRoot .dash-table thead th.terr{border-right:2px solid var(--primary);}
+#poRoot .dash-table thead th,#poDataRoot .dash-table thead th{background:var(--panel);color:var(--ink);font-weight:700;border-bottom:2px solid var(--primary);padding:12px 6px;font-size:var(--fs-xs);letter-spacing:.04em;}
 /* Card treatment -- border, rounded corners, lift shadow -- around the
    whole grid, matching .dash-card elsewhere instead of a bare table
    floating on the page background. */
