@@ -3913,5 +3913,6 @@ renderFilterChips();
   window.addEventListener('scroll', onScroll, { passive: true });
 })();
 
-/* Restore whatever the URL points at (All Products by default) */
-applyRoute(routeFromHash());
+/* The first applyRoute(routeFromHash()) lives at the bottom of dashboard.js,
+   not here: Dashboard, Trip, PO and PO Data all need functions from that
+   file, which loads after this one. */

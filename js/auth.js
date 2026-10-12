@@ -100,7 +100,11 @@ function renderPrimaryOverlay(){
   ).join('');
   grid.querySelectorAll('.primary-tile').forEach(btn => btn.addEventListener('click', () => {
     hidePrimaryOverlay();
+    // This overlay shows before the 38MB data.js and app.js have finished
+    // downloading. Clicked that early, navigate() doesn't exist yet -- set
+    // the hash anyway so the first route applied on load picks it up.
     if(typeof navigate === 'function') navigate(btn.dataset.hash);
+    else location.hash = btn.dataset.hash;
   }));
   const greet = document.getElementById('primaryGreeting');
   if(greet) greet.textContent = CURRENT_EMPLOYEE_NAME ? 'Welcome back, ' + CURRENT_EMPLOYEE_NAME + '.' : 'Welcome back.';

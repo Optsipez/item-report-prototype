@@ -841,5 +841,6 @@ function dashWireScopeBar(root, rerender){
   const reset = $('dashReset');
   if(reset) reset.addEventListener('click', () => { dashScope = { ...DASH_SCOPE_DEFAULTS }; dashSaveScope(); rerender(); });
 }
-// app.js can run its first route before this file has loaded; cover that.
-if(document.getElementById('viewDash') && document.getElementById('viewDash').classList.contains('active')) renderDashboard();
+// Restore whatever the URL points at -- here rather than in app.js because
+// this is the last script to load, so every view's renderer now exists.
+applyRoute(routeFromHash());
