@@ -489,7 +489,7 @@ function renderPOPage(poNo){
       '<button type="button" class="dash-btn" id="poOpenAll">Open in All Products &rarr;</button></div>' +
     '<table class="dash-table po-sheet"><thead><tr>' +
       '<th>Ship Date</th><th>Revised-Ship</th><th>Revised-ETA</th><th>Status</th><th>Port Of Origin</th><th>Discharge Port</th>' +
-      '<th class="l item">Item</th><th class="l">Catg</th><th class="l">Dpt</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th>Total</th>' +
+      '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th>Total</th>' +
     '</tr></thead><tbody>' +
       rowsHtml +
     '</tbody><tfoot><tr class="po-total-row"><td class="l" colspan="11"><b>' + dashEsc(poNo) + ' Total</b></td><td><b>' + dashInt(totalQty) + '</b></td><td></td><td><b>' + (totalValue ? 'AED ' + dashInt(totalValue) : '—') + '</b></td></tr></tfoot></table>';
@@ -506,12 +506,11 @@ function renderPOPage(poNo){
    its own item rows (its own total row gets its own fresh cells, same as
    the single-PO page); Vendor's rowspan covers its item rows PLUS every
    one of its own POs' total rows (that's genuinely "inside" the vendor),
-   stopping right before the vendor's own total row. Territory is kept as
-   a plain per-row column rather than rowspan-merged -- every row shares
-   the one blank value today (never imported, see renderPOPage's header
-   comment), so merging it would be one cell spanning the entire ~4,900-row
-   table for no visual benefit; it'll be worth merging once real data
-   gives it more than one distinct value. */
+   stopping right before the vendor's own total row. Territory merges all
+   the way across the whole table (every row shares the one blank value
+   today -- never imported, see renderPOPage's header comment) down to and
+   including the grand total row; it'll split into real per-vendor spans
+   once the source data actually has more than one distinct value. */
 function renderPOData(){
   const root = document.getElementById('poDataRoot');
   if(!root) return;
@@ -526,6 +525,14 @@ function renderPOData(){
     byVendor[vendor][po].lines.push(l);
   });
   const vendorCodes = Object.keys(byVendor).sort();
+  const poCount = vendorCodes.reduce((n, v) => n + Object.keys(byVendor[v]).length, 0);
+  // Territory is blank for literally every row in the whole file (never
+  // imported), so it merges once across the entire table rather than
+  // per-vendor -- a single "—" instead of ~4,900 repeats of the same
+  // placeholder. Covers every row this function emits, including the
+  // grand total row at the very end.
+  const territoryRowSpan = PO_LINES.length + poCount + vendorCodes.length + 1;
+  let territoryCellDone = false;
 
   let grandQty = 0, grandValue = 0, bodyHtml = '';
   vendorCodes.forEach(vendor => {
@@ -548,7 +555,11 @@ function renderPOData(){
         const cost = it ? Number(it['L-Cost (Aed)']) || 0 : 0;
         const value = cost * qty;
         poQty += qty; poValue += value;
-        let row = '<tr><td>—</td>';
+        let row = '<tr>';
+        if(!territoryCellDone){
+          row += '<td rowspan="' + territoryRowSpan + '">—</td>';
+          territoryCellDone = true;
+        }
         if(!vendorCellDone){
           row += '<td class="l mono po-ship" rowspan="' + vendorRowSpan + '">' + dashEsc(vendor) + '</td>';
           vendorCellDone = true;
@@ -564,28 +575,30 @@ function renderPOData(){
         bodyHtml += row;
       });
       vendorQty += poQty; vendorValue += poValue;
-      // Vendor column already covered by its own rowspan from above --
-      // this row's own cells start at PO No.
-      bodyHtml += '<tr class="po-total-row"><td>—</td><td class="l" colspan="12"><b>' + dashEsc(po) + ' Total</b></td><td><b>' + dashInt(poQty) + '</b></td><td></td><td><b>' + (poValue ? 'AED ' + dashInt(poValue) : '—') + '</b></td></tr>';
+      // Territory and Vendor are both covered by active rowspans from
+      // above -- this row's own cells start at PO No.
+      bodyHtml += '<tr class="po-total-row"><td class="l" colspan="12"><b>' + dashEsc(po) + ' Total</b></td><td><b>' + dashInt(poQty) + '</b></td><td></td><td><b>' + (poValue ? 'AED ' + dashInt(poValue) : '—') + '</b></td></tr>';
     });
     grandQty += vendorQty; grandValue += vendorValue;
     const vendorLabel = dashEsc(vendor) + (showVendor ? ' — ' + dashEsc(vname(vendor)) : '');
-    // Vendor's own rowspan has ended by here -- this row gets a fresh
-    // Territory cell plus its own full label span.
-    bodyHtml += '<tr class="vendor-total-row"><td>—</td><td class="l" colspan="13"><b>' + vendorLabel + ' Total</b></td><td><b>' + dashInt(vendorQty) + '</b></td><td></td><td><b>' + (vendorValue ? 'AED ' + dashInt(vendorValue) : '—') + '</b></td></tr>';
+    // Vendor's own rowspan has ended by here, but Territory's table-wide
+    // one hasn't -- this row's own cells still start at Vendor.
+    bodyHtml += '<tr class="vendor-total-row"><td class="l" colspan="13"><b>' + vendorLabel + ' · Total</b></td><td><b>' + dashInt(vendorQty) + '</b></td><td></td><td><b>' + (vendorValue ? 'AED ' + dashInt(vendorValue) : '—') + '</b></td></tr>';
   });
-  const grandTotalRow = '<tr class="grand-total-row"><td class="l" colspan="14"><b>Grand Total</b></td><td><b>' + dashInt(grandQty) + '</b></td><td></td><td><b>AED ' + dashInt(grandValue) + '</b></td></tr>';
+  // Territory's rowspan reaches all the way down to here too, so this
+  // row's own span starts one column later than it would otherwise.
+  const grandTotalRow = '<tr class="grand-total-row"><td class="l" colspan="13"><b>Grand Total</b></td><td><b>' + dashInt(grandQty) + '</b></td><td></td><td><b>AED ' + dashInt(grandValue) + '</b></td></tr>';
 
   root.innerHTML =
     '<div class="dash-hero"><div>' +
       '<div class="dash-date">PO Data</div>' +
       '<h1 class="dash-greet">Every open PO</h1>' +
-      '<p class="dash-sub">' + dashInt(PO_LINES.length) + ' lines across ' + dashInt(Object.keys(byVendor).reduce((n, v) => n + Object.keys(byVendor[v]).length, 0)) + ' POs, ' + dashInt(vendorCodes.length) + ' vendors — grouped by vendor, then PO.</p>' +
+      '<p class="dash-sub">' + dashInt(PO_LINES.length) + ' lines across ' + dashInt(poCount) + ' POs, ' + dashInt(vendorCodes.length) + ' vendors — grouped by vendor, then PO.</p>' +
     '</div></div>' +
     '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead><tr>' +
       '<th>Territory</th><th class="l">Vendor</th><th class="l">PO No</th>' +
       '<th>Ship Date</th><th>Revised-Ship</th><th>Revised-ETA</th><th>Status</th><th>Port Of Origin</th><th>Discharge Port</th>' +
-      '<th class="l item">Item</th><th class="l">Catg</th><th class="l">Dpt</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th>Total</th>' +
+      '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th>Total</th>' +
     '</tr></thead><tbody>' + bodyHtml + grandTotalRow + '</tbody></table></div>';
 }
 
