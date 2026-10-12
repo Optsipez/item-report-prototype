@@ -371,8 +371,22 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    PO (slate wash) -> Vendor (brass wash) -> Grand (dark slate). */
 #poRoot .dash-table,#poDataRoot .dash-table{border:1px solid var(--s-300);border-radius:var(--r-md);box-shadow:var(--sh-xs);overflow:hidden;background:var(--panel);}
 #poRoot .dash-table td,#poRoot .dash-table th,#poDataRoot .dash-table td,#poDataRoot .dash-table th{border:1px solid var(--s-200);}
+/* PO Data: the table is its own scroll box (both axes) filling the rest of
+   the screen under the frozen title/filter band, so its two header rows can
+   stick to the box's top. Any overflow ancestor becomes a sticky element's
+   reference frame, so the card chrome lives on the box, not the table
+   (overflow:hidden there would trap the headers). border-collapse:separate
+   because collapsed borders don't travel with sticky cells in Chrome --
+   hence right+bottom borders only, the box supplies the outer edge. */
+#poDataRoot{display:flex;flex-direction:column;height:calc(100vh - 56px - var(--sp-6));}
+#poDataRoot > .dash-sticky{flex:none;}
+#poDataRoot .dash-table{border:0;border-radius:0;box-shadow:none;overflow:visible;border-collapse:separate;border-spacing:0;}
+#poDataRoot .dash-table td,#poDataRoot .dash-table th{border:0;border-right:1px solid var(--s-200);border-bottom:1px solid var(--s-200);}
+#poDataRoot .dash-table thead th{position:sticky;top:0;z-index:2;}
+#poDataRoot .dash-table thead tr.po-grp th{height:30px;box-sizing:border-box;}
+#poDataRoot .dash-table thead tr:not(.po-grp) th{top:30px;}
 #poRoot .dash-table thead th,#poDataRoot .dash-table thead th{
-  position:static;background:linear-gradient(180deg,var(--subhead-top),var(--subhead));
+  background:linear-gradient(180deg,var(--subhead-top),var(--subhead));
   color:var(--subhead-ink);font-weight:700;font-size:var(--fs-2xs);letter-spacing:.04em;
   padding:9px 10px;line-height:1.25;vertical-align:bottom;
   border-color:var(--s-300);border-bottom:2px solid var(--subhead-line);
@@ -389,11 +403,12 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 #poRoot td.po-ship:not(.l),#poDataRoot td.po-ship:not(.l),#poDataRoot td.terr{text-align:center;color:var(--ink-soft);}
 #poDataRoot td.po-ship.mono{font-weight:700;color:var(--ink);}
 /* Heavier rule only where a column group ends. */
-#poRoot .po-ship-end,#poDataRoot .po-ship-end,#poDataRoot .terr{border-right:2px solid var(--s-300);}
+#poRoot .po-ship-end,#poDataRoot .dash-table .po-ship-end,#poDataRoot .dash-table .terr{border-right:2px solid var(--s-300);}
 #poRoot .dash-table tbody tr:not([class]):hover > td,#poDataRoot .dash-table tbody tr:not([class]):hover > td:not(.po-ship):not(.terr){background:var(--row-hover);}
 #poRoot .po-total-row td,#poDataRoot .po-total-row td{background:var(--s-50);color:var(--s-700);border-top:1px solid var(--s-300);}
 #poDataRoot .dash-table td.l{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;}
-#poDataRoot .podata-scroll{max-height:none;overflow-x:auto;overflow-y:visible;border-radius:var(--r-md);}
+#poDataRoot .podata-scroll{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;margin-bottom:var(--sp-4);
+  border:1px solid var(--s-300);border-radius:var(--r-md);box-shadow:var(--sh-xs);background:var(--panel);}
 #poDataRoot .vendor-total-row td{background:var(--i-50);color:var(--i-800);border-top:1px solid var(--i-200);border-bottom:2px solid var(--i-200);}
 #poDataRoot .grand-total-row td{background:var(--s-800);color:#fff;border-color:var(--s-800);font-size:var(--fs-md);padding-top:12px;padding-bottom:12px;}
 .dash-table th.item{width:54%;}
