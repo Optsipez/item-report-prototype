@@ -2031,17 +2031,32 @@ document.getElementById('clearSortBtn').addEventListener('click', () => {
   const input = document.getElementById('gridItemSearch');
   const list = document.getElementById('gridItemSearchList');
   if(!input || !list) return;
-  list.innerHTML = ITEMS.map(it => '<option value="' + escHtml(it['Item Code']) + '">' + escHtml(it['Item Code']) + ' — ' + escHtml(it['Description']) + '</option>').join('');
-  const commit = () => {
-    const code = input.value.trim();
-    if(!code) return;
-    const item = ITEMS.find(i => i['Item Code'] === code);
-    if(!item) return;   // not an exact match yet -- still typing, leave it
+  // Description goes in the option's value (not just its label) so typing
+  // part of a description narrows the suggestions in every browser.
+  list.innerHTML = ITEMS.map(it => '<option value="' + escHtml(it['Item Code'] + ' — ' + it['Description']) + '">').join('');
+  // Picked suggestion or exact code -> that one item.
+  const commitExact = () => {
+    const code = input.value.trim().split(' — ')[0];
+    const item = code && ITEMS.find(i => i['Item Code'] === code);
+    if(!item) return false;
     openGridFocus(code + ' — ' + item['Description'], [code], null);
     input.value = '';
+    return true;
   };
-  input.addEventListener('change', commit);   // picking a datalist option fires 'change'
-  input.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); commit(); } });
+  // Enter on free text -> every item whose code or description contains it.
+  const commitSearch = () => {
+    if(commitExact()) return;
+    const raw = input.value.trim();
+    if(!raw) return;
+    const q = raw.toLowerCase();
+    const codes = ITEMS.filter(i => String(i['Item Code']).toLowerCase().includes(q) || String(i['Description'] || '').toLowerCase().includes(q)).map(i => i['Item Code']);
+    if(!codes.length){ input.setCustomValidity('No item matches "' + raw + '"'); input.reportValidity(); return; }
+    openGridFocus('Search: "' + raw + '" (' + codes.length + ')', codes, null);
+    input.value = '';
+  };
+  input.addEventListener('input', () => input.setCustomValidity(''));
+  input.addEventListener('change', commitExact);   // picking a datalist option fires 'change'
+  input.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); commitSearch(); } });
 })();
 /* Scroll the page back to the very top (vertically only) — used whenever
    changing pages should return you to row 1 of the new page. Always jumps
