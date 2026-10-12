@@ -361,13 +361,27 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    look without needing its multi-PO/vendor banding (this page is always
    just one PO). */
 #poRoot .po-ship,#poDataRoot .po-ship{vertical-align:middle;background:var(--sunken);}
-/* One divider per real column-group boundary, not one per column --
-   .po-ship-end marks the last of the 6 shipment columns (before Item
-   starts) and .terr marks Territory (PO Data only). Both get the same
-   border on their <th> too, so the header's dividers land exactly where
-   the body's do instead of the header reading as a flat, undivided bar. */
+/* Full grid, not just group-boundary dividers -- every cell gets a thin
+   line on all four sides, like the reference sheet's actual gridlines.
+   .po-ship-end (last of the 6 shipment columns) and .terr (Territory,
+   PO Data only) get a heavier line on top of that, since those are the
+   real group boundaries and should still read as stronger than the
+   rest of the grid. Both get matching <th> borders so the header's
+   lines land exactly where the body's do. */
+#poRoot .dash-table td,#poRoot .dash-table th,#poDataRoot .dash-table td,#poDataRoot .dash-table th{border:1px solid var(--line);}
 #poRoot .po-ship-end,#poDataRoot .po-ship-end,#poDataRoot td.terr,#poDataRoot th.terr{border-right:2px solid var(--line-strong);}
 #poRoot .dash-table thead th,#poDataRoot .dash-table thead th{background:var(--sunken);border-bottom:2px solid var(--line-strong);padding-top:10px;}
+/* Card treatment -- border, rounded corners, lift shadow -- around the
+   whole grid, matching .dash-card elsewhere instead of a bare table
+   floating on the page background. */
+#poRoot .dash-table,#poDataRoot .dash-table{border:1px solid var(--line-strong);border-radius:var(--r-md);box-shadow:var(--sh-xs);overflow:hidden;}
+/* Zebra striping on item rows only (not the total/group rows, which
+   already carry their own tint) -- helps the eye track across a table
+   this wide and dense. nth-child counts every row including the total
+   rows skipped by :not(), so stripes may skip a beat right after one,
+   which is fine -- it's a scan aid, not a counter. */
+#poRoot .dash-table tbody tr:not(.po-total-row):not(.vendor-total-row):not(.grand-total-row):nth-child(even) > td:not(.po-ship):not(.terr),
+#poDataRoot .dash-table tbody tr:not(.po-total-row):not(.vendor-total-row):not(.grand-total-row):nth-child(even) > td:not(.po-ship):not(.terr){background:var(--sunken);}
 /* The Vendor column (PO Data only -- merged across every PO it owns, not
    just one) gets the same treatment as the PO/shipment columns beside it,
    just its own slightly different tint so the two merge levels read as
@@ -381,7 +395,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    Vendor, Grand) step up in visual weight so the eye can tell which level
    just closed without reading the label. */
 #poDataRoot .dash-table td.l{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;}
-#poDataRoot .podata-scroll{max-height:none;overflow-x:auto;overflow-y:visible;}
+#poDataRoot .podata-scroll{max-height:none;overflow-x:auto;overflow-y:visible;border-radius:var(--r-md);}
 #poDataRoot .po-total-row td{background:var(--sunken);color:var(--ink-soft);border-top:1px solid var(--primary-line);border-bottom:none;}
 #poDataRoot .vendor-total-row td{background:var(--primary-weak);color:var(--primary-hover);border-top:2px solid var(--primary);border-bottom:none;font-size:var(--fs-sm);}
 #poDataRoot .grand-total-row td{background:var(--ink);color:#fff;border-top:none;border-bottom:none;font-size:var(--fs-md);padding-top:12px;padding-bottom:12px;}
