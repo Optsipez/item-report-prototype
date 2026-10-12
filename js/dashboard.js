@@ -489,10 +489,10 @@ function renderPOPage(poNo){
       '<button type="button" class="dash-btn" id="poOpenAll">Open in All Products &rarr;</button></div>' +
     '<table class="dash-table po-sheet"><thead><tr>' +
       '<th>Ship Date</th><th>Revised-Ship</th><th>Revised-ETA</th><th>Status</th><th>Port Of Origin</th><th>Discharge Port</th>' +
-      '<th class="l">Item Code</th><th class="l">Description</th><th class="l">Catg</th><th class="l">Dpt</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th>Total</th>' +
+      '<th class="l item">Item</th><th class="l">Catg</th><th class="l">Dpt</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th>Total</th>' +
     '</tr></thead><tbody>' +
       rowsHtml +
-    '</tbody><tfoot><tr class="po-total-row"><td colspan="11"><b>' + dashEsc(poNo) + ' Total</b></td><td><b>' + dashInt(totalQty) + '</b></td><td></td><td><b>' + (totalValue ? 'AED ' + dashInt(totalValue) : '—') + '</b></td></tr></tfoot></table>';
+    '</tbody><tfoot><tr class="po-total-row"><td class="l" colspan="11"><b>' + dashEsc(poNo) + ' Total</b></td><td><b>' + dashInt(totalQty) + '</b></td><td></td><td><b>' + (totalValue ? 'AED ' + dashInt(totalValue) : '—') + '</b></td></tr></tfoot></table>';
   const openAll = document.getElementById('poOpenAll');
   if(openAll) openAll.addEventListener('click', () => openGridFocus(poNo, lines.map(l => l[1]), null));
 }
@@ -566,15 +566,15 @@ function renderPOData(){
       vendorQty += poQty; vendorValue += poValue;
       // Vendor column already covered by its own rowspan from above --
       // this row's own cells start at PO No.
-      bodyHtml += '<tr class="po-total-row"><td>—</td><td colspan="12"><b>' + dashEsc(po) + ' Total</b></td><td><b>' + dashInt(poQty) + '</b></td><td></td><td><b>' + (poValue ? 'AED ' + dashInt(poValue) : '—') + '</b></td></tr>';
+      bodyHtml += '<tr class="po-total-row"><td>—</td><td class="l" colspan="12"><b>' + dashEsc(po) + ' Total</b></td><td><b>' + dashInt(poQty) + '</b></td><td></td><td><b>' + (poValue ? 'AED ' + dashInt(poValue) : '—') + '</b></td></tr>';
     });
     grandQty += vendorQty; grandValue += vendorValue;
     const vendorLabel = dashEsc(vendor) + (showVendor ? ' — ' + dashEsc(vname(vendor)) : '');
     // Vendor's own rowspan has ended by here -- this row gets a fresh
     // Territory cell plus its own full label span.
-    bodyHtml += '<tr class="vendor-total-row"><td>—</td><td colspan="13"><b>' + vendorLabel + ' Total</b></td><td><b>' + dashInt(vendorQty) + '</b></td><td></td><td><b>' + (vendorValue ? 'AED ' + dashInt(vendorValue) : '—') + '</b></td></tr>';
+    bodyHtml += '<tr class="vendor-total-row"><td>—</td><td class="l" colspan="13"><b>' + vendorLabel + ' Total</b></td><td><b>' + dashInt(vendorQty) + '</b></td><td></td><td><b>' + (vendorValue ? 'AED ' + dashInt(vendorValue) : '—') + '</b></td></tr>';
   });
-  const grandTotalRow = '<tr class="grand-total-row"><td colspan="14"><b>Grand Total</b></td><td><b>' + dashInt(grandQty) + '</b></td><td></td><td><b>AED ' + dashInt(grandValue) + '</b></td></tr>';
+  const grandTotalRow = '<tr class="grand-total-row"><td class="l" colspan="14"><b>Grand Total</b></td><td><b>' + dashInt(grandQty) + '</b></td><td></td><td><b>AED ' + dashInt(grandValue) + '</b></td></tr>';
 
   root.innerHTML =
     '<div class="dash-hero"><div>' +
@@ -585,7 +585,7 @@ function renderPOData(){
     '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead><tr>' +
       '<th>Territory</th><th class="l">Vendor</th><th class="l">PO No</th>' +
       '<th>Ship Date</th><th>Revised-Ship</th><th>Revised-ETA</th><th>Status</th><th>Port Of Origin</th><th>Discharge Port</th>' +
-      '<th class="l">Item Code</th><th class="l">Description</th><th class="l">Catg</th><th class="l">Dpt</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th>Total</th>' +
+      '<th class="l item">Item</th><th class="l">Catg</th><th class="l">Dpt</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th>Total</th>' +
     '</tr></thead><tbody>' + bodyHtml + grandTotalRow + '</tbody></table></div>';
 }
 
