@@ -395,6 +395,11 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
   padding:6px 10px;border-bottom:1px solid var(--s-300);
 }
 #poRoot .dash-table .c,#poDataRoot .dash-table .c{text-align:center;}
+/* Sortable headers -- same treatment as All Products: hover tint, brass when active. */
+#poDataRoot .dash-table thead th.po-sortable{cursor:pointer;user-select:none;}
+#poDataRoot .dash-table thead th.po-sortable:hover{background:var(--s-200);}
+#poDataRoot .dash-table thead th.po-sortable.sorted{background:var(--primary);color:var(--on-primary);border-bottom-color:var(--primary-hover);}
+.po-sort-ind{font-size:8px;}
 #poRoot .dash-table th.item,#poDataRoot .dash-table th.item{width:auto;}
 #poRoot .dash-table td,#poDataRoot .dash-table td{padding:9px 10px;}
 #poRoot .dash-table td,#poRoot .dash-table th{padding-left:6px;padding-right:6px;}

@@ -529,6 +529,30 @@ function renderPOPage(poNo){
    including the grand total row; it'll split into real per-vendor spans
    once the source data actually has more than one distinct value. */
 let poDataHeaderCollapsed = false;
+// Shipment status order, from the buying team's status key.
+const PO_STATUS_ORDER = ['GRN Pending', 'At Port', 'In Transit', 'Released', 'Under Process', 'Pending', 'Local Order', 'Hold', 'Cancelled'];
+// Sort for PO Data: null (Vendor then PO No) or { key: 'eta'|'etd'|'status', dir: 1|-1 }.
+// Clicking a sortable header cycles ascending -> descending -> off.
+let poDataSort = null;
+// Ship Date, Revised-Ship (ETD) and Status aren't in PO_LINES yet -- they were
+// never imported from the source sheet. They're read only here, so loading
+// them later makes the Revised-Ship column and its sort work with no other
+// change. ETD = Revised-Ship when present, otherwise the original Ship Date.
+function poShipInfo(po){ return { ship: null, revShip: null, status: null }; }
+const poEtd = g => g.revShip || g.ship || null;
+function poSortValue(g, key){
+  if(key === 'eta') return g.eta || null;
+  if(key === 'etd') return poEtd(g);
+  if(key === 'status'){ const i = PO_STATUS_ORDER.indexOf(g.status); return g.status ? (i < 0 ? PO_STATUS_ORDER.length : i) : null; }
+  return null;
+}
+// Ascending or descending, but blanks always last.
+function poCompare(a, b, dir){
+  if(a === b) return 0;
+  if(a === null) return 1;
+  if(b === null) return -1;
+  return (a < b ? -1 : 1) * dir;
+}
 function renderPOData(){
   const root = document.getElementById('poDataRoot');
   if(!root) return;
@@ -541,10 +565,16 @@ function renderPOData(){
   lines.forEach(l => {
     const po = l[0], vendor = l[5];
     if(!byVendor[vendor]) byVendor[vendor] = {};
-    if(!byVendor[vendor][po]) byVendor[vendor][po] = { po, eta: l[4], lines: [] };
+    if(!byVendor[vendor][po]) byVendor[vendor][po] = { po, eta: l[4], lines: [], ...poShipInfo(po) };
     byVendor[vendor][po].lines.push(l);
   });
-  const vendorCodes = Object.keys(byVendor).sort();
+  // Sorted: POs order by the chosen field inside each vendor, and vendors
+  // order by their first PO under that same sort (ties fall back to code).
+  const s = poDataSort;
+  const sortedPOs = v => Object.keys(byVendor[v]).sort((a, b) =>
+    (s ? poCompare(poSortValue(byVendor[v][a], s.key), poSortValue(byVendor[v][b], s.key), s.dir) : 0) || (a < b ? -1 : a > b ? 1 : 0));
+  const vendorCodes = Object.keys(byVendor).sort((a, b) =>
+    (s ? poCompare(poSortValue(byVendor[a][sortedPOs(a)[0]], s.key), poSortValue(byVendor[b][sortedPOs(b)[0]], s.key), s.dir) : 0) || (a < b ? -1 : a > b ? 1 : 0));
   const poCount = vendorCodes.reduce((n, v) => n + Object.keys(byVendor[v]).length, 0);
   // Territory is blank for literally every row in the whole file (never
   // imported), so it merges once across the entire table rather than
@@ -558,7 +588,7 @@ function renderPOData(){
   const grandMoney = {};
   vendorCodes.forEach(vendor => {
     const pos = byVendor[vendor];
-    const poNos = Object.keys(pos).sort();
+    const poNos = sortedPOs(vendor);
     // +1 per PO so the vendor's own merge covers that PO's own total row
     // too (still "inside" the vendor), not just its item lines.
     const vendorRowSpan = poNos.reduce((n, po) => n + pos[po].lines.length + 1, 0);
@@ -591,7 +621,7 @@ function renderPOData(){
         }
         if(i === 0){
           row += '<td class="l po po-ship" rowspan="' + poRowSpan + '"><a ' + dashPOLink(po) + ' title="Open this PO"><b class="mono">' + dashEsc(po) + '</b></a></td>' +
-            ['—', '—', dashDate(group.eta), '—', '—', '—'].map((v, idx, arr) => '<td class="po-ship' + (idx === arr.length - 1 ? ' po-ship-end' : '') + '" rowspan="' + poRowSpan + '">' + v + '</td>').join('');
+            [group.ship ? dashDate(group.ship) : '—', poEtd(group) ? dashDate(poEtd(group)) : '—', dashDate(group.eta), group.status ? dashEsc(group.status) : '—', '—', '—'].map((v, idx, arr) => '<td class="po-ship' + (idx === arr.length - 1 ? ' po-ship-end' : '') + '" rowspan="' + poRowSpan + '">' + v + '</td>').join('');
         }
         row += dashItemCell({ 'Item Code': code, Description: desc }) +
           '<td class="l">' + dashEsc(cat) + '</td><td class="l">' + dashEsc(dept) + '</td><td class="l">' + dashEsc(puda || '—') + '</td>' +
@@ -614,6 +644,11 @@ function renderPOData(){
   // row's own span starts one column later than it would otherwise.
   const grandTotalRow = '<tr class="grand-total-row"><td class="l" colspan="13"><b>Grand Total</b></td><td><b>' + dashInt(grandQty) + '</b></td><td></td>' + dashMoneyCells(grandMoney) + '</tr>';
 
+  const sortTh = (key, label, tip) => {
+    const on = s && s.key === key;
+    return '<th class="c po-sortable' + (on ? ' sorted' : '') + '" data-sort="' + key + '" title="Sort by ' + dashEsc(tip) + ' (click again to reverse, a third time to clear)">' +
+      label + (on ? ' <span class="po-sort-ind">' + (s.dir === 1 ? '&#9650;' : '&#9660;') + '</span>' : '') + '</th>';
+  };
   root.innerHTML =
     '<div class="dash-sticky">' +
     '<div class="dash-hero">' +
@@ -630,11 +665,17 @@ function renderPOData(){
     (!lines.length ? '' : '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead>' +
       '<tr class="po-grp"><th colspan="3">Purchase Order</th><th colspan="6" class="po-ship-end">Shipment</th><th colspan="5">Product</th><th colspan="4">Order</th></tr><tr>' +
       '<th class="c terr">Territory</th><th class="l">Vendor</th><th class="l">PO No</th>' +
-      '<th class="c">Ship Date</th><th class="c">Revised-Ship</th><th class="c">Revised-ETA</th><th class="c">Status</th><th class="c">Port Of Origin</th><th class="c po-ship-end">Discharge Port</th>' +
+      '<th class="c">Ship Date</th>' + sortTh('etd', 'Revised-Ship', 'Revised ETD, or the original Ship Date when there is no revision') + sortTh('eta', 'Revised-ETA', 'ETA') +
+      sortTh('status', 'Status', 'In order: ' + PO_STATUS_ORDER.join(', ')) + '<th class="c">Port Of Origin</th><th class="c po-ship-end">Discharge Port</th>' +
       '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th class="c">Currency</th><th title="Order Qty × Latest FOB Cost">Total</th>' +
     '</tr></thead><tbody>' + bodyHtml + grandTotalRow + '</tbody></table></div>');
   if(!poDataHeaderCollapsed) dashWireScopeBar(root, renderPOData);
   root.querySelector('#poDataHeaderToggle').addEventListener('click', () => { poDataHeaderCollapsed = !poDataHeaderCollapsed; renderPOData(); });
+  root.querySelectorAll('th.po-sortable').forEach(th => th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    poDataSort = !poDataSort || poDataSort.key !== key ? { key, dir: 1 } : poDataSort.dir === 1 ? { key, dir: -1 } : null;
+    renderPOData();
+  }));
 }
 
 function dashScopeBar(){
