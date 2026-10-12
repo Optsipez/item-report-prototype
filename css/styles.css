@@ -399,7 +399,10 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 #poRoot .dash-table th.item,#poDataRoot .dash-table th.item{width:auto;}
 #poRoot .dash-table td,#poDataRoot .dash-table td{padding:9px 10px;}
 #poRoot .dash-table td,#poRoot .dash-table th{padding-left:7px;padding-right:7px;}
-#poRoot .po-ship,#poDataRoot .po-ship{vertical-align:middle;background:var(--panel);white-space:nowrap;}
+/* Top-aligned, not centered: Vendor's span also covers its POs' total rows,
+   so centering put it lower than the PO No beside it. Top puts every merged
+   value on its group's first item line. */
+#poRoot .po-ship,#poDataRoot .po-ship{vertical-align:top;background:var(--panel);white-space:nowrap;}
 #poRoot td.po-ship:not(.l),#poDataRoot td.po-ship:not(.l),#poDataRoot td.terr{text-align:center;color:var(--ink-soft);}
 #poDataRoot td.po-ship.mono{font-weight:700;color:var(--ink);}
 /* Heavier rule only where a column group ends. */
