@@ -517,9 +517,11 @@ function renderPOData(){
   if(!root) return;
   const showVendor = canSeeVendorName();
   const vname = c => showVendor ? (VENDOR_CODE_TO_NAME[c] || c) : c;
+  if(!dashScope) dashLoadScope();
+  const lines = PO_LINES.filter(dashLineInScope);
 
   const byVendor = {};
-  PO_LINES.forEach(l => {
+  lines.forEach(l => {
     const po = l[0], vendor = l[5];
     if(!byVendor[vendor]) byVendor[vendor] = {};
     if(!byVendor[vendor][po]) byVendor[vendor][po] = { po, eta: l[4], lines: [] };
@@ -532,7 +534,7 @@ function renderPOData(){
   // per-vendor -- a single "—" instead of ~4,900 repeats of the same
   // placeholder. Covers every row this function emits, including the
   // grand total row at the very end.
-  const territoryRowSpan = PO_LINES.length + poCount + vendorCodes.length + 1;
+  const territoryRowSpan = lines.length + poCount + vendorCodes.length + 1;
   let territoryCellDone = false;
 
   let grandQty = 0, grandValue = 0, bodyHtml = '';
@@ -594,14 +596,17 @@ function renderPOData(){
     '<div class="dash-hero"><div>' +
       '<div class="dash-date">PO Data</div>' +
       '<h1 class="dash-greet">Every open PO</h1>' +
-      '<p class="dash-sub">' + dashInt(PO_LINES.length) + ' lines across ' + dashInt(poCount) + ' POs, ' + dashInt(vendorCodes.length) + ' vendors — grouped by vendor, then PO.</p>' +
+      '<p class="dash-sub">' + dashInt(lines.length) + ' lines across ' + dashInt(poCount) + ' POs, ' + dashInt(vendorCodes.length) + ' vendors — grouped by vendor, then PO.</p>' +
     '</div></div>' +
-    '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead>' +
+    dashScopeBar() +
+    (lines.length ? '' : '<p class="dash-empty">No open PO lines match this selection.</p>') +
+    (!lines.length ? '' : '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead>' +
       '<tr class="po-grp"><th colspan="3">Purchase Order</th><th colspan="6" class="po-ship-end">Shipment</th><th colspan="5">Product</th><th colspan="3">Order</th></tr><tr>' +
       '<th class="c terr">Territory</th><th class="l">Vendor</th><th class="l">PO No</th>' +
       '<th class="c">Ship Date</th><th class="c">Revised-Ship</th><th class="c">Revised-ETA</th><th class="c">Status</th><th class="c">Port Of Origin</th><th class="c po-ship-end">Discharge Port</th>' +
       '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th>Total</th>' +
-    '</tr></thead><tbody>' + bodyHtml + grandTotalRow + '</tbody></table></div>';
+    '</tr></thead><tbody>' + bodyHtml + grandTotalRow + '</tbody></table></div>');
+  dashWireScopeBar(root, renderPOData);
 }
 
 function dashScopeBar(){
@@ -752,7 +757,16 @@ function renderDashboard(){
   // re-render throws partway through (e.g. $('dashDept').addEventListener
   // on null) and never reaches the toggle's own re-wiring below it,
   // silently breaking the second click.
-  if(!dashHeaderCollapsed){
+  if(!dashHeaderCollapsed) dashWireScopeBar(root, renderDashboard);
+  const headerToggle = $('dashHeaderToggle');
+  if(headerToggle) headerToggle.addEventListener('click', () => { dashHeaderCollapsed = !dashHeaderCollapsed; renderDashboard(); });
+}
+
+// Wires a dashScopeBar() rendered inside `root`. Shared by the Dashboard and
+// PO Data pages -- both keep their markup in the DOM at once, so lookups are
+// scoped to root rather than document-wide (the ids repeat).
+function dashWireScopeBar(root, rerender){
+  const $ = id => root.querySelector('#' + id);
   const change = () => {
     const raw = $('dashVendor').value;
     const lookup = vendorNameLookup(raw);
@@ -767,7 +781,7 @@ function renderDashboard(){
       range: $('dashRange').value.trim(), group: $('dashGroup').value.trim(),
       puda: $('dashPuda').value.trim(), plan: $('dashPlan').value,
     };
-    dashSaveScope(); renderDashboard();
+    dashSaveScope(); rerender();
   };
   ['dashDept', 'dashCat', 'dashPlan'].forEach(id => $(id).addEventListener('change', change));
   root.querySelectorAll('.dash-vendor-opt').forEach(btn => btn.addEventListener('click', () => {
@@ -812,15 +826,13 @@ function renderDashboard(){
       } else {
         const pos = vendorInput.selectionStart;
         change();
-        refocusCaret('dashVendor', pos);
+        const el = $('dashVendor');
+        if(el){ el.focus(); try { el.setSelectionRange(pos, pos); } catch(e){} }
       }
     });
   })();
   const reset = $('dashReset');
-  if(reset) reset.addEventListener('click', () => { dashScope = { ...DASH_SCOPE_DEFAULTS }; dashSaveScope(); renderDashboard(); });
-  }
-  const headerToggle = $('dashHeaderToggle');
-  if(headerToggle) headerToggle.addEventListener('click', () => { dashHeaderCollapsed = !dashHeaderCollapsed; renderDashboard(); });
+  if(reset) reset.addEventListener('click', () => { dashScope = { ...DASH_SCOPE_DEFAULTS }; dashSaveScope(); rerender(); });
 }
 // app.js can run its first route before this file has loaded; cover that.
 if(document.getElementById('viewDash') && document.getElementById('viewDash').classList.contains('active')) renderDashboard();
