@@ -512,6 +512,7 @@ function renderPOPage(poNo){
    today -- never imported, see renderPOPage's header comment) down to and
    including the grand total row; it'll split into real per-vendor spans
    once the source data actually has more than one distinct value. */
+let poDataHeaderCollapsed = false;
 function renderPOData(){
   const root = document.getElementById('poDataRoot');
   if(!root) return;
@@ -593,12 +594,17 @@ function renderPOData(){
   const grandTotalRow = '<tr class="grand-total-row"><td class="l" colspan="13"><b>Grand Total</b></td><td><b>' + dashInt(grandQty) + '</b></td><td></td><td><b>AED ' + dashInt(grandValue) + '</b></td></tr>';
 
   root.innerHTML =
-    '<div class="dash-hero"><div>' +
-      '<div class="dash-date">PO Data</div>' +
-      '<h1 class="dash-greet">Every open PO</h1>' +
-      '<p class="dash-sub">' + dashInt(lines.length) + ' lines across ' + dashInt(poCount) + ' POs, ' + dashInt(vendorCodes.length) + ' vendors — grouped by vendor, then PO.</p>' +
-    '</div></div>' +
-    dashScopeBar() +
+    '<div class="dash-sticky">' +
+    '<div class="dash-hero">' +
+      '<div class="dash-hero-line">' +
+        '<span class="dash-date">PO Data</span>' +
+        '<h1 class="dash-greet">Every open PO</h1>' +
+        '<p class="dash-sub">' + dashInt(lines.length) + ' lines across ' + dashInt(poCount) + ' POs, ' + dashInt(vendorCodes.length) + ' vendors — grouped by vendor, then PO.</p>' +
+      '</div>' +
+      '<div class="dash-links"><button type="button" class="dash-btn ghost" id="poDataHeaderToggle">' + (poDataHeaderCollapsed ? 'Expand &#9662;' : 'Collapse &#9652;') + '</button></div>' +
+    '</div>' +
+    (poDataHeaderCollapsed ? '' : dashScopeBar()) +
+    '</div>' +
     (lines.length ? '' : '<p class="dash-empty">No open PO lines match this selection.</p>') +
     (!lines.length ? '' : '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead>' +
       '<tr class="po-grp"><th colspan="3">Purchase Order</th><th colspan="6" class="po-ship-end">Shipment</th><th colspan="5">Product</th><th colspan="3">Order</th></tr><tr>' +
@@ -606,7 +612,8 @@ function renderPOData(){
       '<th class="c">Ship Date</th><th class="c">Revised-Ship</th><th class="c">Revised-ETA</th><th class="c">Status</th><th class="c">Port Of Origin</th><th class="c po-ship-end">Discharge Port</th>' +
       '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th>Total</th>' +
     '</tr></thead><tbody>' + bodyHtml + grandTotalRow + '</tbody></table></div>');
-  dashWireScopeBar(root, renderPOData);
+  if(!poDataHeaderCollapsed) dashWireScopeBar(root, renderPOData);
+  root.querySelector('#poDataHeaderToggle').addEventListener('click', () => { poDataHeaderCollapsed = !poDataHeaderCollapsed; renderPOData(); });
 }
 
 function dashScopeBar(){
