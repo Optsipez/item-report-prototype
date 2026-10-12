@@ -604,6 +604,7 @@ function renderPOData(){
         const it = DASH_ITEM_BY_CODE[code];
         const puda = it ? it['PUDA Desc'] : '';
         const plan = it ? dashPlan(it) : '';
+        const range = it ? it['Range Name'] : '';
         const cat = l[7], dept = l[6];
         const fob = it ? Number(it['Latest FOB Cost']) || 0 : 0;
         const cur = it ? String(it['Currency Code'] || '') : '';
@@ -624,7 +625,7 @@ function renderPOData(){
             [group.ship ? dashDate(group.ship) : '—', poEtd(group) ? dashDate(poEtd(group)) : '—', dashDate(group.eta), group.status ? dashEsc(group.status) : '—', '—', '—'].map((v, idx, arr) => '<td class="po-ship' + (idx === arr.length - 1 ? ' po-ship-end' : '') + '" rowspan="' + poRowSpan + '">' + v + '</td>').join('');
         }
         row += dashItemCell({ 'Item Code': code, Description: desc }) +
-          '<td class="l">' + dashEsc(cat) + '</td><td class="l">' + dashEsc(dept) + '</td><td class="l">' + dashEsc(puda || '—') + '</td>' +
+          '<td class="l">' + dashEsc(cat) + '</td><td class="l">' + dashEsc(dept) + '</td><td class="l">' + dashEsc(puda || '—') + '</td><td class="l">' + dashEsc(range || '—') + '</td>' +
           '<td class="plan-cell dash-cpc">' + dashEsc(plan || '—') + '</td><td>' + dashInt(qty) + '</td><td>—</td>' +
           '<td class="c">' + dashEsc(cur || '—') + '</td><td>' + (fob && cur ? dashFmtMoney(value) : '—') + '</td></tr>';
         bodyHtml += row;
@@ -632,17 +633,17 @@ function renderPOData(){
       vendorQty += poQty;
       // Territory and Vendor are both covered by active rowspans from
       // above -- this row's own cells start at PO No.
-      bodyHtml += '<tr class="po-total-row"><td class="l" colspan="12"><b>' + dashEsc(po) + ' Total</b></td><td><b>' + dashInt(poQty) + '</b></td><td></td>' + dashMoneyCells(poMoney) + '</tr>';
+      bodyHtml += '<tr class="po-total-row"><td class="l" colspan="13"><b>' + dashEsc(po) + ' Total</b></td><td><b>' + dashInt(poQty) + '</b></td><td></td>' + dashMoneyCells(poMoney) + '</tr>';
     });
     grandQty += vendorQty;
     const vendorLabel = dashEsc(vendor) + (showVendor ? ' — ' + dashEsc(vname(vendor)) : '');
     // Vendor's own rowspan has ended by here, but Territory's table-wide
     // one hasn't -- this row's own cells still start at Vendor.
-    bodyHtml += '<tr class="vendor-total-row"><td class="l" colspan="13"><b>' + vendorLabel + ' · Total</b></td><td><b>' + dashInt(vendorQty) + '</b></td><td></td>' + dashMoneyCells(vendorMoney) + '</tr>';
+    bodyHtml += '<tr class="vendor-total-row"><td class="l" colspan="14"><b>' + vendorLabel + ' · Total</b></td><td><b>' + dashInt(vendorQty) + '</b></td><td></td>' + dashMoneyCells(vendorMoney) + '</tr>';
   });
   // Territory's rowspan reaches all the way down to here too, so this
   // row's own span starts one column later than it would otherwise.
-  const grandTotalRow = '<tr class="grand-total-row"><td class="l" colspan="13"><b>Grand Total</b></td><td><b>' + dashInt(grandQty) + '</b></td><td></td>' + dashMoneyCells(grandMoney) + '</tr>';
+  const grandTotalRow = '<tr class="grand-total-row"><td class="l" colspan="14"><b>Grand Total</b></td><td><b>' + dashInt(grandQty) + '</b></td><td></td>' + dashMoneyCells(grandMoney) + '</tr>';
 
   const sortTh = (key, label, tip) => {
     const on = s && s.key === key;
@@ -663,11 +664,11 @@ function renderPOData(){
     '</div>' +
     (lines.length ? '' : '<p class="dash-empty">No open PO lines match this selection.</p>') +
     (!lines.length ? '' : '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead>' +
-      '<tr class="po-grp"><th colspan="3">Purchase Order</th><th colspan="6" class="po-ship-end">Shipment</th><th colspan="5">Product</th><th colspan="4">Order</th></tr><tr>' +
+      '<tr class="po-grp"><th colspan="3">Purchase Order</th><th colspan="6" class="po-ship-end">Shipment</th><th colspan="6">Product</th><th colspan="4">Order</th></tr><tr>' +
       '<th class="c terr">Territory</th><th class="l">Vendor</th><th class="l">PO No</th>' +
       '<th class="c">Ship Date</th>' + sortTh('etd', 'Revised-Ship', 'Revised ETD, or the original Ship Date when there is no revision') + sortTh('eta', 'Revised-ETA', 'ETA') +
       sortTh('status', 'Status', 'In order: ' + PO_STATUS_ORDER.join(', ')) + '<th class="c">Port Of Origin</th><th class="c po-ship-end">Discharge Port</th>' +
-      '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th class="c">Currency</th><th title="Order Qty × Latest FOB Cost">Total</th>' +
+      '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th class="l">Range Name</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th class="c">Currency</th><th title="Order Qty × Latest FOB Cost">Total</th>' +
     '</tr></thead><tbody>' + bodyHtml + grandTotalRow + '</tbody></table></div>');
   if(!poDataHeaderCollapsed) dashWireScopeBar(root, renderPOData);
   root.querySelector('#poDataHeaderToggle').addEventListener('click', () => { poDataHeaderCollapsed = !poDataHeaderCollapsed; renderPOData(); });
