@@ -354,51 +354,48 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 /* The PO detail page's table is full-page width (not a narrow dash-card),
    so the ellipsis truncation above -- tuned for the dashboard's 2-column
    cards -- just wastes the extra room. Let its text columns wrap instead. */
-#poRoot .dash-table td.l{max-width:none;overflow:visible;text-overflow:clip;white-space:normal;}
+#poRoot .dash-table td.l{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;}
+#poRoot .dash-table td.l:has(> a){white-space:normal;}
+#poRoot .dash-table td.puda{white-space:normal;min-width:150px;}
 /* The 6 shipment columns (Ship Date..Discharge Port) are merged via rowspan
    across every line on the PO -- a light fill + divider sets that block
    apart from the per-item columns, echoing the reference sheet's grouped
    look without needing its multi-PO/vendor banding (this page is always
    just one PO). */
-#poRoot .po-ship,#poDataRoot .po-ship{vertical-align:middle;background:var(--sunken);}
-/* Full grid, not just group-boundary dividers -- every cell gets a thin
-   line on all four sides, like the reference sheet's actual gridlines.
-   .po-ship-end (last of the 6 shipment columns) and .terr (Territory,
-   PO Data only) get a heavier line on top of that, since those are the
-   real group boundaries and should still read as stronger than the
-   rest of the grid. Both get matching <th> borders so the header's
-   lines land exactly where the body's do. */
-#poRoot .dash-table td,#poRoot .dash-table th,#poDataRoot .dash-table td,#poDataRoot .dash-table th{border:1px solid var(--line);}
-#poRoot .po-ship-end,#poDataRoot .po-ship-end,#poDataRoot td.terr,#poDataRoot th.terr{border-right:2px solid var(--line-strong);}
-#poRoot .dash-table thead th,#poDataRoot .dash-table thead th{background:var(--panel);color:var(--ink);font-weight:700;border-bottom:2px solid var(--primary);padding:12px 6px;font-size:var(--fs-xs);letter-spacing:.04em;}
-/* Card treatment -- border, rounded corners, lift shadow -- around the
-   whole grid, matching .dash-card elsewhere instead of a bare table
-   floating on the page background. */
-#poRoot .dash-table,#poDataRoot .dash-table{border:1px solid var(--line-strong);border-radius:var(--r-md);box-shadow:var(--sh-xs);overflow:hidden;}
-/* Zebra striping on item rows only (not the total/group rows, which
-   already carry their own tint) -- helps the eye track across a table
-   this wide and dense. nth-child counts every row including the total
-   rows skipped by :not(), so stripes may skip a beat right after one,
-   which is fine -- it's a scan aid, not a counter. */
-#poRoot .dash-table tbody tr:not(.po-total-row):not(.vendor-total-row):not(.grand-total-row):nth-child(even) > td:not(.po-ship):not(.terr),
-#poDataRoot .dash-table tbody tr:not(.po-total-row):not(.vendor-total-row):not(.grand-total-row):nth-child(even) > td:not(.po-ship):not(.terr){background:var(--sunken);}
-/* The Vendor column (PO Data only -- merged across every PO it owns, not
-   just one) gets the same treatment as the PO/shipment columns beside it,
-   just its own slightly different tint so the two merge levels read as
-   visually distinct nesting, not one undifferentiated block. */
-#poDataRoot td.po-ship.mono{background:var(--s-100);}
-#poRoot .po-total-row td{background:var(--sunken);color:var(--ink-soft);border-top:1px solid var(--primary-line);border-bottom:none;}
-/* PO Data (every open PO) -- same no-wrap text-column fix as the single-PO
-   page, but this one page-scrolls vertically (no height cap -- it's a
-   dedicated full page, not a card competing for space) while still
-   scrolling horizontally for its ~18 columns. Three total-row tiers (PO,
-   Vendor, Grand) step up in visual weight so the eye can tell which level
-   just closed without reading the label. */
+/* PO detail + PO Data report tables. Same visual language as the All
+   Products grid's core headers (light slate gradient, slate ink, slate
+   underline) so the app reads as one product, plus a group band
+   (Purchase Order / Shipment / Product / Order) above the column names.
+   Body is plain white with hairline gridlines -- merged cells are told
+   apart by the merge itself, not by tints. Totals step up in weight:
+   PO (slate wash) -> Vendor (brass wash) -> Grand (dark slate). */
+#poRoot .dash-table,#poDataRoot .dash-table{border:1px solid var(--s-300);border-radius:var(--r-md);box-shadow:var(--sh-xs);overflow:hidden;background:var(--panel);}
+#poRoot .dash-table td,#poRoot .dash-table th,#poDataRoot .dash-table td,#poDataRoot .dash-table th{border:1px solid var(--s-200);}
+#poRoot .dash-table thead th,#poDataRoot .dash-table thead th{
+  position:static;background:linear-gradient(180deg,var(--subhead-top),var(--subhead));
+  color:var(--subhead-ink);font-weight:700;font-size:var(--fs-2xs);letter-spacing:.04em;
+  padding:9px 10px;line-height:1.25;vertical-align:bottom;
+  border-color:var(--s-300);border-bottom:2px solid var(--subhead-line);
+}
+#poRoot .dash-table thead tr.po-grp th,#poDataRoot .dash-table thead tr.po-grp th{
+  background:var(--s-200);color:var(--s-700);text-align:center;letter-spacing:.1em;
+  padding:6px 10px;border-bottom:1px solid var(--s-300);
+}
+#poRoot .dash-table th.c,#poDataRoot .dash-table th.c{text-align:center;}
+#poRoot .dash-table th.item,#poDataRoot .dash-table th.item{width:auto;}
+#poRoot .dash-table td,#poDataRoot .dash-table td{padding:9px 10px;}
+#poRoot .dash-table td,#poRoot .dash-table th{padding-left:7px;padding-right:7px;}
+#poRoot .po-ship,#poDataRoot .po-ship{vertical-align:middle;background:var(--panel);white-space:nowrap;}
+#poRoot td.po-ship:not(.l),#poDataRoot td.po-ship:not(.l),#poDataRoot td.terr{text-align:center;color:var(--ink-soft);}
+#poDataRoot td.po-ship.mono{font-weight:700;color:var(--ink);}
+/* Heavier rule only where a column group ends. */
+#poRoot .po-ship-end,#poDataRoot .po-ship-end,#poDataRoot .terr{border-right:2px solid var(--s-300);}
+#poRoot .dash-table tbody tr:not([class]):hover > td,#poDataRoot .dash-table tbody tr:not([class]):hover > td:not(.po-ship):not(.terr){background:var(--row-hover);}
+#poRoot .po-total-row td,#poDataRoot .po-total-row td{background:var(--s-50);color:var(--s-700);border-top:1px solid var(--s-300);}
 #poDataRoot .dash-table td.l{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;}
 #poDataRoot .podata-scroll{max-height:none;overflow-x:auto;overflow-y:visible;border-radius:var(--r-md);}
-#poDataRoot .po-total-row td{background:var(--sunken);color:var(--ink-soft);border-top:1px solid var(--primary-line);border-bottom:none;}
-#poDataRoot .vendor-total-row td{background:var(--primary-weak);color:var(--primary-hover);border-top:2px solid var(--primary);border-bottom:none;font-size:var(--fs-sm);}
-#poDataRoot .grand-total-row td{background:var(--ink);color:#fff;border-top:none;border-bottom:none;font-size:var(--fs-md);padding-top:12px;padding-bottom:12px;}
+#poDataRoot .vendor-total-row td{background:var(--i-50);color:var(--i-800);border-top:1px solid var(--i-200);border-bottom:2px solid var(--i-200);}
+#poDataRoot .grand-total-row td{background:var(--s-800);color:#fff;border-color:var(--s-800);font-size:var(--fs-md);padding-top:12px;padding-bottom:12px;}
 .dash-table th.item{width:54%;}
 .dash-table td.po,.dash-table th.po{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;width:1%;padding-right:14px;}
 .dash-table td.vcode,.dash-table th.vcode{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;width:1%;padding-right:14px;}
