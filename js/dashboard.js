@@ -441,6 +441,20 @@ function dashMoverTable(rows, up, total){
     '<button type="button" class="dash-btn ghost dash-more" data-movers="' + (up ? 'up' : 'down') + '">See all ' + dashInt(total) + ' ' + (up ? 'rising' : 'falling') + ' items &rarr;</button>';
 }
 
+/* PO money: Total = PO qty x the item's Latest FOB Cost, in that FOB's own
+   currency (USD or EUR today). Summed per currency, never across them -- a
+   total spanning two currencies shows each one side by side. Shared by the
+   PO detail and PO Data pages. */
+const dashFmtMoney = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const dashAddMoney = (acc, cur, v) => { if(cur) acc[cur] = (acc[cur] || 0) + v; };
+const dashFob = it => ({ fob: it ? Number(it['Latest FOB Cost']) || 0 : 0, cur: it ? String(it['Currency Code'] || '') : '' });
+function dashMoneyCells(acc){
+  const curs = Object.keys(acc).sort();
+  if(!curs.length) return '<td>—</td><td>—</td>';
+  if(curs.length === 1) return '<td class="c"><b>' + dashEsc(curs[0]) + '</b></td><td><b>' + dashFmtMoney(acc[curs[0]]) + '</b></td>';
+  return '<td class="c"><b>Mixed</b></td><td><b>' + curs.map(k => dashEsc(k) + ' ' + dashFmtMoney(acc[k])).join(' · ') + '</b></td>';
+}
+
 /* ---------- PO detail page (reached via #po=<PO No>, e.g. a Late POs row)
    ----------
    PO_LINES only carries [po, item, desc, qty, eta, vendor, dept, cat] -- no
@@ -460,7 +474,8 @@ function renderPOPage(poNo){
   }
   const [, , , , eta, vendorCode] = lines[0];
   const vendorName = canSeeVendorName() ? VENDOR_CODE_TO_NAME[vendorCode] : null;
-  let totalQty = 0, totalValue = 0;
+  let totalQty = 0;
+  const totalMoney = {};
   // The 6 shipment columns are the same for every line on a PO, so -- like
   // the reference sheet's merged cells -- they only print once, on the
   // first row, spanning every line via rowspan.
@@ -471,13 +486,14 @@ function renderPOPage(poNo){
     const it = DASH_ITEM_BY_CODE[code];
     const puda = it ? it['PUDA Desc'] : '';
     const plan = it ? dashPlan(it) : '';
-    const cost = it ? Number(it['L-Cost (Aed)']) || 0 : 0;
-    const value = cost * qty;
-    totalQty += qty; totalValue += value;
+    const { fob, cur } = dashFob(it);
+    const value = fob * qty;
+    totalQty += qty;
+    if(fob) dashAddMoney(totalMoney, cur, value);
     return '<tr>' + (i === 0 ? shipCells : '') + dashItemCell({ 'Item Code': code, Description: desc }) +
       '<td class="l">' + dashEsc(cat) + '</td><td class="l">' + dashEsc(dept) + '</td><td class="l puda">' + dashEsc(puda || '—') + '</td>' +
       '<td class="plan-cell dash-cpc">' + dashEsc(plan || '—') + '</td><td>' + dashInt(qty) + '</td><td>—</td>' +
-      '<td>' + (cost ? 'AED ' + dashInt(value) : '—') + '</td></tr>';
+      '<td class="c">' + dashEsc(cur || '—') + '</td><td>' + (fob && cur ? dashFmtMoney(value) : '—') + '</td></tr>';
   }).join('');
   root.innerHTML =
     '<div class="item-header">' +
@@ -487,13 +503,13 @@ function renderPOPage(poNo){
     '</div>' +
     '<div class="dash-detail-head"><h3>Items on this PO <span>' + dashInt(lines.length) + ' lines</span></h3>' +
       '<button type="button" class="dash-btn" id="poOpenAll">Open in All Products &rarr;</button></div>' +
-    '<table class="dash-table po-sheet"><thead>' +
-      '<tr class="po-grp"><th colspan="6" class="po-ship-end">Shipment</th><th colspan="5">Product</th><th colspan="3">Order</th></tr><tr>' +
+    '<div class="po-table-wrap"><table class="dash-table po-sheet"><thead>' +
+      '<tr class="po-grp"><th colspan="6" class="po-ship-end">Shipment</th><th colspan="5">Product</th><th colspan="4">Order</th></tr><tr>' +
       '<th class="c">Ship Date</th><th class="c">Revised-Ship</th><th class="c">Revised-ETA</th><th class="c">Status</th><th class="c">Port Of Origin</th><th class="c po-ship-end">Discharge Port</th>' +
-      '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th>Total</th>' +
+      '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th class="c">Currency</th><th title="Order Qty × Latest FOB Cost">Total</th>' +
     '</tr></thead><tbody>' +
       rowsHtml +
-    '</tbody><tfoot><tr class="po-total-row"><td class="l" colspan="11"><b>' + dashEsc(poNo) + ' Total</b></td><td><b>' + dashInt(totalQty) + '</b></td><td></td><td><b>' + (totalValue ? 'AED ' + dashInt(totalValue) : '—') + '</b></td></tr></tfoot></table>';
+    '</tbody><tfoot><tr class="po-total-row"><td class="l" colspan="11"><b>' + dashEsc(poNo) + ' Total</b></td><td><b>' + dashInt(totalQty) + '</b></td><td></td>' + dashMoneyCells(totalMoney) + '</tr></tfoot></table></div>';
   const openAll = document.getElementById('poOpenAll');
   if(openAll) openAll.addEventListener('click', () => openGridFocus(poNo, lines.map(l => l[1]), null));
 }
@@ -538,17 +554,6 @@ function renderPOData(){
   const territoryRowSpan = lines.length + poCount + vendorCodes.length + 1;
   let territoryCellDone = false;
 
-  // Total = PO qty x the item's Latest FOB Cost, in that FOB's own currency
-  // (USD or EUR today). Values are summed per currency and never across
-  // them -- a total spanning two currencies shows each one side by side.
-  const fmtMoney = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const addMoney = (acc, cur, v) => { if(cur) acc[cur] = (acc[cur] || 0) + v; };
-  const moneyCells = acc => {
-    const curs = Object.keys(acc).sort();
-    if(!curs.length) return '<td>—</td><td>—</td>';
-    if(curs.length === 1) return '<td class="c"><b>' + dashEsc(curs[0]) + '</b></td><td><b>' + fmtMoney(acc[curs[0]]) + '</b></td>';
-    return '<td class="c"><b>Mixed</b></td><td><b>' + curs.map(k => dashEsc(k) + ' ' + fmtMoney(acc[k])).join(' · ') + '</b></td>';
-  };
   let grandQty = 0, bodyHtml = '';
   const grandMoney = {};
   vendorCodes.forEach(vendor => {
@@ -574,7 +579,7 @@ function renderPOData(){
         const cur = it ? String(it['Currency Code'] || '') : '';
         const value = fob * qty;
         poQty += qty;
-        if(fob) [poMoney, vendorMoney, grandMoney].forEach(acc => addMoney(acc, cur, value));
+        if(fob) [poMoney, vendorMoney, grandMoney].forEach(acc => dashAddMoney(acc, cur, value));
         let row = '<tr>';
         if(!territoryCellDone){
           row += '<td class="terr" rowspan="' + territoryRowSpan + '">—</td>';
@@ -591,23 +596,23 @@ function renderPOData(){
         row += dashItemCell({ 'Item Code': code, Description: desc }) +
           '<td class="l">' + dashEsc(cat) + '</td><td class="l">' + dashEsc(dept) + '</td><td class="l">' + dashEsc(puda || '—') + '</td>' +
           '<td class="plan-cell dash-cpc">' + dashEsc(plan || '—') + '</td><td>' + dashInt(qty) + '</td><td>—</td>' +
-          '<td class="c">' + dashEsc(cur || '—') + '</td><td>' + (fob && cur ? fmtMoney(value) : '—') + '</td></tr>';
+          '<td class="c">' + dashEsc(cur || '—') + '</td><td>' + (fob && cur ? dashFmtMoney(value) : '—') + '</td></tr>';
         bodyHtml += row;
       });
       vendorQty += poQty;
       // Territory and Vendor are both covered by active rowspans from
       // above -- this row's own cells start at PO No.
-      bodyHtml += '<tr class="po-total-row"><td class="l" colspan="12"><b>' + dashEsc(po) + ' Total</b></td><td><b>' + dashInt(poQty) + '</b></td><td></td>' + moneyCells(poMoney) + '</tr>';
+      bodyHtml += '<tr class="po-total-row"><td class="l" colspan="12"><b>' + dashEsc(po) + ' Total</b></td><td><b>' + dashInt(poQty) + '</b></td><td></td>' + dashMoneyCells(poMoney) + '</tr>';
     });
     grandQty += vendorQty;
     const vendorLabel = dashEsc(vendor) + (showVendor ? ' — ' + dashEsc(vname(vendor)) : '');
     // Vendor's own rowspan has ended by here, but Territory's table-wide
     // one hasn't -- this row's own cells still start at Vendor.
-    bodyHtml += '<tr class="vendor-total-row"><td class="l" colspan="13"><b>' + vendorLabel + ' · Total</b></td><td><b>' + dashInt(vendorQty) + '</b></td><td></td>' + moneyCells(vendorMoney) + '</tr>';
+    bodyHtml += '<tr class="vendor-total-row"><td class="l" colspan="13"><b>' + vendorLabel + ' · Total</b></td><td><b>' + dashInt(vendorQty) + '</b></td><td></td>' + dashMoneyCells(vendorMoney) + '</tr>';
   });
   // Territory's rowspan reaches all the way down to here too, so this
   // row's own span starts one column later than it would otherwise.
-  const grandTotalRow = '<tr class="grand-total-row"><td class="l" colspan="13"><b>Grand Total</b></td><td><b>' + dashInt(grandQty) + '</b></td><td></td>' + moneyCells(grandMoney) + '</tr>';
+  const grandTotalRow = '<tr class="grand-total-row"><td class="l" colspan="13"><b>Grand Total</b></td><td><b>' + dashInt(grandQty) + '</b></td><td></td>' + dashMoneyCells(grandMoney) + '</tr>';
 
   root.innerHTML =
     '<div class="dash-sticky">' +

@@ -354,9 +354,8 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 /* The PO detail page's table is full-page width (not a narrow dash-card),
    so the ellipsis truncation above -- tuned for the dashboard's 2-column
    cards -- just wastes the extra room. Let its text columns wrap instead. */
-#poRoot .dash-table td.l{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;}
-#poRoot .dash-table td.l:has(> a){white-space:normal;}
-#poRoot .dash-table td.puda{white-space:normal;min-width:150px;}
+#poRoot .dash-table td.l{max-width:none;overflow:visible;text-overflow:clip;white-space:normal;}
+#poRoot .dash-table td.puda{white-space:normal;min-width:118px;}
 /* The 6 shipment columns (Ship Date..Discharge Port) are merged via rowspan
    across every line on the PO -- a light fill + divider sets that block
    apart from the per-item columns, echoing the reference sheet's grouped
@@ -395,10 +394,14 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
   background:var(--s-200);color:var(--s-700);text-align:center;letter-spacing:.1em;
   padding:6px 10px;border-bottom:1px solid var(--s-300);
 }
-#poRoot .dash-table th.c,#poDataRoot .dash-table th.c{text-align:center;}
+#poRoot .dash-table .c,#poDataRoot .dash-table .c{text-align:center;}
 #poRoot .dash-table th.item,#poDataRoot .dash-table th.item{width:auto;}
 #poRoot .dash-table td,#poDataRoot .dash-table td{padding:9px 10px;}
-#poRoot .dash-table td,#poRoot .dash-table th{padding-left:7px;padding-right:7px;}
+#poRoot .dash-table td,#poRoot .dash-table th{padding-left:6px;padding-right:6px;}
+#poRoot .dash-table thead th{letter-spacing:.01em;}
+/* Narrow screens: the table scrolls sideways inside its own box rather than
+   running off the page. */
+#poRoot .po-table-wrap{overflow-x:auto;border-radius:var(--r-md);}
 /* Top-aligned, not centered: Vendor's span also covers its POs' total rows,
    so centering put it lower than the PO No beside it. Top puts every merged
    value on its group's first item line. */
