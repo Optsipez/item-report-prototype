@@ -465,7 +465,7 @@ function renderPOPage(poNo){
   // the reference sheet's merged cells -- they only print once, on the
   // first row, spanning every line via rowspan.
   const shipCells = ['—', '—', dashDate(eta), '—', '—', '—']
-    .map(v => '<td class="po-ship" rowspan="' + lines.length + '">' + v + '</td>').join('');
+    .map((v, i, arr) => '<td class="po-ship' + (i === arr.length - 1 ? ' po-ship-end' : '') + '" rowspan="' + lines.length + '">' + v + '</td>').join('');
   const rowsHtml = lines.map((l, i) => {
     const [, code, desc, qty, , , dept, cat] = l;
     const it = DASH_ITEM_BY_CODE[code];
@@ -488,7 +488,7 @@ function renderPOPage(poNo){
     '<div class="dash-detail-head"><h3>Items on this PO <span>' + dashInt(lines.length) + ' lines</span></h3>' +
       '<button type="button" class="dash-btn" id="poOpenAll">Open in All Products &rarr;</button></div>' +
     '<table class="dash-table po-sheet"><thead><tr>' +
-      '<th>Ship Date</th><th>Revised-Ship</th><th>Revised-ETA</th><th>Status</th><th>Port Of Origin</th><th>Discharge Port</th>' +
+      '<th>Ship Date</th><th>Revised-Ship</th><th>Revised-ETA</th><th>Status</th><th>Port Of Origin</th><th class="po-ship-end">Discharge Port</th>' +
       '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th>Total</th>' +
     '</tr></thead><tbody>' +
       rowsHtml +
@@ -557,7 +557,7 @@ function renderPOData(){
         poQty += qty; poValue += value;
         let row = '<tr>';
         if(!territoryCellDone){
-          row += '<td rowspan="' + territoryRowSpan + '">—</td>';
+          row += '<td class="terr" rowspan="' + territoryRowSpan + '">—</td>';
           territoryCellDone = true;
         }
         if(!vendorCellDone){
@@ -566,7 +566,7 @@ function renderPOData(){
         }
         if(i === 0){
           row += '<td class="l po po-ship" rowspan="' + poRowSpan + '"><a ' + dashPOLink(po) + ' title="Open this PO"><b class="mono">' + dashEsc(po) + '</b></a></td>' +
-            ['—', '—', dashDate(group.eta), '—', '—', '—'].map(v => '<td class="po-ship" rowspan="' + poRowSpan + '">' + v + '</td>').join('');
+            ['—', '—', dashDate(group.eta), '—', '—', '—'].map((v, idx, arr) => '<td class="po-ship' + (idx === arr.length - 1 ? ' po-ship-end' : '') + '" rowspan="' + poRowSpan + '">' + v + '</td>').join('');
         }
         row += dashItemCell({ 'Item Code': code, Description: desc }) +
           '<td class="l">' + dashEsc(cat) + '</td><td class="l">' + dashEsc(dept) + '</td><td class="l">' + dashEsc(puda || '—') + '</td>' +
@@ -596,8 +596,8 @@ function renderPOData(){
       '<p class="dash-sub">' + dashInt(PO_LINES.length) + ' lines across ' + dashInt(poCount) + ' POs, ' + dashInt(vendorCodes.length) + ' vendors — grouped by vendor, then PO.</p>' +
     '</div></div>' +
     '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead><tr>' +
-      '<th>Territory</th><th class="l">Vendor</th><th class="l">PO No</th>' +
-      '<th>Ship Date</th><th>Revised-Ship</th><th>Revised-ETA</th><th>Status</th><th>Port Of Origin</th><th>Discharge Port</th>' +
+      '<th class="terr">Territory</th><th class="l">Vendor</th><th class="l">PO No</th>' +
+      '<th>Ship Date</th><th>Revised-Ship</th><th>Revised-ETA</th><th>Status</th><th>Port Of Origin</th><th class="po-ship-end">Discharge Port</th>' +
       '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th>Total</th>' +
     '</tr></thead><tbody>' + bodyHtml + grandTotalRow + '</tbody></table></div>';
 }

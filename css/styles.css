@@ -360,7 +360,14 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    apart from the per-item columns, echoing the reference sheet's grouped
    look without needing its multi-PO/vendor banding (this page is always
    just one PO). */
-#poRoot .po-ship,#poDataRoot .po-ship{vertical-align:middle;background:var(--sunken);border-right:2px solid var(--line-strong);}
+#poRoot .po-ship,#poDataRoot .po-ship{vertical-align:middle;background:var(--sunken);}
+/* One divider per real column-group boundary, not one per column --
+   .po-ship-end marks the last of the 6 shipment columns (before Item
+   starts) and .terr marks Territory (PO Data only). Both get the same
+   border on their <th> too, so the header's dividers land exactly where
+   the body's do instead of the header reading as a flat, undivided bar. */
+#poRoot .po-ship-end,#poDataRoot .po-ship-end,#poDataRoot td.terr,#poDataRoot th.terr{border-right:2px solid var(--line-strong);}
+#poRoot .dash-table thead th,#poDataRoot .dash-table thead th{background:var(--sunken);border-bottom:2px solid var(--line-strong);padding-top:10px;}
 /* The Vendor column (PO Data only -- merged across every PO it owns, not
    just one) gets the same treatment as the PO/shipment columns beside it,
    just its own slightly different tint so the two merge levels read as
