@@ -131,7 +131,9 @@ function fillPrimaryStats(){
     const b = v => '<b>' + v + '</b>';
     primaryStats = {
       lede: b('AED ' + compact(stock)) + ' in stock. ' + b(n(pos)) + ' purchase orders open, ' + b(n(late)) + ' of them running late.',
+      dashboard: n(late) + ' late POs to follow up',
       products: n(ITEMS.length) + ' items',
+      lookup: 'Search ' + n(ITEMS.length) + ' items',
       trip: n(vendors) + ' vendors',
       podata: n(pos) + ' open',
       foot: 'Figures as of ' + new Date(DATA_AS_OF + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),

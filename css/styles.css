@@ -744,10 +744,11 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    the front door borrows from a lobby directory rather than a SaaS card
    grid. One navy surface (the brand navy, finished with a fine grain so it
    reads as a material, not a flat screen), warm ivory type, brass used only
-   for structure: the rules between destinations, their figures, focus.
+   for structure: the hairline borders of the destination boxes, their
+   figures, focus.
    Cormorant carries the voice (the state of the business, the destination
    names); Inter carries everything functional. The one motion is the lede
-   settling in on load; rows only respond to the pointer. */
+   settling in on load; boxes only respond to the pointer. */
 .primary-overlay{
   --pl-ink:#0E1826;--pl-ivory:#EFE8DA;--pl-muted:#8F98A6;--pl-brass:#C29A55;--pl-rule:rgba(194,154,85,.24);
   display:none;position:fixed;inset:0;z-index:495;flex-direction:column;overflow:auto;
@@ -775,40 +776,42 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
   animation:primaryLede .9s cubic-bezier(.2,.7,.2,1) both;
 }
 .primary-lede b{font-weight:600;}
-/* The directory: one rule above each destination, one closing the list. */
-.primary-grid{display:flex;flex-direction:column;border-bottom:1px solid var(--pl-rule);}
+/* Destinations as boxed buttons in a 3x2 grid, Dashboard spanning two.
+   Flat, hairline-brass boxes on the navy -- no glass, no glow, no
+   per-box colours; hover warms the border and name to brass. */
+.primary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;}
 .primary-row{
-  position:relative;display:grid;grid-template-columns:300px 1fr 170px;align-items:baseline;gap:24px;
-  width:100%;padding:18px 8px;text-align:left;font:inherit;color:inherit;cursor:pointer;
-  background:none;border:0;border-top:1px solid var(--pl-rule);
-  transition:background-color .25s ease;
+  position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:168px;
+  padding:24px 26px 20px;text-align:left;font:inherit;color:inherit;cursor:pointer;
+  background:rgba(239,232,218,.035);border:1px solid var(--pl-rule);border-radius:14px;
+  transition:background-color .25s ease,border-color .25s ease,transform .3s cubic-bezier(.2,.7,.2,1);
 }
-.primary-row::after{
-  content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:var(--pl-brass);
-  transform:scaleX(0);transform-origin:left;transition:transform .35s cubic-bezier(.2,.7,.2,1);
-}
-.primary-row:hover,.primary-row:focus-visible{background-color:rgba(239,232,218,.035);}
-.primary-row:hover::after,.primary-row:focus-visible::after{transform:scaleX(1);}
-.primary-row:focus-visible{outline:2px solid var(--pl-brass);outline-offset:-2px;}
+.primary-row[data-hash="dashboard"]{grid-column:span 2;background:linear-gradient(135deg,rgba(194,154,85,.12),rgba(239,232,218,.03) 65%);}
+.primary-row:hover,.primary-row:focus-visible{background-color:rgba(239,232,218,.06);border-color:var(--pl-brass);transform:translateY(-3px);}
+.primary-row:focus-visible{outline:2px solid var(--pl-brass);outline-offset:3px;}
 .primary-row-name{
-  font-family:'Cormorant Garamond',Georgia,serif;font-size:32px;line-height:1.1;font-weight:500;color:var(--pl-ivory);
-  transition:color .25s ease,transform .35s cubic-bezier(.2,.7,.2,1);
+  font-family:'Cormorant Garamond',Georgia,serif;font-size:30px;line-height:1.1;font-weight:500;color:var(--pl-ivory);
+  transition:color .25s ease;
 }
-.primary-row:hover .primary-row-name{color:var(--pl-brass);transform:translateX(6px);}
+.primary-row[data-hash="dashboard"] .primary-row-name{font-size:36px;}
+.primary-row:hover .primary-row-name,.primary-row:focus-visible .primary-row-name{color:var(--pl-brass);}
 .primary-row-desc{font-size:15px;color:var(--pl-muted);line-height:1.5;}
 .primary-row-stat{
+  margin-top:auto;width:100%;padding-top:14px;border-top:1px solid var(--pl-rule);
   font-family:'Cormorant Garamond',Georgia,serif;font-size:22px;font-weight:600;color:var(--pl-brass);
-  white-space:nowrap;text-align:right;font-variant-numeric:lining-nums tabular-nums;
+  white-space:nowrap;font-variant-numeric:lining-nums tabular-nums;
 }
+.primary-row-stat:empty{border-top:0;padding-top:0;}
 .primary-foot{margin:20px 0 0;font-size:13px;color:var(--pl-muted);}
+@media (max-width:980px){.primary-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media (max-width:760px){
-  .primary-row{grid-template-columns:1fr auto;gap:4px 16px;padding:16px 4px;}
-  .primary-row-desc{grid-column:1 / -1;grid-row:2;}
-  .primary-row-name{font-size:26px;}
+  .primary-grid{grid-template-columns:1fr;}
+  .primary-row,.primary-row[data-hash="dashboard"]{grid-column:auto;min-height:0;}
+  .primary-row-name,.primary-row[data-hash="dashboard"] .primary-row-name{font-size:26px;}
 }
 @media (prefers-reduced-motion:reduce){
   .primary-lede{animation:none;}
-  .primary-row::after,.primary-row-name{transition:none;}
+  .primary-row,.primary-row-name{transition:none;}
 }
 @keyframes primaryLede{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
 
