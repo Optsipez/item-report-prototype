@@ -6,7 +6,7 @@
 <title>Item Report — Inventory Intelligence</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -339,23 +339,17 @@
      app (nothing underneath is visible) so a role only ever sees the
      sections it's allowed into. See PRIMARY_VIEWS in js/auth.js. -->
 <div id="primaryOverlay" class="primary-overlay" hidden>
-  <div class="primary-hero">
-    <div class="primary-head">
-      <div class="primary-brand"><span class="dot"></span>Inventory Intelligence</div>
-      <div class="primary-head-right">
-        <span class="primary-user" id="primaryUser"></span>
-      </div>
-    </div>
-    <div class="primary-hero-text">
-      <p class="primary-date" id="primaryDate"></p>
-      <h1 class="primary-sub" id="primaryGreeting"></h1>
-      <p class="primary-tag">Pick where you want to go.</p>
-    </div>
-  </div>
-  <div class="primary-body">
-    <div class="primary-grid" id="primaryGrid"></div>
+  <header class="primary-head">
+    <div class="primary-brand"><span class="dot"></span>Inventory Intelligence</div>
+    <span class="primary-user" id="primaryUser"></span>
+  </header>
+  <main class="primary-main">
+    <p class="primary-date" id="primaryDate"></p>
+    <h1 class="primary-sub" id="primaryGreeting"></h1>
+    <p class="primary-lede" id="primaryLede">Loading today's figures…</p>
+    <nav class="primary-grid" id="primaryGrid" aria-label="Go to"></nav>
     <p class="primary-foot" id="primaryFoot"></p>
-  </div>
+  </main>
 </div>
 
 <script src="js/auth.js"></script>

@@ -71,36 +71,29 @@ function restoreSession(){
 
 // Primary dashboard / launcher — role-gated front door, shown full-screen
 // (nothing of the app visible underneath) right after sign-in and
-// reopenable via the topbar's Menu button. Every role gets every view for
-// now; restrict one later by trimming its `roles` array.
-const PRIMARY_ICONS = {
-  dashboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="8"></rect><rect x="10" y="7" width="4" height="13"></rect><rect x="17" y="3" width="4" height="17"></rect></svg>',
-  products: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>',
-  trip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>',
-  lookup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>',
-  podata: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6"></path><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line></svg>',
-};
+// reopenable via the topbar's Menu button. Laid out as a showroom-style
+// directory: the state of the business as one sentence, then each
+// destination as a row. Every role gets every view for now; restrict one
+// later by trimming its `roles` array.
 const PRIMARY_VIEWS = [
-  { label: 'Dashboard',        desc: 'Business overview & KPIs', hash: 'dashboard', accent: '--primary', accentBg: '--primary-weak', roles: ['buyer', 'manager', 'ceo', 'admin'] },
-  { label: 'All Products',     desc: 'Full inventory grid',      hash: 'products',  accent: '--stock',   accentBg: '--stock-bg',     roles: ['buyer', 'manager', 'ceo', 'admin'] },
-  { label: 'Trip Requirement', desc: 'Vendor trip planning',     hash: 'trip',       accent: '--sr',      accentBg: '--sr-bg',        roles: ['buyer', 'manager', 'ceo', 'admin'] },
-  { label: 'Item Lookup',      desc: 'Single item detail',       hash: 'lookup',     accent: '--soh',     accentBg: '--soh-bg',       roles: ['buyer', 'manager', 'ceo', 'admin'] },
-  { label: 'PO Data',          desc: 'Every open PO',            hash: 'podata',     accent: '--warn',    accentBg: '--warn-bg',      roles: ['buyer', 'manager', 'ceo', 'admin'] },
+  { label: 'Dashboard',        desc: 'Sales, stock cover and what needs attention', hash: 'dashboard', roles: ['buyer', 'manager', 'ceo', 'admin'] },
+  { label: 'All Products',     desc: 'Every item with its stock, sales and pricing', hash: 'products',  roles: ['buyer', 'manager', 'ceo', 'admin'] },
+  { label: 'Trip Requirement', desc: 'Plan the next order with a vendor',            hash: 'trip',      roles: ['buyer', 'manager', 'ceo', 'admin'] },
+  { label: 'Item Lookup',      desc: 'Everything about a single item',               hash: 'lookup',    roles: ['buyer', 'manager', 'ceo', 'admin'] },
+  { label: 'PO Data',          desc: 'Every open purchase order, by vendor',         hash: 'podata',    roles: ['buyer', 'manager', 'ceo', 'admin'] },
 ];
 function renderPrimaryOverlay(){
   const grid = document.getElementById('primaryGrid');
   if(!grid) return;
   grid.innerHTML = PRIMARY_VIEWS.filter(v => v.roles.includes(CURRENT_ROLE)).map(v =>
-    '<button type="button" class="primary-tile' + (v.hash === 'dashboard' ? ' featured' : '') + '" data-hash="' + v.hash + '" style="--tile-accent:var(' + v.accent + ');--tile-accent-bg:var(' + v.accentBg + ')">' +
-      '<span class="primary-tile-arrow">&rarr;</span>' +
-      '<span class="primary-tile-icon">' + PRIMARY_ICONS[v.hash] + '</span>' +
-      '<span class="primary-tile-title">' + v.label + '</span>' +
-      '<span class="primary-tile-desc">' + v.desc + '</span>' +
-      '<span class="primary-tile-stat" data-stat="' + v.hash + '"><span class="primary-loading">Loading data…</span></span>' +
+    '<button type="button" class="primary-row" data-hash="' + v.hash + '">' +
+      '<span class="primary-row-name">' + v.label + '</span>' +
+      '<span class="primary-row-desc">' + v.desc + '</span>' +
+      '<span class="primary-row-stat" data-stat="' + v.hash + '"></span>' +
     '</button>'
   ).join('');
   fillPrimaryStats();
-  grid.querySelectorAll('.primary-tile').forEach(btn => btn.addEventListener('click', () => {
+  grid.querySelectorAll('.primary-row').forEach(btn => btn.addEventListener('click', () => {
     hidePrimaryOverlay();
     // This overlay shows before the 38MB data.js and app.js have finished
     // downloading. Clicked that early, navigate() doesn't exist yet -- set
@@ -117,12 +110,14 @@ function renderPrimaryOverlay(){
   const user = document.getElementById('primaryUser');
   if(user){
     const roleLabel = CURRENT_ROLE === 'ceo' ? 'CEO' : CURRENT_ROLE === 'manager' ? 'Manager' : CURRENT_ROLE === 'admin' ? 'Admin' : 'Buyer';
-    user.textContent = CURRENT_EMPLOYEE_ID + ' · ' + (CURRENT_EMPLOYEE_NAME || roleLabel);
+    user.textContent = CURRENT_EMPLOYEE_NAME || roleLabel;
+    user.title = 'Signed in as ' + CURRENT_EMPLOYEE_ID;
   }
 }
-// Live counts on the launcher tiles. The overlay can show before the 38MB
-// data.js has loaded, so this no-ops until ITEMS/PO_LINES exist and runs
-// again from the end of dashboard.js once everything is in.
+// The lede sentence and row figures. The overlay can show before the 38MB
+// data.js has loaded, so this no-ops until ITEMS/PO_LINES exist (the lede
+// says "Loading today's figures…" meanwhile) and runs again from the end of
+// dashboard.js once everything is in.
 let primaryStats = null;
 function fillPrimaryStats(){
   if(typeof ITEMS === 'undefined' || typeof PO_LINES === 'undefined') return;
@@ -133,20 +128,22 @@ function fillPrimaryStats(){
     const stock = ITEMS.reduce((s, i) => s + Math.max(0, Number(i['SOH']) || 0) * (Number(i['L-Cost (Aed)']) || 0), 0);
     const pos = new Set(PO_LINES.map(l => l[0])).size;
     const late = new Set(PO_LINES.filter(l => l[4] < DATA_AS_OF).map(l => l[0])).size;
-    const kpi = (v, k) => '<span class="primary-kpi"><b>' + v + '</b><small>' + k + '</small></span>';
+    const b = v => '<b>' + v + '</b>';
     primaryStats = {
-      dashboard: kpi('AED ' + compact(stock), 'Stock value') + kpi(n(pos), 'Open POs') + kpi(n(late), 'Late POs'),
-      products: n(ITEMS.length) + ' items · ' + n(vendors) + ' vendors',
-      trip: n(vendors) + ' vendors to plan for',
-      lookup: 'Search ' + n(ITEMS.length) + ' items',
-      podata: n(pos) + ' open POs · ' + n(PO_LINES.length) + ' lines',
-      foot: 'Data as of ' + new Date(DATA_AS_OF + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+      lede: b('AED ' + compact(stock)) + ' in stock. ' + b(n(pos)) + ' purchase orders open, ' + b(n(late)) + ' of them running late.',
+      products: n(ITEMS.length) + ' items',
+      trip: n(vendors) + ' vendors',
+      podata: n(pos) + ' open',
+      foot: 'Figures as of ' + new Date(DATA_AS_OF + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
     };
   }
-  document.querySelectorAll('#primaryGrid [data-stat]').forEach(el => { el.innerHTML = primaryStats[el.dataset.stat] || ''; });
+  document.querySelectorAll('#primaryGrid [data-stat]').forEach(el => { el.textContent = primaryStats[el.dataset.stat] || ''; });
+  const lede = document.getElementById('primaryLede');
+  if(lede) lede.innerHTML = primaryStats.lede;
   const foot = document.getElementById('primaryFoot');
   if(foot) foot.textContent = primaryStats.foot;
 }
+
 function showPrimaryOverlay(){
   renderPrimaryOverlay();
   const overlay = document.getElementById('primaryOverlay');
