@@ -542,6 +542,7 @@ function poShipInfo(po){ return { ship: null, revShip: null, status: null }; }
 const poEtd = g => g.revShip || g.ship || null;
 function poSortValue(g, key){
   if(key === 'eta') return g.eta || null;
+  if(key === 'created') return g.created || null;
   if(key === 'etd') return poEtd(g);
   if(key === 'status'){ const i = PO_STATUS_ORDER.indexOf(g.status); return g.status ? (i < 0 ? PO_STATUS_ORDER.length : i) : null; }
   return null;
@@ -565,7 +566,7 @@ function renderPOData(){
   lines.forEach(l => {
     const po = l[0], vendor = l[5];
     if(!byVendor[vendor]) byVendor[vendor] = {};
-    if(!byVendor[vendor][po]) byVendor[vendor][po] = { po, eta: l[4], lines: [], ...poShipInfo(po) };
+    if(!byVendor[vendor][po]) byVendor[vendor][po] = { po, eta: l[4], created: PO_CREATED[po] || null, lines: [], ...poShipInfo(po) };
     byVendor[vendor][po].lines.push(l);
   });
   // Sorted: POs order by the chosen field inside each vendor, and vendors
@@ -621,7 +622,8 @@ function renderPOData(){
           vendorCellDone = true;
         }
         if(i === 0){
-          row += '<td class="l po po-ship" rowspan="' + poRowSpan + '"><a ' + dashPOLink(po) + ' title="Open this PO"><b class="mono">' + dashEsc(po) + '</b></a></td>' +
+          row += '<td class="po-ship" rowspan="' + poRowSpan + '">' + (group.created ? dashDate(group.created) : '—') + '</td>' +
+            '<td class="l po po-ship" rowspan="' + poRowSpan + '"><a ' + dashPOLink(po) + ' title="Open this PO"><b class="mono">' + dashEsc(po) + '</b></a></td>' +
             [group.ship ? dashDate(group.ship) : '—', poEtd(group) ? dashDate(poEtd(group)) : '—', dashDate(group.eta), group.status ? dashEsc(group.status) : '—', '—', '—'].map((v, idx, arr) => '<td class="po-ship' + (idx === arr.length - 1 ? ' po-ship-end' : '') + '" rowspan="' + poRowSpan + '">' + v + '</td>').join('');
         }
         row += dashItemCell({ 'Item Code': code, Description: desc }) +
@@ -632,18 +634,18 @@ function renderPOData(){
       });
       vendorQty += poQty;
       // Territory and Vendor are both covered by active rowspans from
-      // above -- this row's own cells start at PO No.
-      bodyHtml += '<tr class="po-total-row"><td class="l" colspan="13"><b>' + dashEsc(po) + ' Total</b></td><td><b>' + dashInt(poQty) + '</b></td><td></td>' + dashMoneyCells(poMoney) + '</tr>';
+      // above -- this row's own cells start at PO Create Date.
+      bodyHtml += '<tr class="po-total-row"><td class="l" colspan="14"><b>' + dashEsc(po) + ' Total</b></td><td><b>' + dashInt(poQty) + '</b></td><td></td>' + dashMoneyCells(poMoney) + '</tr>';
     });
     grandQty += vendorQty;
     const vendorLabel = dashEsc(vendor) + (showVendor ? ' — ' + dashEsc(vname(vendor)) : '');
     // Vendor's own rowspan has ended by here, but Territory's table-wide
     // one hasn't -- this row's own cells still start at Vendor.
-    bodyHtml += '<tr class="vendor-total-row"><td class="l" colspan="14"><b>' + vendorLabel + ' · Total</b></td><td><b>' + dashInt(vendorQty) + '</b></td><td></td>' + dashMoneyCells(vendorMoney) + '</tr>';
+    bodyHtml += '<tr class="vendor-total-row"><td class="l" colspan="15"><b>' + vendorLabel + ' · Total</b></td><td><b>' + dashInt(vendorQty) + '</b></td><td></td>' + dashMoneyCells(vendorMoney) + '</tr>';
   });
   // Territory's rowspan reaches all the way down to here too, so this
   // row's own span starts one column later than it would otherwise.
-  const grandTotalRow = '<tr class="grand-total-row"><td class="l" colspan="14"><b>Grand Total</b></td><td><b>' + dashInt(grandQty) + '</b></td><td></td>' + dashMoneyCells(grandMoney) + '</tr>';
+  const grandTotalRow = '<tr class="grand-total-row"><td class="l" colspan="15"><b>Grand Total</b></td><td><b>' + dashInt(grandQty) + '</b></td><td></td>' + dashMoneyCells(grandMoney) + '</tr>';
 
   const sortTh = (key, label, tip) => {
     const on = s && s.key === key;
@@ -664,8 +666,8 @@ function renderPOData(){
     '</div>' +
     (lines.length ? '' : '<p class="dash-empty">No open PO lines match this selection.</p>') +
     (!lines.length ? '' : '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead>' +
-      '<tr class="po-grp"><th colspan="3">Purchase Order</th><th colspan="6" class="po-ship-end">Shipment</th><th colspan="6">Product</th><th colspan="4">Order</th></tr><tr>' +
-      '<th class="c terr">Territory</th><th class="l">Vendor</th><th class="l">PO No</th>' +
+      '<tr class="po-grp"><th colspan="4">Purchase Order</th><th colspan="6" class="po-ship-end">Shipment</th><th colspan="6">Product</th><th colspan="4">Order</th></tr><tr>' +
+      '<th class="c terr">Territory</th><th class="l">Vendor</th>' + sortTh('created', 'PO Create Date', 'PO creation date') + '<th class="l">PO No</th>' +
       '<th class="c">Ship Date</th>' + sortTh('etd', 'Revised-Ship', 'Revised ETD, or the original Ship Date when there is no revision') + sortTh('eta', 'Revised-ETA', 'ETA') +
       sortTh('status', 'Status', 'In order: ' + PO_STATUS_ORDER.join(', ')) + '<th class="c">Port Of Origin</th><th class="c po-ship-end">Discharge Port</th>' +
       '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th class="l">Range Name</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th class="c">Currency</th><th title="Order Qty × Latest FOB Cost">Total</th>' +
