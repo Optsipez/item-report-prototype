@@ -15,7 +15,7 @@
        Overstock / slow     6+ months old and 12+ months of cover (or no sales),
                             with price and margin so a markdown can be judged
    - How the scope is trading, monthly sales, rising/falling items, what is
-     landing soon, which vendors to chase, units due by month, branch sales.
+     landing soon, POs expired, units due by month, branch sales.
 
    "Selling" is real sales in the last 3 complete months of data — not the
    grid's AVG column, which for brand-new items is only an estimate from the
@@ -341,13 +341,17 @@ function dashCompute(){
   R.onOrderUnits = pos.reduce((a, p) => a + p.units, 0);
   R.lateUnits = R.latePOs.reduce((a, p) => a + p.units, 0);
   R.soonUnits = R.soonPOs.reduce((a, p) => a + p.units, 0);
-  // vendors with the most late stock — who to chase
-  const chase = {};
-  R.latePOs.forEach(p => {
-    const c = chase[p.vendor] = chase[p.vendor] || { vendor: p.vendor, pos: 0, units: 0, worst: 0 };
-    c.pos++; c.units += p.units; c.worst = Math.max(c.worst, p.late);
-  });
-  R.chase = Object.values(chase).sort((a, b) => b.units - a.units);
+  // POs Expired: status "Pending" and created less than 15 days before
+  // today (today's date, not the data date). Oldest first -- closest to the
+  // 15-day mark. Status comes from PO_SHIP; created from PO_CREATED.
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  R.expired = pos.map(p => {
+    const status = String((PO_SHIP[p.po] || [])[2] || '').trim().toLowerCase();
+    const created = PO_CREATED[p.po];
+    const age = created ? Math.round((today - new Date(created + 'T00:00:00')) / DAY) : null;
+    return { ...p, status, created, age };
+  }).filter(p => p.status === 'pending' && p.age != null && p.age >= 0 && p.age < 15)
+    .sort((a, b) => b.age - a.age);
   // units due per month, from the data date forward, next 6 months
   const start = dashAsOf();
   R.inbound = [];
@@ -720,6 +724,7 @@ function renderDashboard(){
   const R = dashCompute(), W = R.W;
   const showVendor = canSeeVendorName();
   const vname = c => showVendor ? (R.vendorName[c] || c) : c;
+  const vcodeName = c => c + (showVendor && R.vendorName[c] ? ' — ' + R.vendorName[c] : '');
   const delta = R.prior3 > 0 ? (R.sold3 - R.prior3) / R.prior3 * 100 : null;
   const cover = R.sold3 > 0 ? R.soh / (R.sold3 / 3) : null;
   const typicalLead = dashDaysToMonths(LEAD_TIMES.overall);
@@ -765,11 +770,11 @@ function renderDashboard(){
           R.soonPOs.map(p => '<tr class="dash-pick dash-po" data-po="' + dashEsc(p.po) + '" title="Show the items on this PO"><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l muted">' + dashEsc(vname(p.vendor)) + '</td><td>' + dashInt(p.units) + '</td><td>' + dashEsc(dashDate(p.eta)) + ' <small>(' + p.in + ' d)</small></td></tr>').join('') + '</tbody></table></div>' +
             '<button type="button" class="dash-btn ghost dash-more" data-list="soon">See all ' + dashInt(R.soonPOs.length) + ' POs (' + dashInt(dashPOCodes(R.soonPOs).size) + ' items) &rarr;</button>'
           : '<p class="dash-empty">No POs due in the next 30 days.</p>') + '</section>' +
-      '<section class="dash-card tone-warn"><h3>Vendors to chase <span>most late units, click to filter</span></h3>' +
-        (R.chase.length ? '<div class="dash-table-scroll"><table class="dash-table"><thead><tr><th class="l vend">Vendor</th><th>Late POs</th><th>Late units</th><th>Worst</th><th>Usual lead</th></tr></thead><tbody>' +
-          R.chase.map(c => '<tr class="dash-pick" data-vendor="' + dashEsc(c.vendor) + '" data-goto="late" title="Show only this vendor"><td class="l"><b>' + dashEsc(vname(c.vendor)) + '</b></td><td>' + c.pos + '</td><td>' + dashInt(c.units) + '</td><td class="bad">' + c.worst + ' d</td><td>' + dashInt(dashLeadDays(c.vendor)) + ' d</td></tr>').join('') + '</tbody></table></div>' +
-            '<button type="button" class="dash-btn ghost dash-more" data-list="chase">See all ' + dashInt(R.chase.length) + ' vendors (' + dashInt(dashPOCodes(R.latePOs).size) + ' items) &rarr;</button>'
-          : '<p class="dash-empty">No late POs. Good.</p>') + '</section>' +
+      '<section class="dash-card tone-warn"><h3>POs Expired <span>status Pending, created under 15 days ago</span></h3>' +
+        (R.expired.length ? '<div class="dash-table-scroll"><table class="dash-table"><thead><tr><th class="l po">PO</th><th class="l vend">Vendor</th><th>Created</th><th>Days</th><th>Units</th></tr></thead><tbody>' +
+          R.expired.map(p => '<tr class="dash-pick dash-po" data-po="' + dashEsc(p.po) + '" title="Show the items on this PO"><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l">' + dashEsc(vcodeName(p.vendor)) + '</td><td>' + dashEsc(dashDate(p.created)) + '</td><td class="bad">' + p.age + ' d</td><td>' + dashInt(p.units) + '</td></tr>').join('') + '</tbody></table></div>' +
+            '<button type="button" class="dash-btn ghost dash-more" data-list="expired">See all ' + dashInt(R.expired.length) + ' POs (' + dashInt(dashPOCodes(R.expired).size) + ' items) &rarr;</button>'
+          : '<p class="dash-empty">No pending POs created in the last 15 days.</p>') + '</section>' +
       '<section class="dash-card wide tone-stock"><h3>Units due by month <span>all open POs</span></h3>' + dashColumns(inbound) + '</section>' +
     '</div>';
 
@@ -777,7 +782,7 @@ function renderDashboard(){
   const $ = id => document.getElementById(id);
   root.querySelectorAll('.dash-tile').forEach(b => b.addEventListener('click', () => { dashTab = b.dataset.tab; renderDashboard(); }));
   root.querySelectorAll('.dash-po').forEach(tr => tr.addEventListener('click', () => {
-    const p = R.soonPOs.find(x => x.po === tr.dataset.po);
+    const p = R.soonPOs.concat(R.expired).find(x => x.po === tr.dataset.po);
     if(p) openGridFocus(p.po, p.codes, null);
   }));
   root.querySelectorAll('.dash-pick:not(.dash-po)').forEach(tr => tr.addEventListener('click', () => {
@@ -789,7 +794,7 @@ function renderDashboard(){
     const suffix = scopeParts.length ? ' – ' + scopeParts.join(' · ') : '';
     if(b.dataset.list){
       const soon = b.dataset.list === 'soon';
-      openGridFocus((soon ? 'Landing soon' : 'Late vendors') + suffix, dashPOCodes(soon ? R.soonPOs : R.latePOs), null);
+      openGridFocus((soon ? 'Landing soon' : 'POs Expired') + suffix, dashPOCodes(soon ? R.soonPOs : R.expired), null);
       return;
     }
     const up = b.dataset.movers === 'up', list = up ? R.risersAll : R.fallersAll;
