@@ -740,27 +740,31 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    should still win), laid out as a real page (header strip + centered
    content) rather than a small floating card, so it reads as the app's
    own home screen and not a modal. */
-/* Launcher as a showroom directory -- 2XL sells furniture and homeware, so
-   the front door borrows from a lobby directory rather than a SaaS card
-   grid. One navy surface (the brand navy, finished with a fine grain so it
-   reads as a material, not a flat screen), warm ivory type, brass used only
-   for structure: the hairline borders of the destination boxes, their
-   figures, focus.
-   Cormorant carries the voice (the state of the business, the destination
-   names); Inter carries everything functional. The one motion is the lede
-   settling in on load; boxes only respond to the pointer. */
+/* Launcher -- the app's own palette (canvas, white, slate ink, brass), so
+   it flows straight into the pages behind it, graded around one light
+   source: a warm brass key glow top-left, a cool slate-blue fill
+   bottom-right, a faint paper grain. White boxes with a brass-lit
+   hairline edge; brass figures. Cormorant carries the voice (the state of
+   the business, destination names); Inter carries everything functional.
+   The one motion is the lede settling in on load; boxes respond to the
+   pointer. */
 .primary-overlay{
-  --pl-ink:#0E1826;--pl-ivory:#EFE8DA;--pl-muted:#8F98A6;--pl-brass:#C29A55;--pl-rule:rgba(194,154,85,.24);
+  --pl-bg:#F6F6F4;--pl-bg2:#E8EDF3;--pl-key:rgba(202,161,66,.22);--pl-fill:rgba(96,140,200,.16);
+  --pl-ink:#0F172A;--pl-muted:#64748B;--pl-brass:#A3781D;--pl-brass-hi:#CAA142;--pl-rule:rgba(163,120,29,.25);
   display:none;position:fixed;inset:0;z-index:495;flex-direction:column;overflow:auto;
-  color:var(--pl-ivory);background-color:var(--pl-ink);
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .055 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  color:var(--pl-ink);background-color:var(--pl-bg);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .035 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(1100px 700px at 6% -12%, var(--pl-key), transparent 60%),
+    radial-gradient(900px 700px at 104% 108%, var(--pl-fill), transparent 62%),
+    linear-gradient(155deg, var(--pl-bg) 0%, var(--pl-bg2) 100%);
+  background-attachment:fixed;
 }
 .primary-overlay:not([hidden]){display:flex;}
 .primary-head{
   flex:none;display:flex;align-items:center;justify-content:space-between;
   padding:28px clamp(20px,5vw,64px);
 }
-.primary-brand{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;color:var(--pl-ivory);letter-spacing:.01em;}
+.primary-brand{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;color:var(--pl-ink);letter-spacing:.01em;}
 .primary-brand .dot{width:8px;height:8px;border-radius:50%;background:var(--pl-brass);}
 .primary-user{font-size:14px;color:var(--pl-muted);}
 .primary-main{
@@ -768,29 +772,35 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
   padding:clamp(20px,5vh,72px) clamp(20px,5vw,64px) 40px;
 }
 .primary-date{margin:0 0 6px;font-size:14px;color:var(--pl-muted);}
-.primary-sub{margin:0 0 18px;font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:500;color:var(--pl-ivory);letter-spacing:0;}
+.primary-sub{margin:0 0 18px;font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:500;color:var(--pl-ink);letter-spacing:0;}
 .primary-lede{
   margin:0 0 clamp(32px,6vh,64px);max-width:21em;
   font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(34px,4.4vw,60px);line-height:1.06;font-weight:500;
-  letter-spacing:-.012em;color:var(--pl-ivory);font-variant-numeric:lining-nums;
+  letter-spacing:-.012em;color:var(--pl-ink);font-variant-numeric:lining-nums;
   animation:primaryLede .9s cubic-bezier(.2,.7,.2,1) both;
 }
-.primary-lede b{font-weight:600;}
-/* Destinations as boxed buttons in a 3x2 grid, Dashboard spanning two.
-   Flat, hairline-brass boxes on the navy -- no glass, no glow, no
-   per-box colours; hover warms the border and name to brass. */
+.primary-lede b{font-weight:600;background:linear-gradient(100deg,var(--pl-brass),var(--pl-brass-hi));-webkit-background-clip:text;background-clip:text;color:transparent;}
+/* Destinations as boxed buttons in a 3x2 grid, Dashboard spanning two. */
 .primary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;}
 .primary-row{
   position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:168px;
   padding:24px 26px 20px;text-align:left;font:inherit;color:inherit;cursor:pointer;
-  background:rgba(239,232,218,.035);border:1px solid var(--pl-rule);border-radius:14px;
-  transition:background-color .25s ease,border-color .25s ease,transform .3s cubic-bezier(.2,.7,.2,1);
+  background:linear-gradient(160deg,#fff,#FBFAF7) padding-box,
+    linear-gradient(140deg,color-mix(in srgb,var(--pl-brass) 55%,transparent),var(--pl-rule) 40%,rgba(15,23,42,.06)) border-box;
+  border:1px solid transparent;border-radius:14px;
+  box-shadow:0 1px 2px rgba(15,23,42,.05),0 18px 36px -24px rgba(15,23,42,.28);
+  transition:box-shadow .3s ease,transform .3s cubic-bezier(.2,.7,.2,1);
 }
-.primary-row[data-hash="dashboard"]{grid-column:span 2;background:linear-gradient(135deg,rgba(194,154,85,.12),rgba(239,232,218,.03) 65%);}
-.primary-row:hover,.primary-row:focus-visible{background-color:rgba(239,232,218,.06);border-color:var(--pl-brass);transform:translateY(-3px);}
+.primary-row[data-hash="dashboard"]{grid-column:span 2;
+  background:linear-gradient(135deg,#FBF4E2,#fff 70%) padding-box,
+    linear-gradient(140deg,var(--pl-brass),var(--pl-rule) 45%,rgba(15,23,42,.06)) border-box;}
+.primary-row:hover,.primary-row:focus-visible{transform:translateY(-3px);
+  background:linear-gradient(160deg,#FFFDF7,#FBF4E2) padding-box,
+    linear-gradient(140deg,var(--pl-brass),var(--pl-brass-hi) 60%,var(--pl-rule)) border-box;
+  box-shadow:0 2px 4px rgba(15,23,42,.05),0 24px 44px -24px rgba(163,120,29,.45);}
 .primary-row:focus-visible{outline:2px solid var(--pl-brass);outline-offset:3px;}
 .primary-row-name{
-  font-family:'Cormorant Garamond',Georgia,serif;font-size:30px;line-height:1.1;font-weight:500;color:var(--pl-ivory);
+  font-family:'Cormorant Garamond',Georgia,serif;font-size:30px;line-height:1.1;font-weight:500;color:var(--pl-ink);
   transition:color .25s ease;
 }
 .primary-row[data-hash="dashboard"] .primary-row-name{font-size:36px;}
@@ -799,6 +809,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .primary-row-stat{
   margin-top:auto;width:100%;padding-top:14px;border-top:1px solid var(--pl-rule);
   font-family:'Cormorant Garamond',Georgia,serif;font-size:22px;font-weight:600;color:var(--pl-brass);
+  background:linear-gradient(100deg,var(--pl-brass),var(--pl-brass-hi)) text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
   white-space:nowrap;font-variant-numeric:lining-nums tabular-nums;
 }
 .primary-row-stat:empty{border-top:0;padding-top:0;}
