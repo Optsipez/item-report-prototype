@@ -603,7 +603,14 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    columns use higher-specificity selectors and win regardless). */
 .trip-wrap table.matrix tbody tr:nth-child(even) td:not(.dr-soh){background:var(--s-25);}
 .trip-wrap table.matrix tbody tr:hover td:not(.dr-soh){background:var(--s-100);}
-.trip-wrap table.matrix{width:max-content;min-width:100%;}
+.trip-wrap table.matrix{width:100%;}
+/* Fit the whole table on screen without sideways scrolling: Trip uses the
+   full page width (not the Dashboard's 1240px cap), headers wrap to two
+   lines instead of forcing ~120px columns over 2-digit numbers, and cells
+   are a touch tighter. Text columns themselves stay one line. */
+#tripRoot{max-width:none;}
+.dr-wrap.trip-wrap table.matrix th{white-space:normal;word-break:keep-all;line-height:1.25;vertical-align:bottom;}
+@media (max-width:1320px){.dr-wrap.trip-wrap table.matrix td.l{white-space:normal;}}
 /* Hide-this-line checkbox -- narrow, no header label needed (its purpose is
    obvious from the checkbox itself + its title tooltip). Checking it drops
    the row from the printed list; "Show hidden lines" brings it back into
@@ -1247,7 +1254,8 @@ table.grid tbody tr.row-item td.wk-cell:hover{
    Comes after that rule (equal specificity, later wins) so this table
    grows to its natural width instead and scrolls horizontally (.dr-wrap
    already supports that) -- reads far better than mangled wrapped text. */
-.trip-wrap table.matrix td.l,.trip-wrap table.matrix th.l{white-space:nowrap;max-width:none;}
+.trip-wrap table.matrix td.l{white-space:nowrap;max-width:none;}
+.trip-wrap table.matrix th.l{max-width:none;}
 .dr-wrap th.dr-sort{cursor:pointer;user-select:none;}
 .dr-wrap th.dr-sort:hover{background:var(--s-200);}
 .dr-sort-ind{margin-left:3px;font-size:8px;color:var(--primary);}
