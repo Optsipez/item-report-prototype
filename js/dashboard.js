@@ -907,3 +907,5 @@ function dashWireScopeBar(root, rerender){
 // Restore whatever the URL points at -- here rather than in app.js because
 // this is the last script to load, so every view's renderer now exists.
 applyRoute(routeFromHash());
+// The launcher may already be up showing "Loading data…" -- fill its counts.
+fillPrimaryStats();

@@ -339,17 +339,22 @@
      app (nothing underneath is visible) so a role only ever sees the
      sections it's allowed into. See PRIMARY_VIEWS in js/auth.js. -->
 <div id="primaryOverlay" class="primary-overlay" hidden>
-  <div class="primary-head">
-    <div class="primary-brand"><span class="dot"></span>Inventory Intelligence</div>
-    <div class="primary-head-right">
-      <span class="primary-date" id="primaryDate"></span>
-      <span class="primary-user" id="primaryUser"></span>
+  <div class="primary-hero">
+    <div class="primary-head">
+      <div class="primary-brand"><span class="dot"></span>Inventory Intelligence</div>
+      <div class="primary-head-right">
+        <span class="primary-user" id="primaryUser"></span>
+      </div>
+    </div>
+    <div class="primary-hero-text">
+      <p class="primary-date" id="primaryDate"></p>
+      <h1 class="primary-sub" id="primaryGreeting"></h1>
+      <p class="primary-tag">Pick where you want to go.</p>
     </div>
   </div>
   <div class="primary-body">
-    <p class="primary-sub" id="primaryGreeting"></p>
-    <p class="primary-tag">Pick where you want to go.</p>
     <div class="primary-grid" id="primaryGrid"></div>
+    <p class="primary-foot" id="primaryFoot"></p>
   </div>
 </div>
 

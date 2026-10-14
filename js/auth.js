@@ -91,13 +91,15 @@ function renderPrimaryOverlay(){
   const grid = document.getElementById('primaryGrid');
   if(!grid) return;
   grid.innerHTML = PRIMARY_VIEWS.filter(v => v.roles.includes(CURRENT_ROLE)).map(v =>
-    '<button type="button" class="primary-tile" data-hash="' + v.hash + '" style="--tile-accent:var(' + v.accent + ');--tile-accent-bg:var(' + v.accentBg + ')">' +
+    '<button type="button" class="primary-tile' + (v.hash === 'dashboard' ? ' featured' : '') + '" data-hash="' + v.hash + '" style="--tile-accent:var(' + v.accent + ');--tile-accent-bg:var(' + v.accentBg + ')">' +
       '<span class="primary-tile-arrow">&rarr;</span>' +
       '<span class="primary-tile-icon">' + PRIMARY_ICONS[v.hash] + '</span>' +
       '<span class="primary-tile-title">' + v.label + '</span>' +
       '<span class="primary-tile-desc">' + v.desc + '</span>' +
+      '<span class="primary-tile-stat" data-stat="' + v.hash + '"><span class="primary-loading">Loading data…</span></span>' +
     '</button>'
   ).join('');
+  fillPrimaryStats();
   grid.querySelectorAll('.primary-tile').forEach(btn => btn.addEventListener('click', () => {
     hidePrimaryOverlay();
     // This overlay shows before the 38MB data.js and app.js have finished
@@ -107,7 +109,9 @@ function renderPrimaryOverlay(){
     else location.hash = btn.dataset.hash;
   }));
   const greet = document.getElementById('primaryGreeting');
-  if(greet) greet.textContent = CURRENT_EMPLOYEE_NAME ? 'Welcome back, ' + CURRENT_EMPLOYEE_NAME + '.' : 'Welcome back.';
+  const h = new Date().getHours();
+  const part = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  if(greet) greet.textContent = part + (CURRENT_EMPLOYEE_NAME ? ', ' + CURRENT_EMPLOYEE_NAME : '') + '.';
   const date = document.getElementById('primaryDate');
   if(date) date.textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const user = document.getElementById('primaryUser');
@@ -115,6 +119,33 @@ function renderPrimaryOverlay(){
     const roleLabel = CURRENT_ROLE === 'ceo' ? 'CEO' : CURRENT_ROLE === 'manager' ? 'Manager' : CURRENT_ROLE === 'admin' ? 'Admin' : 'Buyer';
     user.textContent = CURRENT_EMPLOYEE_ID + ' · ' + (CURRENT_EMPLOYEE_NAME || roleLabel);
   }
+}
+// Live counts on the launcher tiles. The overlay can show before the 38MB
+// data.js has loaded, so this no-ops until ITEMS/PO_LINES exist and runs
+// again from the end of dashboard.js once everything is in.
+let primaryStats = null;
+function fillPrimaryStats(){
+  if(typeof ITEMS === 'undefined' || typeof PO_LINES === 'undefined') return;
+  if(!primaryStats){
+    const n = v => v.toLocaleString('en-US');
+    const compact = v => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? Math.round(v / 1e3) + 'K' : String(Math.round(v));
+    const vendors = new Set(ITEMS.map(i => i['Vendor Code'])).size;
+    const stock = ITEMS.reduce((s, i) => s + Math.max(0, Number(i['SOH']) || 0) * (Number(i['L-Cost (Aed)']) || 0), 0);
+    const pos = new Set(PO_LINES.map(l => l[0])).size;
+    const late = new Set(PO_LINES.filter(l => l[4] < DATA_AS_OF).map(l => l[0])).size;
+    const kpi = (v, k) => '<span class="primary-kpi"><b>' + v + '</b><small>' + k + '</small></span>';
+    primaryStats = {
+      dashboard: kpi('AED ' + compact(stock), 'Stock value') + kpi(n(pos), 'Open POs') + kpi(n(late), 'Late POs'),
+      products: n(ITEMS.length) + ' items · ' + n(vendors) + ' vendors',
+      trip: n(vendors) + ' vendors to plan for',
+      lookup: 'Search ' + n(ITEMS.length) + ' items',
+      podata: n(pos) + ' open POs · ' + n(PO_LINES.length) + ' lines',
+      foot: 'Data as of ' + new Date(DATA_AS_OF + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+    };
+  }
+  document.querySelectorAll('#primaryGrid [data-stat]').forEach(el => { el.innerHTML = primaryStats[el.dataset.stat] || ''; });
+  const foot = document.getElementById('primaryFoot');
+  if(foot) foot.textContent = primaryStats.foot;
 }
 function showPrimaryOverlay(){
   renderPrimaryOverlay();
