@@ -227,7 +227,7 @@ function dashWindows(){
 const unitsIn = (it, wins) => wins.reduce((a, mo) => { const yr = it.years[String(mo.year)]; return a + (yr ? (yr.sales[mo.m] || 0) : 0); }, 0);
 
 /* ---------- the numbers ---------- */
-/* Reorder / Out of stock only look at these Plan Codes (CPC); the rest never show. */
+/* Reorder / Out of stock / Overstock only look at these Plan Codes (CPC); the rest never show. */
 const DASH_PLAN_CODES = new Set(['A', 'K', 'C', 'P']);
 const dashPlan = it => String(it['Current Plan Code'] || '').trim().toUpperCase();
 const dashPlanCell = it => '<td class="plan-cell dash-cpc">' + dashEsc(dashPlan(it)) + '</td>';
@@ -278,7 +278,8 @@ function dashCompute(){
         R.reorder.push({ it, soh, po, avg, sm, pm, recovery, atRisk: rate * price });
       }
     }
-    const age = soh > 0 ? stkAgeFor(it) : null;
+    // Overstock: same A/K/C/P plan codes as Reorder now / Out of stock.
+    const age = soh > 0 && DASH_PLAN_CODES.has(dashPlan(it)) ? stkAgeFor(it) : null;
     if(age && age.sno >= 3 && (rate === 0 || soh / rate > 12)){
       const tied = soh * cost;
       R.over.push({ it, soh, cover: rate > 0 ? soh / rate : null, age: age.label, tied, price, margin: marginPct(price, cost) });
@@ -409,7 +410,7 @@ function dashActions(R){
       note: 'Open POs whose ETA was before ' + dashDate(DATA_AS_OF) + ' (the data date) and are still not received.',
       table: poTable(R.latePOs), codes: [...lateCodes], sort: null },
     { id: 'over', title: 'Overstock / slow', n: R.over.length, sub: 'AED ' + dashCompact(R.overValue) + ' tied up', tone: '',
-      note: 'Stock 6+ months old with over 12 months of cover at the recent pace, or no sales at all. Largest first. Margin = (price − landed cost) ÷ price at today’s price, so it is also roughly how deep a markdown can go before selling at cost.',
+      note: 'Plan Codes A, K, C and P only: stock 6+ months old with over 12 months of cover at the recent pace, or no sales at all. Largest first. Margin = (price − landed cost) ÷ price at today’s price, so it is also roughly how deep a markdown can go before selling at cost.',
       table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>Stock</th><th>Cover</th><th>Age</th><th>Tied up (AED)</th><th>Price</th><th>Margin</th></tr></thead><tbody>' +
         R.over.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + '<td>' + dashInt(x.soh) + '</td><td>' + (x.cover == null ? 'no sales' : x.cover.toFixed(0) + ' mo') + '</td><td>' + dashEsc(x.age) + '</td><td><b>' + dashInt(x.tied) + '</b></td><td>' + (x.price ? dashInt(x.price) : '—') + '</td><td class="' + (x.margin != null && x.margin < 0.15 ? 'bad' : '') + '">' + (x.margin == null ? '—' : Math.round(x.margin * 100) + '%') + '</td></tr>').join('') + '</tbody></table>',
       codes: R.over.map(x => x.it['Item Code']), sort: [{ field: 'SOH', dir: 'desc' }] },
