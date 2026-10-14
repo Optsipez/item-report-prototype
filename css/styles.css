@@ -1468,15 +1468,6 @@ table.grid tbody tr.row-item td.wk-cell:hover{
    squeeze wraps their OWN label text ("Collapse all sections" breaking
    into two lines) rather than the row just growing taller. */
 .grid-actions{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-2);}
-/* Match on sits right above the From/To pair, centered over them -- its own
-   narrow dropdown is shorter than the two date fields together, so
-   align-items:center keeps it centered rather than pinned to one side. */
-/* Match on sits in the title row's band but floats free of its flex flow --
-   .grid-toolbar (position:fixed, so already a valid containing block) is
-   its offsetParent; JS (syncDateModeFieldPosition()) sets left so it's
-   centered exactly over the From/To pair below, whatever width the toolbar
-   row's preceding buttons happen to take up. */
-.dr-mode-field{position:absolute;top:var(--sp-6);}
 .grid-actions button{
   background:var(--panel);border:1px solid var(--line-strong);border-radius:var(--r-sm);
   font-size:var(--fs-xs);font-weight:600;color:var(--ink);padding:7px 13px;cursor:pointer;
