@@ -423,6 +423,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    value on its group's first item line. */
 #poRoot .po-ship,#poDataRoot .po-ship{vertical-align:top;background:var(--panel);white-space:nowrap;}
 #poRoot td.po-ship:not(.l),#poDataRoot td.po-ship:not(.l),#poDataRoot td.terr{text-align:center;color:var(--ink-soft);}
+#poDataRoot td.terr{vertical-align:top;font-weight:600;color:var(--ink);}
 #poDataRoot td.po-ship.mono{font-weight:700;color:var(--ink);}
 /* Heavier rule only where a column group ends. */
 #poRoot .po-ship-end,#poDataRoot .dash-table .po-ship-end,#poDataRoot .dash-table .terr{border-right:2px solid var(--s-400);}

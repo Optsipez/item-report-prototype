@@ -457,13 +457,11 @@ function dashMoneyCells(acc){
 
 /* ---------- PO detail page (reached via #po=<PO No>, e.g. a Late POs row)
    ----------
-   PO_LINES only carries [po, item, desc, qty, eta, vendor, dept, cat] -- no
-   Ship Date, Revised-Ship, Status, Port Of Origin, Discharge Port or
-   Container Size (never imported from the source Excel). Those columns
-   still render, empty ("—"), so the layout already matches the buying
-   team's reference sheet and just needs populating once that data exists.
-   Category/Department come straight off the PO line; PUDA/Plan Code/L-Cost
-   are item attributes, joined in via DASH_ITEM_BY_CODE. */
+   PO_LINES carries [po, item, desc, qty, eta, vendor, dept, cat]; the
+   per-PO shipment fields (Ship Date, Revised Ship, Status, ports, Container
+   Size, Territory) come from PO_SHIP and the create date from PO_CREATED,
+   all in po-data.js. Category/Department come straight off the PO line;
+   PUDA/Plan Code/FOB are item attributes, joined in via DASH_ITEM_BY_CODE. */
 function renderPOPage(poNo){
   const root = document.getElementById('poRoot');
   if(!root) return;
@@ -479,8 +477,8 @@ function renderPOPage(poNo){
   // The 6 shipment columns are the same for every line on a PO, so -- like
   // the reference sheet's merged cells -- they only print once, on the
   // first row, spanning every line via rowspan.
-  const shipCells = ['—', '—', dashDate(eta), '—', '—', '—']
-    .map((v, i, arr) => '<td class="po-ship' + (i === arr.length - 1 ? ' po-ship-end' : '') + '" rowspan="' + lines.length + '">' + v + '</td>').join('');
+  const poInfo = { eta, ...poShipInfo(poNo) };
+  const shipCells = poShipCells(poInfo, lines.length);
   const rowsHtml = lines.map((l, i) => {
     const [, code, desc, qty, , , dept, cat] = l;
     const it = DASH_ITEM_BY_CODE[code];
@@ -492,7 +490,7 @@ function renderPOPage(poNo){
     if(fob) dashAddMoney(totalMoney, cur, value);
     return '<tr>' + (i === 0 ? shipCells : '') + dashItemCell({ 'Item Code': code, Description: desc }) +
       '<td class="l">' + dashEsc(cat) + '</td><td class="l">' + dashEsc(dept) + '</td><td class="l puda">' + dashEsc(puda || '—') + '</td>' +
-      '<td class="plan-cell dash-cpc">' + dashEsc(plan || '—') + '</td><td>' + dashInt(qty) + '</td><td>—</td>' +
+      '<td class="plan-cell dash-cpc">' + dashEsc(plan || '—') + '</td><td>' + dashInt(qty) + '</td>' + (i === 0 ? poContainerCell(poInfo, lines.length) : '') +
       '<td class="c">' + dashEsc(cur || '—') + '</td><td>' + (fob && cur ? dashFmtMoney(value) : '—') + '</td></tr>';
   }).join('');
   root.innerHTML =
@@ -524,21 +522,27 @@ function renderPOPage(poNo){
    the single-PO page); Vendor's rowspan covers its item rows PLUS every
    one of its own POs' total rows (that's genuinely "inside" the vendor),
    stopping right before the vendor's own total row. Territory merges all
-   the way across the whole table (every row shares the one blank value
-   today -- never imported, see renderPOPage's header comment) down to and
-   including the grand total row; it'll split into real per-vendor spans
-   once the source data actually has more than one distinct value. */
+   the way across the whole table, down to and including the grand total
+   row -- every PO is UAE today; it reads "Mixed" if that ever changes. */
 let poDataHeaderCollapsed = false;
 // Shipment status order, from the buying team's status key.
 const PO_STATUS_ORDER = ['GRN Pending', 'At Port', 'In Transit', 'Released', 'Under Process', 'Pending', 'Local Order', 'Hold', 'Cancelled'];
-// Sort for PO Data: null (Vendor then PO No) or { key: 'eta'|'etd'|'status', dir: 1|-1 }.
+// Sort for PO Data: null (Vendor then PO No) or { key: 'created'|'eta'|'etd'|'status', dir: 1|-1 }.
 // Clicking a sortable header cycles ascending -> descending -> off.
 let poDataSort = null;
-// Ship Date, Revised-Ship (ETD) and Status aren't in PO_LINES yet -- they were
-// never imported from the source sheet. They're read only here, so loading
-// them later makes the Revised-Ship column and its sort work with no other
-// change. ETD = Revised-Ship when present, otherwise the original Ship Date.
-function poShipInfo(po){ return { ship: null, revShip: null, status: null }; }
+// Per-PO shipment fields (PO_SHIP in po-data.js). ETD = Revised Ship Date
+// when the PO was revised, otherwise the original Ship Date.
+function poShipInfo(po){
+  const s = PO_SHIP[po] || [];
+  return { ship: s[0] || null, revShip: s[1] || null, status: s[2] || null, territory: s[3] || null, container: s[4] || null, origin: s[5] || null, discharge: s[6] || null };
+}
+// The 6 merged shipment cells, shared by the PO detail and PO Data pages.
+function poShipCells(g, rowspan){
+  const d = v => v ? dashDate(v) : '—', t = v => v ? dashEsc(v) : '—';
+  return [d(g.ship), d(poEtd(g)), d(g.eta), t(g.status), t(g.origin), t(g.discharge)]
+    .map((v, i, arr) => '<td class="po-ship' + (i === arr.length - 1 ? ' po-ship-end' : '') + '" rowspan="' + rowspan + '">' + v + '</td>').join('');
+}
+const poContainerCell = (g, rowspan) => '<td class="po-ship c" rowspan="' + rowspan + '">' + (g.container ? dashEsc(g.container) : '—') + '</td>';
 const poEtd = g => g.revShip || g.ship || null;
 function poSortValue(g, key){
   if(key === 'eta') return g.eta || null;
@@ -584,6 +588,10 @@ function renderPOData(){
   // grand total row at the very end.
   const territoryRowSpan = lines.length + poCount + vendorCodes.length + 1;
   let territoryCellDone = false;
+  // One merged Territory cell for the whole table (every PO is UAE today);
+  // if the shown POs ever span several territories it reads "Mixed".
+  const terrs = new Set(); vendorCodes.forEach(v => Object.values(byVendor[v]).forEach(g => terrs.add(g.territory || '—')));
+  const territoryLabel = terrs.size === 1 ? [...terrs][0] : 'Mixed';
 
   let grandQty = 0, bodyHtml = '';
   const grandMoney = {};
@@ -614,7 +622,7 @@ function renderPOData(){
         if(fob) [poMoney, vendorMoney, grandMoney].forEach(acc => dashAddMoney(acc, cur, value));
         let row = '<tr>';
         if(!territoryCellDone){
-          row += '<td class="terr" rowspan="' + territoryRowSpan + '">—</td>';
+          row += '<td class="terr" rowspan="' + territoryRowSpan + '">' + dashEsc(territoryLabel) + '</td>';
           territoryCellDone = true;
         }
         if(!vendorCellDone){
@@ -624,11 +632,11 @@ function renderPOData(){
         if(i === 0){
           row += '<td class="po-ship" rowspan="' + poRowSpan + '">' + (group.created ? dashDate(group.created) : '—') + '</td>' +
             '<td class="l po po-ship" rowspan="' + poRowSpan + '"><a ' + dashPOLink(po) + ' title="Open this PO"><b class="mono">' + dashEsc(po) + '</b></a></td>' +
-            [group.ship ? dashDate(group.ship) : '—', poEtd(group) ? dashDate(poEtd(group)) : '—', dashDate(group.eta), group.status ? dashEsc(group.status) : '—', '—', '—'].map((v, idx, arr) => '<td class="po-ship' + (idx === arr.length - 1 ? ' po-ship-end' : '') + '" rowspan="' + poRowSpan + '">' + v + '</td>').join('');
+            poShipCells(group, poRowSpan);
         }
         row += dashItemCell({ 'Item Code': code, Description: desc }) +
           '<td class="l">' + dashEsc(cat) + '</td><td class="l">' + dashEsc(dept) + '</td><td class="l">' + dashEsc(puda || '—') + '</td><td class="l">' + dashEsc(range || '—') + '</td>' +
-          '<td class="plan-cell dash-cpc">' + dashEsc(plan || '—') + '</td><td>' + dashInt(qty) + '</td><td>—</td>' +
+          '<td class="plan-cell dash-cpc">' + dashEsc(plan || '—') + '</td><td>' + dashInt(qty) + '</td>' + (i === 0 ? poContainerCell(group, poRowSpan) : '') +
           '<td class="c">' + dashEsc(cur || '—') + '</td><td>' + (fob && cur ? dashFmtMoney(value) : '—') + '</td></tr>';
         bodyHtml += row;
       });
