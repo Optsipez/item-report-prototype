@@ -72,8 +72,7 @@ function restoreSession(){
 // Primary dashboard / launcher — role-gated front door, shown full-screen
 // (nothing of the app visible underneath) right after sign-in and
 // reopenable via the topbar's Menu button. Laid out as a showroom-style
-// directory: the state of the business as one sentence, then each
-// destination as a row. Every role gets every view for now; restrict one
+// set of boxed destinations under a greeting. Every role gets every view for now; restrict one
 // later by trimming its `roles` array.
 const PRIMARY_VIEWS = [
   { label: 'Dashboard',        desc: 'Sales, stock cover and what needs attention', hash: 'dashboard', roles: ['buyer', 'manager', 'ceo', 'admin'] },
@@ -114,23 +113,18 @@ function renderPrimaryOverlay(){
     user.title = 'Signed in as ' + CURRENT_EMPLOYEE_ID;
   }
 }
-// The lede sentence and row figures. The overlay can show before the 38MB
-// data.js has loaded, so this no-ops until ITEMS/PO_LINES exist (the lede
-// says "Loading today's figures…" meanwhile) and runs again from the end of
-// dashboard.js once everything is in.
+// The box figures. The overlay can show before the 38MB data.js has
+// loaded, so this no-ops until ITEMS/PO_LINES exist and runs again from the
+// end of dashboard.js once everything is in.
 let primaryStats = null;
 function fillPrimaryStats(){
   if(typeof ITEMS === 'undefined' || typeof PO_LINES === 'undefined') return;
   if(!primaryStats){
     const n = v => v.toLocaleString('en-US');
-    const compact = v => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? Math.round(v / 1e3) + 'K' : String(Math.round(v));
     const vendors = new Set(ITEMS.map(i => i['Vendor Code'])).size;
-    const stock = ITEMS.reduce((s, i) => s + Math.max(0, Number(i['SOH']) || 0) * (Number(i['L-Cost (Aed)']) || 0), 0);
     const pos = new Set(PO_LINES.map(l => l[0])).size;
     const late = new Set(PO_LINES.filter(l => l[4] < DATA_AS_OF).map(l => l[0])).size;
-    const b = v => '<b>' + v + '</b>';
     primaryStats = {
-      lede: b('AED ' + compact(stock)) + ' in stock. ' + b(n(pos)) + ' purchase orders open, ' + b(n(late)) + ' of them running late.',
       dashboard: n(late) + ' late POs to follow up',
       products: n(ITEMS.length) + ' items',
       lookup: 'Search ' + n(ITEMS.length) + ' items',
@@ -140,8 +134,6 @@ function fillPrimaryStats(){
     };
   }
   document.querySelectorAll('#primaryGrid [data-stat]').forEach(el => { el.textContent = primaryStats[el.dataset.stat] || ''; });
-  const lede = document.getElementById('primaryLede');
-  if(lede) lede.innerHTML = primaryStats.lede;
   const foot = document.getElementById('primaryFoot');
   if(foot) foot.textContent = primaryStats.foot;
 }

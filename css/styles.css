@@ -744,9 +744,9 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    it flows straight into the pages behind it, graded around one light
    source: a warm brass key glow top-left, a cool slate-blue fill
    bottom-right, a faint paper grain. White boxes with a brass-lit
-   hairline edge; brass figures. Cormorant carries the voice (the state of
-   the business, destination names); Inter carries everything functional.
-   The one motion is the lede settling in on load; boxes respond to the
+   hairline edge; brass figures. Cormorant carries the voice (the greeting,
+   destination names); Inter carries everything functional.
+   The one motion is the greeting settling in on load; boxes respond to the
    pointer. */
 .primary-overlay{
   --pl-bg:#F6F6F4;--pl-bg2:#E8EDF3;--pl-key:rgba(202,161,66,.22);--pl-fill:rgba(96,140,200,.16);
@@ -772,14 +772,8 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
   padding:clamp(20px,5vh,72px) clamp(20px,5vw,64px) 40px;
 }
 .primary-date{margin:0 0 6px;font-size:14px;color:var(--pl-muted);}
-.primary-sub{margin:0 0 18px;font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:500;color:var(--pl-ink);letter-spacing:0;}
-.primary-lede{
-  margin:0 0 clamp(32px,6vh,64px);max-width:21em;
-  font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(34px,4.4vw,60px);line-height:1.06;font-weight:500;
-  letter-spacing:-.012em;color:var(--pl-ink);font-variant-numeric:lining-nums;
-  animation:primaryLede .9s cubic-bezier(.2,.7,.2,1) both;
-}
-.primary-lede b{font-weight:600;background:linear-gradient(100deg,var(--pl-brass),var(--pl-brass-hi));-webkit-background-clip:text;background-clip:text;color:transparent;}
+.primary-sub{margin:0 0 clamp(32px,6vh,64px);font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(40px,5vw,64px);line-height:1.05;font-weight:500;color:var(--pl-ink);letter-spacing:-.015em;
+  animation:primaryIn .9s cubic-bezier(.2,.7,.2,1) both;}
 /* Destinations as boxed buttons in a 3x2 grid, Dashboard spanning two. */
 .primary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;}
 .primary-row{
@@ -821,10 +815,10 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
   .primary-row-name,.primary-row[data-hash="dashboard"] .primary-row-name{font-size:26px;}
 }
 @media (prefers-reduced-motion:reduce){
-  .primary-lede{animation:none;}
+  .primary-sub{animation:none;}
   .primary-row,.primary-row-name{transition:none;}
 }
-@keyframes primaryLede{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+@keyframes primaryIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
 
 .result-list{
   border:1px solid var(--line);border-radius:var(--r-sm);
