@@ -2043,19 +2043,30 @@ document.getElementById('clearSortBtn').addEventListener('click', () => {
     input.value = '';
     return true;
   };
-  // Enter on free text -> every item whose code or description contains it.
+  // Enter, or clicking out of the box: a picked suggestion / exact code opens
+  // that item; any other text filters to every item whose code or
+  // description contains it. Either way the box clears -- including when
+  // nothing matches, where the placeholder says so for a few seconds instead
+  // of leaving the dead text behind. Safe to run twice (Enter can also fire
+  // 'change'): the second call finds the box already empty.
+  const placeholder = input.placeholder;
+  let placeholderTimer = null;
   const commitSearch = () => {
     if(commitExact()) return;
     const raw = input.value.trim();
     if(!raw) return;
     const q = raw.toLowerCase();
     const codes = ITEMS.filter(i => String(i['Item Code']).toLowerCase().includes(q) || String(i['Description'] || '').toLowerCase().includes(q)).map(i => i['Item Code']);
-    if(!codes.length){ input.setCustomValidity('No item matches "' + raw + '"'); input.reportValidity(); return; }
-    openGridFocus('Search: "' + raw + '" (' + codes.length + ')', codes, null);
     input.value = '';
+    if(!codes.length){
+      input.placeholder = 'No item matches "' + raw + '"';
+      clearTimeout(placeholderTimer);
+      placeholderTimer = setTimeout(() => { input.placeholder = placeholder; }, 3500);
+      return;
+    }
+    openGridFocus('Search: "' + raw + '" (' + codes.length + ')', codes, null);
   };
-  input.addEventListener('input', () => input.setCustomValidity(''));
-  input.addEventListener('change', commitExact);   // picking a datalist option fires 'change'
+  input.addEventListener('change', commitSearch);   // fires on picking a suggestion and on clicking out
   input.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); commitSearch(); } });
 })();
 /* Scroll the page back to the very top (vertically only) — used whenever
