@@ -1282,6 +1282,7 @@ table.grid tbody tr.row-item td.wk-cell:hover{
    theme change stays in sync automatically. */
 .dr-wrap table.matrix th.dr-plan,.dr-wrap table.matrix td.dr-plan{background:var(--i-100);color:var(--i-700);font-weight:600;}
 .dr-wrap table.matrix th.dr-soh,.dr-wrap table.matrix td.dr-soh{background:var(--soh-bg);color:var(--soh);font-weight:600;}
+.dr-wrap table.matrix th.dr-po,.dr-wrap table.matrix td.dr-po{background:var(--royal-bg);color:var(--royal);font-weight:600;}
 .dr-wrap table.matrix th.dr-wh,.dr-wrap table.matrix td.dr-wh{background:var(--warn-bg);color:var(--warn);font-weight:600;}
 .dr-wrap table.matrix th.dr-sr,.dr-wrap table.matrix td.dr-sr{background:var(--warn-bg);color:var(--warn);font-weight:600;}
 .dr-wrap table.matrix td.dr-soldmonth{background:var(--soldby-2026);}
@@ -1727,6 +1728,10 @@ table.grid thead tr.group-row th.core.sroty-head:not(.sorted){background:var(--w
 table.grid tbody tr.row-item td.navstock-cell{background:var(--sr-bg);color:var(--sr);font-weight:600;}
 table.grid tbody tr.row-item td.navstock-cell.zero{color:var(--ink-faint);}
 table.grid thead tr.group-row th.core.navstock-head:not(.sorted){background:var(--sr-bg);color:var(--sr);}
+/* PO Qty -- royal blue for stock on its way in (AVG already has the sky blue). */
+table.grid tbody tr.row-item td.poqty-cell{background:var(--royal-bg);color:var(--royal);font-weight:600;}
+table.grid tbody tr.row-item td.poqty-cell.zero{color:var(--ink-faint);}
+table.grid thead tr.group-row th.core.poqty-head:not(.sorted){background:var(--royal-bg);color:var(--royal);}
 
 /* Plan Code — a yellow-brown accent, distinct from the primary gold used for
    buttons/badges elsewhere. */

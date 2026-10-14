@@ -2294,6 +2294,7 @@ function buildGridHeader(){
       if(entry.field === 'AVG') gth.classList.add('avg-head');
       if(entry.field === 'SOH') gth.classList.add('soh-head');
       if(entry.field === 'Nav Stock') gth.classList.add('navstock-head');
+      if(entry.field === 'PO-Qty') gth.classList.add('poqty-head');
       if(entry.field === 'Current Plan Code') gth.classList.add('plan-head');
       if(entry.field === 'YTD Sold') gth.title = ytdSoldTip();
       else if(entry.field === 'AVG') gth.title = avgTip();
@@ -2468,6 +2469,7 @@ function buildGridBody(items, cols, pageStart){
           if(col.left) td.classList.add('left');
           if(col.field === 'AVG') td.classList.add('avg-cell');
           if(col.field === 'SOH') td.classList.add('soh-cell');
+          if(col.field === 'PO-Qty') td.classList.add('poqty-cell');
           if(col.field === 'Current Plan Code') td.classList.add('plan-cell');
           if(col.field === 'Item Code'){
             // Only this cell has these handlers — everywhere else in the row
@@ -2950,10 +2952,10 @@ function buildDateRangeTable(){
   };
   // Same highlight colours as their All Products counterparts (plan-cell,
   // soh-cell, whsoh-cell, srqty-cell, grp-soldby -- see css/styles.css) so a
-  // column reads the same in both places. PO Qty, Sold/Received (range
-  // totals), Age and Trend aren't coloured in All Products either
-  // (YTD Sold/Total Received Qty/STK Age/PO-Qty are plain
-  // there), so they stay plain here too.
+  // column reads the same in both places (PO Qty included). Sold/Received
+  // (range totals), Age and Trend aren't coloured in All Products either
+  // (YTD Sold/Total Received Qty/STK Age are plain there), so they stay
+  // plain here too.
   // Classification (All Products' own COLUMN_LAYOUT 'class' group) is the
   // one collapsible group here, collapsed by default -- same idea as that
   // grid's own group bar/collapsed strip, just within this table's single
@@ -2974,7 +2976,7 @@ function buildDateRangeTable(){
     sh('vendor', 'Vendor', 'Vendor Code') + sh('range', 'Range', 'Range Name') +
     classHeader +
     sh('pudaCode', 'PUDA Code') + sh('pudaDesc', 'PUDA Desc') + sh('plan', 'Plan', null, 'dr-plan') +
-    sh('soh', 'SOH', null, 'dr-soh') + sh('wh', 'WH', 'WH SOH', 'dr-wh') + sh('sr', 'SR', 'SR Qty', 'dr-sr') + sh('po', 'PO', 'PO Qty') +
+    sh('soh', 'SOH', null, 'dr-soh') + sh('wh', 'WH', 'WH SOH', 'dr-wh') + sh('sr', 'SR', 'SR Qty', 'dr-sr') + sh('po', 'PO', 'PO Qty', 'dr-po') +
     sh('sold', 'Sold', 'Sold, this range', 'dr-main3 dr-main3-l') + sh('lrcv', 'LRCV', 'Lrcv Date', 'dr-main3') + sh('received', 'Rcvd', 'Received (GRN), this range', 'dr-main3 dr-main3-r') +
     sh('age', 'Age', 'STK Age') + sh('trend', 'Trend', 'Trend, this range') +
     months.map((w, i) => monthHead(w, 'Sold', 'sold_' + i, 'dr-soldmonth')).join('');
@@ -3002,7 +3004,7 @@ function buildDateRangeTable(){
       '<td class="dr-soh">' + fmtInt(sohValue(it)) + '</td>' +
       '<td class="dr-wh">' + fmtInt(whSohValue(it)) + '</td>' +
       '<td class="dr-sr">' + fmtInt(srQtyValue(it)) + '</td>' +
-      '<td>' + fmtInt(it['PO-Qty']) + '</td>' +
+      '<td class="dr-po">' + fmtInt(it['PO-Qty']) + '</td>' +
       '<td class="dr-main3 dr-main3-l' + last + '">' + fmtInt(s3) + '</td>' +
       '<td class="dr-main3' + last + '">' + fmtLrcvDate(it['Lrcv Date']) + '</td>' +
       '<td class="dr-main3 dr-main3-r' + last + '">' + fmtInt(r3) + '</td>' +
