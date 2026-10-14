@@ -400,7 +400,7 @@ function dashActions(R){
         : 'Selling items (Plan Codes A, K, C and P only) whose combined cover — stock (SM) plus what’s already on order (PM), both in months at the item’s own best-average sales pace — is under ' + dashReorderMonths + ' months (adjustable below; 5 is the default). Ranked by combined cover, least first. Buyers order per vendor; click a vendor to open its items in All Products.',
       table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>CPC</th><th class="l vend">Vendor</th><th>' + (dashReorderMode === 'recovery' ? 'Recovery%' : 'Cover') + '</th><th>Sales at risk / mo</th></tr></thead><tbody>' +
           R.reorder.map(x => '<tr>' + dashItemCell(x.it) + dashPlanCell(x.it) + '<td class="l muted">' + dashEsc(vname(x.it['Vendor Code'])) + '</td><td>' + (dashReorderMode === 'recovery' ? (x.recovery == null ? '—' : Math.round(x.recovery) + '%') : (x.sm + x.pm).toFixed(1) + ' mo') + '</td><td><b>AED ' + dashCompact(x.atRisk) + '</b></td></tr>').join('') + '</tbody></table>',
-      codes: R.reorder.map(x => x.it['Item Code']), sort: null },
+      codes: R.reorder.map(x => x.it['Item Code']), vendors: dashVendorsOf(R.reorder), sort: null },
     { id: 'oos', title: 'Out of stock, no PO', n: R.oos.length, sub: 'selling, none on hand, nothing on order', tone: 'bad',
       note: 'Sold in the last 3 months, no stock, and no open PO: the items losing sales right now. Plan Codes A, K, C and P only.',
       table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>CPC</th><th class="l vend">Vendor</th><th>Sold / mo</th><th>Sold (3 mo)</th><th>Lead time</th></tr></thead><tbody>' +
@@ -413,7 +413,7 @@ function dashActions(R){
       note: 'Plan Codes A, K, C and P only: stock 6+ months old with over 12 months of cover at the recent pace, or no sales at all. Largest first. Margin = (price − landed cost) ÷ price at today’s price, so it is also roughly how deep a markdown can go before selling at cost.',
       table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>Stock</th><th>Cover</th><th>Age</th><th>Tied up (AED)</th><th>Price</th><th>Margin</th></tr></thead><tbody>' +
         R.over.slice(0, 10).map(x => '<tr>' + dashItemCell(x.it) + '<td>' + dashInt(x.soh) + '</td><td>' + (x.cover == null ? 'no sales' : x.cover.toFixed(0) + ' mo') + '</td><td>' + dashEsc(x.age) + '</td><td><b>' + dashInt(x.tied) + '</b></td><td>' + (x.price ? dashInt(x.price) : '—') + '</td><td class="' + (x.margin != null && x.margin < 0.15 ? 'bad' : '') + '">' + (x.margin == null ? '—' : Math.round(x.margin * 100) + '%') + '</td></tr>').join('') + '</tbody></table>',
-      codes: R.over.map(x => x.it['Item Code']), sort: [{ field: 'SOH', dir: 'desc' }] },
+      codes: R.over.map(x => x.it['Item Code']), vendors: dashVendorsOf(R.over), sort: [{ field: 'SOH', dir: 'desc' }] },
   ];
   if(!tabs.some(t => t.id === dashTab)) dashTab = (tabs.find(t => t.n > 0) || tabs[0]).id;
   const cur = tabs.find(t => t.id === dashTab);
@@ -432,12 +432,14 @@ function dashActions(R){
         (dashReorderMode === 'recovery'
           ? '<label class="page-jump" title="Items qualify when Recovery% is over this. Default is 30.">Over<input type="number" id="dashReorderRecoveryInput" min="0" max="100" step="1" value="' + dashReorderRecoveryPct + '">%</label>'
           : '<label class="page-jump" title="Items qualify when combined SM+PM cover is under this many months. Default is 5.">Under<input type="number" id="dashReorderMonthsInput" min="0.5" step="0.5" value="' + dashReorderMonths + '">months</label>') : '') +
-      (cur.n ? '<button type="button" class="dash-btn" id="dashOpenAll">Open ' + (cur.id === 'late' ? 'their ' + dashInt(cur.codes.length) + ' items' : 'all ' + dashInt(cur.n)) + ' in All Products &rarr;</button>' : '') + '</div>' +
+      (cur.n ? '<button type="button" class="dash-btn" id="dashOpenAll">Open ' + (cur.id === 'late' ? 'their ' + dashInt(cur.codes.length) + ' items' : 'all ' + dashInt(cur.n)) + ' in All Products &rarr;</button>' : '') +
+      (cur.n && cur.vendors ? '<button type="button" class="dash-btn ghost" id="dashOpenVendors" title="Every item from the vendors on this list, not just the flagged ones">All items from these ' + dashInt(cur.vendors.length) + ' vendors &rarr;</button>' : '') + '</div>' +
       '<p class="dash-note">' + dashEsc(cur.note) + '</p>' +
       (cur.n ? (cur.id === 'over' ? cur.table : '<div class="dash-table-scroll">' + cur.table + '</div>') : '<p class="dash-empty">Nothing here for this selection. Good.</p>') + '</section>';
   return { tilesHtml, detailHtml };
 }
 
+const dashVendorsOf = list => [...new Set(list.map(x => x.it['Vendor Code']))];
 const dashPOCodes = pos => { const s = new Set(); pos.forEach(p => p.codes.forEach(c => s.add(c))); return s; };
 function dashMoverTable(rows, up, total){
   if(!rows.length) return '<p class="dash-empty">No big movers.</p>';
@@ -831,6 +833,14 @@ function renderDashboard(){
     reorderRecoveryInput.addEventListener('blur', commitReorderRecovery);
     reorderRecoveryInput.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); commitReorderRecovery(); } });
   }
+  // Every item (any plan code still shown in the app, ignoring Show me)
+  // from the vendors behind the current list.
+  const openVendors = $('dashOpenVendors');
+  if(openVendors) openVendors.addEventListener('click', () => {
+    const c = dashCurrentTab, vs = new Set(c.vendors);
+    const codes = ITEMS.filter(it => vs.has(it['Vendor Code'])).map(it => it['Item Code']);
+    openGridFocus('All items from ' + dashInt(vs.size) + ' ' + c.title + ' vendors', codes, null);
+  });
   const open = $('dashOpenAll');
   if(open) open.addEventListener('click', () => {
     const c = dashCurrentTab;
