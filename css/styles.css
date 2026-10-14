@@ -749,7 +749,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    the app's own front door. Brass glow top-left, a cool glow top-right, and
    a faint dot texture that fades out toward the cards. */
 .primary-hero{
-  flex:none;position:relative;overflow:hidden;color:var(--ink-invert);padding-bottom:132px;
+  flex:none;position:relative;overflow:hidden;color:var(--ink-invert);padding-bottom:56px;
   background:
     radial-gradient(760px 420px at 12% -10%, rgba(202,161,66,.28), transparent 62%),
     radial-gradient(640px 420px at 96% 0%, rgba(56,189,248,.14), transparent 60%),
@@ -769,14 +769,14 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .primary-head-right{display:flex;align-items:center;gap:var(--sp-5);}
 .primary-user{font-size:var(--fs-xs);color:var(--ink-invert);font-weight:600;letter-spacing:.06em;text-transform:uppercase;
   padding:6px 12px;border:1px solid rgba(255,255,255,.12);border-radius:var(--r-pill);background:rgba(255,255,255,.04);}
-.primary-hero-text{position:relative;z-index:1;text-align:center;padding:72px var(--sp-6) 0;animation:primaryFadeUp .6s cubic-bezier(.16,1,.3,1) both;}
+.primary-hero-text{position:relative;z-index:1;text-align:center;padding:48px var(--sp-6) 0;animation:primaryFadeUp .6s cubic-bezier(.16,1,.3,1) both;}
 .primary-date{margin:0 0 14px;font-size:var(--fs-2xs);font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--i-300);}
 .primary-sub{margin:0 0 10px;font-size:44px;line-height:1.1;font-weight:700;color:#fff;letter-spacing:-.03em;}
 .primary-tag{margin:0;font-size:var(--fs-md);color:var(--s-400);}
-/* Cards pull up into the hero. */
+/* Cards sit wholly on the light canvas below the hero, never straddling the two. */
 .primary-body{
   position:relative;z-index:1;flex:1;display:flex;flex-direction:column;align-items:center;
-  margin-top:-92px;padding:0 var(--sp-8) var(--sp-8);
+  padding:var(--sp-8) var(--sp-8);
 }
 .primary-grid{width:100%;max-width:1120px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
 .primary-tile{
