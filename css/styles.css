@@ -428,7 +428,20 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 #poRoot .po-ship-end,#poDataRoot .dash-table .po-ship-end,#poDataRoot .dash-table .terr{border-right:2px solid var(--s-400);}
 #poRoot .dash-table tbody tr:not([class]):hover > td,#poDataRoot .dash-table tbody tr:not([class]):hover > td:not(.po-ship):not(.terr){background:var(--row-hover);}
 #poRoot .po-total-row td,#poDataRoot .po-total-row td{background:var(--s-50);color:var(--s-700);border-top:1px solid var(--s-300);}
-#poDataRoot .dash-table td.l{max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap;}
+/* Full page width (not the Dashboard's 1240px cap); on wide screens text
+   columns wrap so all 19 columns fit. Item keeps a floor so descriptions
+   don't stack 5 deep; merged-cell codes and dates stay one line. */
+#poDataRoot{max-width:none;}
+#poDataRoot .dash-table td.l{max-width:none;overflow:visible;text-overflow:clip;white-space:normal;}
+#poDataRoot .dash-table td.l:has(> a[href^="#item="]){min-width:230px;}
+#poDataRoot .dash-table td.po-ship{white-space:nowrap;}
+#poDataRoot .dash-table td,#poDataRoot .dash-table th{padding-left:6px;padding-right:6px;}
+#poDataRoot .dash-table thead th{letter-spacing:.01em;}
+/* Below ~1780px all 19 columns can't fit even wrapped (8 are still empty
+   placeholders, kept on purpose to match the reference sheet), so rows
+   stay one line and the box scrolls sideways rather than wrapping text
+   2-3 deep for no gain. */
+@media (max-width:1780px){#poDataRoot .dash-table td.l{white-space:nowrap;}}
 #poDataRoot .podata-scroll{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;margin-bottom:var(--sp-4);
   border:1px solid var(--s-300);border-radius:var(--r-md);box-shadow:var(--sh-xs);background:var(--panel);}
 #poDataRoot .vendor-total-row td{background:var(--i-50);color:var(--i-800);border-top:1px solid var(--i-200);border-bottom:2px solid var(--i-200);}
