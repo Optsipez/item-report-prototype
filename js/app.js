@@ -3192,8 +3192,8 @@ function tripEmptyState(){
   '</div>';
 }
 function renderTripTable(rows){
-  const cols = '<th class="trip-hide-col"></th><th class="branch-sno">No</th><th>Range Name</th><th>CPC</th><th>PUDA Code</th><th class="l">PUDA Desc</th><th>Purchase Qty</th>' +
-    '<th>2XL Barcode No</th><th>Photo</th>' +
+  const cols = '<th class="trip-hide-col"></th><th class="branch-sno">No</th><th class="l">Range Name</th><th class="c">CPC</th><th class="l">PUDA Code</th><th class="l">PUDA Desc</th><th>Purchase Qty</th>' +
+    '<th>2XL Barcode No</th><th class="c">Photo</th>' +
     '<th class="l">Description</th>' +
     '<th class="dr-soh">SOH</th><th>Sold (since Lrcv)</th>' +
     '<th>Recovery %</th><th>Sold/Lrcv Qty %</th><th>Disct%</th><th>Sale Mrg</th><th>Last Posting Date</th>';
@@ -3209,13 +3209,13 @@ function renderTripTable(rows){
     return '<tr class="' + (hidden ? 'trip-row-hidden' : '') + '">' +
       '<td class="trip-hide-col"><input type="checkbox" class="trip-hide-cb" data-code="' + escHtml(code) + '"' + (hidden ? ' checked' : '') + ' title="Hide this line from the printed list"></td>' +
       '<td class="branch-sno">' + (i + 1) + '</td>' +
-      '<td>' + escHtml(it['Range Name']) + '</td>' +
-      '<td>' + escHtml(it['Current Plan Code']) + '</td>' +
-      '<td>' + escHtml(it['PUDA Code']) + '</td>' +
+      '<td class="l">' + escHtml(it['Range Name']) + '</td>' +
+      '<td class="c">' + escHtml(it['Current Plan Code']) + '</td>' +
+      '<td class="l">' + escHtml(it['PUDA Code']) + '</td>' +
       '<td class="l">' + escHtml(it['PUDA Desc']) + '</td>' +
       '<td>' + fmtInt(it['PO-Qty']) + '</td>' +
       '<td>' + escHtml(code) + '</td>' +
-      '<td><span class="trip-photo-ph" title="Not yet available"></span></td>' +
+      '<td class="c"><span class="trip-photo-ph" title="Not yet available"></span></td>' +
       '<td class="l">' + escHtml(it['Description']) + '</td>' +
       '<td class="dr-soh">' + fmtInt(soh) + '</td>' +
       '<td>' + (sold == null ? '—' : fmtInt(sold)) + '</td>' +

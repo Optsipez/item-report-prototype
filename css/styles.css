@@ -592,11 +592,10 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 /* Each KPI tile picks up the same colour its own metric already wears in
    the table below (SOH teal, Sold/Recovery blue, Items the app's own
    brass accent) -- a fixed per-metric identity, not a value-based flag. */
-.trip-kpis .dash-kpi{border-top:3px solid var(--line-strong);}
-.trip-kpis .dash-kpi:nth-child(1){border-top-color:var(--primary);}
-.trip-kpis .dash-kpi:nth-child(2){border-top-color:var(--soh);}
-.trip-kpis .dash-kpi:nth-child(3){border-top-color:var(--stock);}
-.trip-kpis .dash-kpi:nth-child(4){border-top-color:var(--pos);}
+.trip-kpis .dash-kpi:nth-child(1){--kpi-accent:var(--primary);}
+.trip-kpis .dash-kpi:nth-child(2){--kpi-accent:var(--soh);}
+.trip-kpis .dash-kpi:nth-child(3){--kpi-accent:var(--stock);}
+.trip-kpis .dash-kpi:nth-child(4){--kpi-accent:var(--pos);}
 /* Zebra striping, scoped to Trip Requirement's own table only (.dr-wrap/
    .matrix are shared with the date-range popup, which keeps its plain
    rows). Skips rows already carrying their own background (SOH/Plan-style
@@ -611,6 +610,14 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 #tripRoot{max-width:none;}
 .dr-wrap.trip-wrap table.matrix th{white-space:normal;word-break:keep-all;line-height:1.25;vertical-align:bottom;}
 @media (max-width:1320px){.dr-wrap.trip-wrap table.matrix td.l{white-space:normal;}}
+/* Same card + header language as All Products / PO Data. */
+.dr-wrap.trip-wrap{background:var(--panel);border:1px solid var(--s-300);border-radius:var(--r-lg);box-shadow:0 1px 2px rgba(15,23,42,.04),0 10px 26px -16px rgba(15,23,42,.2);}
+.dr-wrap.trip-wrap table.matrix thead th{background:linear-gradient(180deg,var(--subhead-top),var(--subhead));color:var(--subhead-ink);font-weight:700;padding-top:9px;padding-bottom:9px;border-bottom:2px solid var(--subhead-line);}
+.dr-wrap.trip-wrap table.matrix thead th.dr-soh{background:var(--soh-bg);color:var(--soh);}
+.dr-wrap.trip-wrap table.matrix thead th{text-align:right;}
+.dr-wrap.trip-wrap table.matrix thead th.l{text-align:left;}
+.dr-wrap.trip-wrap table.matrix th.c,.dr-wrap.trip-wrap table.matrix td.c{text-align:center;}
+.trip-wrap .spark-empty{color:inherit;}
 /* Hide-this-line checkbox -- narrow, no header label needed (its purpose is
    obvious from the checkbox itself + its title tooltip). Checking it drops
    the row from the printed list; "Show hidden lines" brings it back into
