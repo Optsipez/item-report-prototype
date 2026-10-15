@@ -551,6 +551,75 @@ function renderPOPage(poNo){
    the way across the whole table, down to and including the grand total
    row -- every PO is UAE today; it reads "Mixed" if that ever changes. */
 let poDataHeaderCollapsed = false;
+// PO Data's three date ranges -- PO Create Date, Revised ETD, ETA -- each a
+// separate From/To pair (Date at local midnight, or null). Same DD-MMM-YY
+// typing + calendar as All Products' From/To (parseDMY/formatDMY in app.js).
+// Placement only for now: they're kept across re-renders but don't filter
+// the table yet.
+const PO_DATE_FIELDS = [
+  { key: 'created', label: 'PO Create Date' },
+  { key: 'etd',     label: 'Revised ETD' },
+  { key: 'eta',     label: 'ETA' },
+];
+const poDataDates = { created: { from: null, to: null }, etd: { from: null, to: null }, eta: { from: null, to: null } };
+const PO_CAL_ICON = '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>';
+function poDateBar(){
+  const field = (key, end, label) => {
+    const v = poDataDates[key][end];
+    const tip = label + ' ' + (end === 'from' ? 'from' : 'to') + ': type DD-MMM-YY (for example 05-Mar-26) or pick from the calendar';
+    return '<div class="date-field' + (v ? ' dsf-active' : '') + '" data-dk="' + key + '" data-end="' + end + '" title="' + tip + '">' +
+      '<span class="dsf-label">' + (end === 'from' ? 'From' : 'To') + '</span>' +
+      '<input type="text" class="date-text" placeholder="DD-MMM-YY" maxlength="11" autocomplete="off" spellcheck="false" aria-label="' + tip + '" value="' + (v ? formatDMY(v) : '') + '">' +
+      '<button type="button" class="cal-btn" aria-label="Open calendar" title="Pick from a calendar">' + PO_CAL_ICON + '</button>' +
+      '<input type="date" class="cal-native" tabindex="-1" aria-hidden="true">' +
+    '</div>';
+  };
+  return '<div class="dash-scope po-dates"><span class="dash-scope-t">Dates</span><div class="po-date-groups">' +
+    PO_DATE_FIELDS.map(f => '<div class="po-date-group"><span class="po-date-label">' + f.label + '</span>' + field(f.key, 'from', f.label) + field(f.key, 'to', f.label) + '</div>').join('') +
+  '</div></div>';
+}
+function poWireDateBar(root){
+  root.querySelectorAll('.po-dates .date-field').forEach(box => {
+    const key = box.dataset.dk, end = box.dataset.end;
+    const text = box.querySelector('.date-text'), btn = box.querySelector('.cal-btn'), native = box.querySelector('.cal-native');
+    const pair = () => root.querySelectorAll('.po-dates .date-field[data-dk="' + key + '"]');
+    // red on a bad date or a backwards range, brass when set
+    const refresh = () => {
+      const r = poDataDates[key], backwards = r.from && r.to && r.from > r.to;
+      pair().forEach(b => {
+        const val = r[b.dataset.end], bad = b.dataset.bad === '1' || backwards;
+        b.classList.toggle('invalid', !!bad);
+        b.classList.toggle('dsf-active', !!val && !bad);
+        b.querySelector('.cal-native').value = val ? dateToISO(val) : '';
+      });
+      const f = root.querySelector('.po-dates .date-field[data-dk="' + key + '"][data-end="from"] .cal-native');
+      const t = root.querySelector('.po-dates .date-field[data-dk="' + key + '"][data-end="to"] .cal-native');
+      if(f) f.max = r.to ? dateToISO(r.to) : '';
+      if(t) t.min = r.from ? dateToISO(r.from) : '';
+    };
+    const commit = result => {
+      box.dataset.bad = result.error ? '1' : '0';
+      poDataDates[key][end] = result.date || null;
+      if(!result.error) text.value = result.date ? formatDMY(result.date) : '';
+      refresh();
+    };
+    const fromText = () => { if(String(text.value).trim() || poDataDates[key][end]) commit(parseDMY(text.value)); };
+    text.addEventListener('blur', fromText);
+    text.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); fromText(); } });
+    text.addEventListener('input', () => { box.dataset.bad = '0'; box.classList.remove('invalid'); });
+    btn.addEventListener('click', () => {
+      refresh();
+      try { native.showPicker(); } catch(e){ try { native.focus(); native.click(); } catch(e2){} }
+    });
+    native.addEventListener('change', () => {
+      const v = native.value;
+      if(!v){ commit({ empty: true }); return; }
+      const [y, mo, d] = v.split('-').map(Number);
+      commit({ date: new Date(y, mo - 1, d) });
+    });
+    refresh();
+  });
+}
 // Shipment status order, from the buying team's status key.
 const PO_STATUS_ORDER = ['GRN Pending', 'At Port', 'In Transit', 'Released', 'Under Process', 'Pending', 'Local Order', 'Hold', 'Cancelled'];
 // Sort for PO Data: null (Vendor then PO No) or { key: 'created'|'eta'|'etd'|'status', dir: 1|-1 }.
@@ -696,7 +765,7 @@ function renderPOData(){
       '</div>' +
       '<div class="dash-links"><button type="button" class="dash-btn ghost" id="poDataHeaderToggle">' + (poDataHeaderCollapsed ? 'Expand &#9662;' : 'Collapse &#9652;') + '</button></div>' +
     '</div>' +
-    (poDataHeaderCollapsed ? '' : dashScopeBar(poDataScope, poDataVendorAmbiguous)) +
+    (poDataHeaderCollapsed ? '' : dashScopeBar(poDataScope, poDataVendorAmbiguous) + poDateBar()) +
     '</div>' +
     (lines.length ? '' : '<p class="dash-empty">No open PO lines match this selection.</p>') +
     (!lines.length ? '' : '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead>' +
@@ -706,7 +775,7 @@ function renderPOData(){
       sortTh('status', 'Status', 'In order: ' + PO_STATUS_ORDER.join(', ')) + '<th class="c">Port Of Origin</th><th class="c po-ship-end">Discharge Port</th>' +
       '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th class="l">Range Name</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th class="c">Currency</th><th title="Order Qty × Latest FOB Cost">Total</th>' +
     '</tr></thead><tbody>' + bodyHtml + grandTotalRow + '</tbody></table></div>');
-  if(!poDataHeaderCollapsed) dashWireScopeBar(root, renderPOData, PODATA_SLOT);
+  if(!poDataHeaderCollapsed){ dashWireScopeBar(root, renderPOData, PODATA_SLOT); poWireDateBar(root); }
   root.querySelector('#poDataHeaderToggle').addEventListener('click', () => { poDataHeaderCollapsed = !poDataHeaderCollapsed; renderPOData(); });
   root.querySelectorAll('th.po-sortable').forEach(th => th.addEventListener('click', () => {
     const key = th.dataset.sort;
