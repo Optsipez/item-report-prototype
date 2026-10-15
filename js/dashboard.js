@@ -551,64 +551,48 @@ function renderPOPage(poNo){
    the way across the whole table, down to and including the grand total
    row -- every PO is UAE today; it reads "Mixed" if that ever changes. */
 let poDataHeaderCollapsed = false;
-// PO Data's three date ranges -- PO Create Date, Revised ETD, ETA -- each a
-// separate From/To pair (Date at local midnight, or null). Same DD-MMM-YY
-// typing + calendar as All Products' From/To (parseDMY/formatDMY in app.js).
-// Placement only for now: they're kept across re-renders but don't filter
-// the table yet.
+// PO Data's three dates -- PO Create Date, Revised ETD, ETA -- one date
+// each (Date at local midnight, or null). Same DD-MMM-YY typing + calendar
+// as All Products' From/To (parseDMY/formatDMY in app.js). Placement only
+// for now: kept across re-renders but they don't filter the table yet.
 const PO_DATE_FIELDS = [
   { key: 'created', label: 'PO Create Date' },
   { key: 'etd',     label: 'Revised ETD' },
   { key: 'eta',     label: 'ETA' },
 ];
-const poDataDates = { created: { from: null, to: null }, etd: { from: null, to: null }, eta: { from: null, to: null } };
+const poDataDates = { created: null, etd: null, eta: null };
 const PO_CAL_ICON = '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>';
 function poDateBar(){
-  const field = (key, end, label) => {
-    const v = poDataDates[key][end];
-    const tip = label + ' ' + (end === 'from' ? 'from' : 'to') + ': type DD-MMM-YY (for example 05-Mar-26) or pick from the calendar';
-    return '<div class="date-field' + (v ? ' dsf-active' : '') + '" data-dk="' + key + '" data-end="' + end + '" title="' + tip + '">' +
-      '<span class="dsf-label">' + (end === 'from' ? 'From' : 'To') + '</span>' +
-      '<input type="text" class="date-text" placeholder="DD-MMM-YY" maxlength="11" autocomplete="off" spellcheck="false" aria-label="' + tip + '" value="' + (v ? formatDMY(v) : '') + '">' +
-      '<button type="button" class="cal-btn" aria-label="Open calendar" title="Pick from a calendar">' + PO_CAL_ICON + '</button>' +
-      '<input type="date" class="cal-native" tabindex="-1" aria-hidden="true">' +
-    '</div>';
-  };
   return '<div class="dash-scope po-dates"><span class="dash-scope-t">Dates</span><div class="po-date-groups">' +
-    PO_DATE_FIELDS.map(f => '<div class="po-date-group"><span class="po-date-label">' + f.label + '</span>' + field(f.key, 'from', f.label) + field(f.key, 'to', f.label) + '</div>').join('') +
+    PO_DATE_FIELDS.map(f => {
+      const v = poDataDates[f.key];
+      const tip = f.label + ': type DD-MMM-YY (for example 05-Mar-26) or pick from the calendar';
+      return '<div class="date-field' + (v ? ' dsf-active' : '') + '" data-dk="' + f.key + '" title="' + tip + '">' +
+        '<span class="dsf-label">' + f.label + '</span>' +
+        '<input type="text" class="date-text" placeholder="DD-MMM-YY" maxlength="11" autocomplete="off" spellcheck="false" aria-label="' + tip + '" value="' + (v ? formatDMY(v) : '') + '">' +
+        '<button type="button" class="cal-btn" aria-label="Open calendar" title="Pick from a calendar">' + PO_CAL_ICON + '</button>' +
+        '<input type="date" class="cal-native" tabindex="-1" aria-hidden="true">' +
+      '</div>';
+    }).join('') +
   '</div></div>';
 }
 function poWireDateBar(root){
   root.querySelectorAll('.po-dates .date-field').forEach(box => {
-    const key = box.dataset.dk, end = box.dataset.end;
+    const key = box.dataset.dk;
     const text = box.querySelector('.date-text'), btn = box.querySelector('.cal-btn'), native = box.querySelector('.cal-native');
-    const pair = () => root.querySelectorAll('.po-dates .date-field[data-dk="' + key + '"]');
-    // red on a bad date or a backwards range, brass when set
-    const refresh = () => {
-      const r = poDataDates[key], backwards = r.from && r.to && r.from > r.to;
-      pair().forEach(b => {
-        const val = r[b.dataset.end], bad = b.dataset.bad === '1' || backwards;
-        b.classList.toggle('invalid', !!bad);
-        b.classList.toggle('dsf-active', !!val && !bad);
-        b.querySelector('.cal-native').value = val ? dateToISO(val) : '';
-      });
-      const f = root.querySelector('.po-dates .date-field[data-dk="' + key + '"][data-end="from"] .cal-native');
-      const t = root.querySelector('.po-dates .date-field[data-dk="' + key + '"][data-end="to"] .cal-native');
-      if(f) f.max = r.to ? dateToISO(r.to) : '';
-      if(t) t.min = r.from ? dateToISO(r.from) : '';
-    };
+    // red on a bad date, brass when set
     const commit = result => {
-      box.dataset.bad = result.error ? '1' : '0';
-      poDataDates[key][end] = result.date || null;
+      poDataDates[key] = result.date || null;
       if(!result.error) text.value = result.date ? formatDMY(result.date) : '';
-      refresh();
+      box.classList.toggle('invalid', !!result.error);
+      box.classList.toggle('dsf-active', !!result.date);
+      native.value = result.date ? dateToISO(result.date) : '';
     };
-    const fromText = () => { if(String(text.value).trim() || poDataDates[key][end]) commit(parseDMY(text.value)); };
+    const fromText = () => commit(parseDMY(text.value));
     text.addEventListener('blur', fromText);
     text.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); fromText(); } });
-    text.addEventListener('input', () => { box.dataset.bad = '0'; box.classList.remove('invalid'); });
+    text.addEventListener('input', () => box.classList.remove('invalid'));
     btn.addEventListener('click', () => {
-      refresh();
       try { native.showPicker(); } catch(e){ try { native.focus(); native.click(); } catch(e2){} }
     });
     native.addEventListener('change', () => {
@@ -617,7 +601,7 @@ function poWireDateBar(root){
       const [y, mo, d] = v.split('-').map(Number);
       commit({ date: new Date(y, mo - 1, d) });
     });
-    refresh();
+    if(poDataDates[key]) native.value = dateToISO(poDataDates[key]);
   });
 }
 // Shipment status order, from the buying team's status key.

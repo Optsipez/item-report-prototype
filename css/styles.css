@@ -1527,12 +1527,10 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .date-field.dsf-active .dsf-label{color:var(--primary-hover);}
 .date-field.invalid{border-color:var(--neg);background:var(--neg-bg);}
 .date-field.invalid .dsf-label, .date-field.invalid .date-text{color:var(--neg);}
-/* PO Data's Dates row: three separate From/To ranges, one group each. */
+/* PO Data's Dates row: one date each for PO Create Date, Revised ETD, ETA. */
 .po-dates{display:flex;align-items:center;flex-wrap:wrap;gap:var(--sp-2) var(--sp-5);}
 .po-dates .dash-scope-t{flex:none;}
-.po-date-groups{display:flex;flex-wrap:wrap;gap:var(--sp-3) var(--sp-6);}
-.po-date-group{display:flex;align-items:center;gap:var(--sp-2);}
-.po-date-label{font-size:var(--fs-xs);font-weight:700;color:var(--ink);white-space:nowrap;margin-right:2px;}
+.po-date-groups{display:flex;flex-wrap:wrap;gap:var(--sp-3) var(--sp-4);}
 .po-dates .date-field .date-text{width:92px;}
 
 /* Stats window (AVG/YTD Sold/Total Received Qty trailing-window picker) —
