@@ -552,18 +552,40 @@ function renderPOPage(poNo){
    row -- every PO is UAE today; it reads "Mixed" if that ever changes. */
 let poDataHeaderCollapsed = false;
 // PO Data's three dates -- PO Create Date, Revised ETD, ETA -- one date
-// each (Date at local midnight, or null). Same DD-MMM-YY typing + calendar
-// as All Products' From/To (parseDMY/formatDMY in app.js). Placement only
-// for now: kept across re-renders but they don't filter the table yet.
+// each (Date at local midnight, or null), plus one Backward/Forward choice
+// shared by all three. Backward keeps POs whose date is on or before the
+// picked date, Forward on or after; every date that's set must pass, and a
+// PO with no value for a set date drops out. Same DD-MMM-YY typing +
+// calendar as All Products' From/To (parseDMY/formatDMY in app.js).
 const PO_DATE_FIELDS = [
   { key: 'created', label: 'PO Create Date' },
   { key: 'etd',     label: 'Revised ETD' },
   { key: 'eta',     label: 'ETA' },
 ];
 const poDataDates = { created: null, etd: null, eta: null };
+let poDateDir = 'back';   // 'back' (on or before) | 'fwd' (on or after)
+const poDatesSet = () => PO_DATE_FIELDS.some(f => poDataDates[f.key]);
+// A PO's value for each date column, as YYYY-MM-DD: Revised ETD is the
+// revised ship date when there is one, otherwise the original ship date.
+function poDateValue(key, po, eta){
+  if(key === 'created') return PO_CREATED[po] || null;
+  if(key === 'etd'){ const s = PO_SHIP[po] || []; return s[1] || s[0] || null; }
+  return eta || null;
+}
+function poDatesMatch(po, eta){
+  return PO_DATE_FIELDS.every(f => {
+    const d = poDataDates[f.key];
+    if(!d) return true;
+    const v = poDateValue(f.key, po, eta), pick = dateToISO(d);
+    return !!v && (poDateDir === 'back' ? v <= pick : v >= pick);
+  });
+}
 const PO_CAL_ICON = '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>';
 function poDateBar(){
   return '<div class="po-dates">' +
+    '<label class="po-date-dir" title="Backward shows POs on or before the dates you pick; Forward shows them on or after">' +
+      '<select id="poDateDir"><option value="back"' + (poDateDir === 'back' ? ' selected' : '') + '>Backward</option>' +
+      '<option value="fwd"' + (poDateDir === 'fwd' ? ' selected' : '') + '>Forward</option></select></label>' +
     PO_DATE_FIELDS.map(f => {
       const v = poDataDates[f.key];
       const tip = f.label + ': type DD-MMM-YY (for example 05-Mar-26) or pick from the calendar';
@@ -577,16 +599,23 @@ function poDateBar(){
   '</div>';
 }
 function poWireDateBar(root){
+  const dir = root.querySelector('#poDateDir');
+  if(dir) dir.addEventListener('change', () => { poDateDir = dir.value; renderPOData(); });
+  // Registered before the Show me bar's own reset handler (which re-renders),
+  // so "Show everything" clears the dates too.
+  const reset = root.querySelector('#dashReset');
+  if(reset) reset.addEventListener('click', () => PO_DATE_FIELDS.forEach(f => { poDataDates[f.key] = null; }));
   root.querySelectorAll('.po-dates .date-field').forEach(box => {
     const key = box.dataset.dk;
     const text = box.querySelector('.date-text'), btn = box.querySelector('.cal-btn'), native = box.querySelector('.cal-native');
     // red on a bad date, brass when set
+    // A bad date just turns the box red; a real change re-filters the table.
     const commit = result => {
+      if(result.error){ box.classList.add('invalid'); return; }
+      const before = poDataDates[key];
       poDataDates[key] = result.date || null;
-      if(!result.error) text.value = result.date ? formatDMY(result.date) : '';
-      box.classList.toggle('invalid', !!result.error);
-      box.classList.toggle('dsf-active', !!result.date);
-      native.value = result.date ? dateToISO(result.date) : '';
+      if((before && before.getTime()) !== (poDataDates[key] && poDataDates[key].getTime())) renderPOData();
+      else text.value = result.date ? formatDMY(result.date) : '';
     };
     const fromText = () => commit(parseDMY(text.value));
     text.addEventListener('blur', fromText);
@@ -643,7 +672,7 @@ function renderPOData(){
   const showVendor = canSeeVendorName();
   const vname = c => showVendor ? (VENDOR_CODE_TO_NAME[c] || c) : c;
   if(!poDataScope) poDataLoadScope();
-  const lines = PO_LINES.filter(l => dashLineInScope(l, poDataScope));
+  const lines = PO_LINES.filter(l => dashLineInScope(l, poDataScope) && poDatesMatch(l[0], l[4]));
 
   const byVendor = {};
   lines.forEach(l => {
@@ -749,9 +778,9 @@ function renderPOData(){
       '</div>' +
       '<div class="dash-links"><button type="button" class="dash-btn ghost" id="poDataHeaderToggle">' + (poDataHeaderCollapsed ? 'Expand &#9662;' : 'Collapse &#9652;') + '</button></div>' +
     '</div>' +
-    (poDataHeaderCollapsed ? '' : dashScopeBar(poDataScope, poDataVendorAmbiguous, { headless: true, extra: poDateBar() })) +
+    (poDataHeaderCollapsed ? '' : dashScopeBar(poDataScope, poDataVendorAmbiguous, { headless: true, extra: poDateBar(), anySet: poDatesSet() })) +
     '</div>' +
-    (lines.length ? '' : '<p class="dash-empty">No open PO lines match this selection.</p>') +
+    (lines.length ? '' : '<p class="dash-empty">No open PO lines match these filters and dates.</p>') +
     (!lines.length ? '' : '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead>' +
       '<tr class="po-grp"><th colspan="4">Purchase Order</th><th colspan="6" class="po-ship-end">Shipment</th><th colspan="6">Product</th><th colspan="4">Order</th></tr><tr>' +
       '<th class="c terr">Territory</th><th class="l">Vendor</th>' + sortTh('created', 'PO Create Date', 'PO creation date') + '<th class="l">PO No</th>' +
@@ -759,7 +788,7 @@ function renderPOData(){
       sortTh('status', 'Status', 'In order: ' + PO_STATUS_ORDER.join(', ')) + '<th class="c">Port Of Origin</th><th class="c po-ship-end">Discharge Port</th>' +
       '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th class="l">Range Name</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th class="c">Currency</th><th title="Order Qty × Latest FOB Cost">Total</th>' +
     '</tr></thead><tbody>' + bodyHtml + grandTotalRow + '</tbody></table></div>');
-  if(!poDataHeaderCollapsed){ dashWireScopeBar(root, renderPOData, PODATA_SLOT); poWireDateBar(root); }
+  if(!poDataHeaderCollapsed){ poWireDateBar(root); dashWireScopeBar(root, renderPOData, PODATA_SLOT); }
   root.querySelector('#poDataHeaderToggle').addEventListener('click', () => { poDataHeaderCollapsed = !poDataHeaderCollapsed; renderPOData(); });
   root.querySelectorAll('th.po-sortable').forEach(th => th.addEventListener('click', () => {
     const key = th.dataset.sort;
@@ -770,9 +799,10 @@ function renderPOData(){
 
 // opts.headless: no "Show me" heading line -- the reset button sits inline
 // after the fields instead (PO Data). opts.extra: HTML for a full-width row
-// inside the same card (PO Data's dates).
+// inside the same card (PO Data's dates). opts.anySet: show the reset button
+// even when no Show me field is set (PO Data's dates count too).
 function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
-  const reset = dashScopeIsSet(scope) ? '<button type="button" class="dash-btn ghost filters-active-btn' + (opts.headless ? ' dash-scope-reset' : '') + '" id="dashReset">Show everything</button>' : '';
+  const reset = dashScopeIsSet(scope) || opts.anySet ? '<button type="button" class="dash-btn ghost filters-active-btn' + (opts.headless ? ' dash-scope-reset' : '') + '" id="dashReset">Show everything</button>' : '';
   const uniq = f => [...new Set(ITEMS.map(i => i[f]).filter(Boolean))].sort();
   const opt = (arr, cur) => '<option value="">All</option>' + arr.map(v => '<option' + (v === cur ? ' selected' : '') + '>' + dashEsc(v) + '</option>').join('');
   // Range Name / Group Desc / PUDA Desc run into the hundreds or thousands of

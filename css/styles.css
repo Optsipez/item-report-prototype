@@ -1538,6 +1538,9 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .po-dates .dsf-label{font-size:var(--fs-2xs);}
 .dash-scope .po-dates .date-text{width:80px;padding:3px 0;border:0;border-radius:0;background:transparent;box-shadow:none;font-size:var(--fs-sm);}
 .po-dates .cal-btn{padding:3px;}
+/* Backward/Forward -- compact, matching the date boxes beside it. */
+.dash-scope .po-date-dir{flex:none;}
+.dash-scope .po-date-dir select{width:auto;padding:5px 28px 5px 10px;font-size:var(--fs-sm);font-weight:600;}
 /* PO Data's "Show everything" sits at the right end of the dates line (no heading line). */
 .dash-scope .dash-scope-reset{flex:none;align-self:center;padding:6px 12px;font-size:var(--fs-xs);}
 
