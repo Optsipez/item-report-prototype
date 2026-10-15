@@ -563,7 +563,7 @@ const PO_DATE_FIELDS = [
 const poDataDates = { created: null, etd: null, eta: null };
 const PO_CAL_ICON = '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>';
 function poDateBar(){
-  return '<div class="dash-scope po-dates"><span class="dash-scope-t">Dates</span><div class="po-date-groups">' +
+  return '<div class="po-dates">' +
     PO_DATE_FIELDS.map(f => {
       const v = poDataDates[f.key];
       const tip = f.label + ': type DD-MMM-YY (for example 05-Mar-26) or pick from the calendar';
@@ -574,7 +574,7 @@ function poDateBar(){
         '<input type="date" class="cal-native" tabindex="-1" aria-hidden="true">' +
       '</div>';
     }).join('') +
-  '</div></div>';
+  '</div>';
 }
 function poWireDateBar(root){
   root.querySelectorAll('.po-dates .date-field').forEach(box => {
@@ -749,7 +749,7 @@ function renderPOData(){
       '</div>' +
       '<div class="dash-links"><button type="button" class="dash-btn ghost" id="poDataHeaderToggle">' + (poDataHeaderCollapsed ? 'Expand &#9662;' : 'Collapse &#9652;') + '</button></div>' +
     '</div>' +
-    (poDataHeaderCollapsed ? '' : dashScopeBar(poDataScope, poDataVendorAmbiguous) + poDateBar()) +
+    (poDataHeaderCollapsed ? '' : dashScopeBar(poDataScope, poDataVendorAmbiguous, { headless: true, extra: poDateBar() })) +
     '</div>' +
     (lines.length ? '' : '<p class="dash-empty">No open PO lines match this selection.</p>') +
     (!lines.length ? '' : '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead>' +
@@ -768,7 +768,11 @@ function renderPOData(){
   }));
 }
 
-function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous){
+// opts.headless: no "Show me" heading line -- the reset button sits inline
+// after the fields instead (PO Data). opts.extra: HTML for a full-width row
+// inside the same card (PO Data's dates).
+function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
+  const reset = dashScopeIsSet(scope) ? '<button type="button" class="dash-btn ghost filters-active-btn' + (opts.headless ? ' dash-scope-reset' : '') + '" id="dashReset">Show everything</button>' : '';
   const uniq = f => [...new Set(ITEMS.map(i => i[f]).filter(Boolean))].sort();
   const opt = (arr, cur) => '<option value="">All</option>' + arr.map(v => '<option' + (v === cur ? ' selected' : '') + '>' + dashEsc(v) + '</option>').join('');
   // Range Name / Group Desc / PUDA Desc run into the hundreds or thousands of
@@ -777,8 +781,7 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous){
   // text+datalist combo as Vendor code instead of a dropdown list.
   const search = (id, field, label) => '<label>' + label + '<input id="' + id + '" list="' + id + 'List" value="' + dashEsc(scope[field]) + '" placeholder="All" autocomplete="off"></label>' +
     '<datalist id="' + id + 'List">' + uniq(field === 'range' ? 'Range Name' : field === 'group' ? 'Group Desc' : 'PUDA Desc').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>';
-  return '<div class="dash-scope"><div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' +
-    (dashScopeIsSet(scope) ? '<button type="button" class="dash-btn ghost filters-active-btn" id="dashReset">Show everything</button>' : '') + '</div>' +
+  return '<div class="dash-scope">' + (opts.headless ? '' : '<div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' + reset + '</div>') +
     '<label>Department<select id="dashDept">' + opt(uniq('Department Desc'), scope.dept) + '</select></label>' +
     '<label>Category<select id="dashCat">' + opt(uniq('Category'), scope.cat) + '</select></label>' +
     '<label class="dash-vendor-field">Vendor code<input id="dashVendor" list="dashVendorList" class="' + (amb ? 'dash-vendor-ambiguous' : '') + '" value="' +
@@ -789,6 +792,7 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous){
     search('dashGroup', 'group', 'Group Desc') +
     search('dashPuda', 'puda', 'PUDA Desc') +
     '<label>Plan<select id="dashPlan">' + opt(uniq('Current Plan Code'), scope.plan) + '</select></label>' +
+    (opts.extra ? '<span class="dash-scope-break"></span>' + opts.extra : '') + (opts.headless ? reset : '') +
     '</div>';
 }
 
