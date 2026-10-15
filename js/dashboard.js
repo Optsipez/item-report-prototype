@@ -35,6 +35,7 @@ let dashGreetingIdx = Math.floor(Math.random() * DASH_GREETINGS.length);
 function reshuffleDashGreeting(){
   dashGreetingIdx = Math.floor(Math.random() * DASH_GREETINGS.length);
   dashScope = null; dashTab = null; dashHeaderCollapsed = false;      // the next person gets their own remembered scope
+  poDataScope = null; poDataVendorAmbiguous = null;
 }
 
 const DAY = 86400000;
@@ -98,7 +99,25 @@ function dashLoadScope(){
   dashScope = { ...DASH_SCOPE_DEFAULTS, ...(s || {}) };
 }
 function dashSaveScope(){ try { localStorage.setItem(dashScopeKey(), JSON.stringify(dashScope)); } catch(e){} }
-const dashScopeIsSet = () => Object.keys(DASH_SCOPE_DEFAULTS).some(k => dashScope[k]);
+const dashScopeIsSet = (scope = dashScope) => Object.keys(DASH_SCOPE_DEFAULTS).some(k => scope[k]);
+// PO Data keeps its own Show me filters, saved separately -- picking a Plan
+// on the dashboard must not change PO Data, and vice versa.
+let poDataScope = null, poDataVendorAmbiguous = null;
+const poDataScopeKey = () => 'poDataScope:' + (CURRENT_EMPLOYEE_ID || 'anon');
+function poDataLoadScope(){
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(poDataScopeKey()) || 'null'); } catch(e){}
+  poDataScope = { ...DASH_SCOPE_DEFAULTS, ...(s || {}) };
+}
+// Each Show me bar reads/writes its own filter state through one of these.
+const DASH_SLOT = {
+  get: () => dashScope, set: s => { dashScope = s; dashSaveScope(); },
+  getAmb: () => dashVendorAmbiguous, setAmb: a => { dashVendorAmbiguous = a; },
+};
+const PODATA_SLOT = {
+  get: () => poDataScope, set: s => { poDataScope = s; try { localStorage.setItem(poDataScopeKey(), JSON.stringify(s)); } catch(e){} },
+  getAmb: () => poDataVendorAmbiguous, setAmb: a => { poDataVendorAmbiguous = a; },
+};
 // PO_LINES carries only [po, item, desc, qty, eta, vendor, dept, cat] — no
 // Range Name/Group Desc/PUDA Desc/Plan Code, so a PO line's own item is
 // looked up here for those four.
@@ -143,25 +162,25 @@ function vendorNameLookup(raw){
 // dashScopeBar() to flag the box and by dashVendorAmbiguousTip() for its
 // tooltip; never lists names for a buyer, only codes (canSeeVendorName()).
 let dashVendorAmbiguous = null;
-function dashVendorAmbiguousTip(){
-  if(!dashVendorAmbiguous) return '';
+function dashVendorAmbiguousTip(amb = dashVendorAmbiguous){
+  if(!amb) return '';
   const showNames = canSeeVendorName();
-  const shown = dashVendorAmbiguous.codes.slice(0, 8);
+  const shown = amb.codes.slice(0, 8);
   const list = shown.map(c => {
     if(!showNames) return c;
     const it = ITEMS.find(i => i['Vendor Code'] === c);
     return it ? c + ' (' + it['Vendor Name'] + ')' : c;
   }).join(', ');
-  const more = dashVendorAmbiguous.codes.length > shown.length ? ', +' + (dashVendorAmbiguous.codes.length - shown.length) + ' more' : '';
-  return 'Matches ' + dashVendorAmbiguous.codes.length + ' vendors: ' + list + more + '. Type the exact code, or more letters to narrow it down.';
+  const more = amb.codes.length > shown.length ? ', +' + (amb.codes.length - shown.length) + ' more' : '';
+  return 'Matches ' + amb.codes.length + ' vendors: ' + list + more + '. Type the exact code, or more letters to narrow it down.';
 }
 // The visible list under the box -- the tooltip above is easy to miss since
 // nothing prompts you to hover; this is the actual click-to-pick UI.
-function dashVendorOptionsHtml(){
-  if(!dashVendorAmbiguous) return '';
+function dashVendorOptionsHtml(amb = dashVendorAmbiguous){
+  if(!amb) return '';
   const showNames = canSeeVendorName();
-  const shown = dashVendorAmbiguous.codes.slice(0, 8);
-  const more = dashVendorAmbiguous.codes.length - shown.length;
+  const shown = amb.codes.slice(0, 8);
+  const more = amb.codes.length - shown.length;
   const opts = shown.map(c => {
     const it = ITEMS.find(i => i['Vendor Code'] === c);
     const label = showNames && it ? c + ' — ' + it['Vendor Name'] : c;
@@ -192,18 +211,18 @@ function dashItemInScope(it, scope){
     (!scope.puda || it['PUDA Desc'] === scope.puda) &&
     scopeFieldMatch(planVal, planSel);
 }
-function dashLineInScope(l){   // a PO line: [po, item, desc, qty, eta, vendor, dept, cat]
-  if(dashScope.range || dashScope.group || dashScope.puda || dashScope.plan){
+function dashLineInScope(l, scope = dashScope){   // a PO line: [po, item, desc, qty, eta, vendor, dept, cat]
+  if(scope.range || scope.group || scope.puda || scope.plan){
     const it = DASH_ITEM_BY_CODE[l[1]];
     if(!it) return false;
-    if(dashScope.range && it['Range Name'] !== dashScope.range) return false;
-    if(dashScope.group && it['Group Desc'] !== dashScope.group) return false;
-    if(dashScope.puda && it['PUDA Desc'] !== dashScope.puda) return false;
-    if(dashScope.plan && String(it['Current Plan Code']).toUpperCase() !== dashScope.plan.toUpperCase()) return false;
+    if(scope.range && it['Range Name'] !== scope.range) return false;
+    if(scope.group && it['Group Desc'] !== scope.group) return false;
+    if(scope.puda && it['PUDA Desc'] !== scope.puda) return false;
+    if(scope.plan && String(it['Current Plan Code']).toUpperCase() !== scope.plan.toUpperCase()) return false;
   }
-  return (!dashScope.dept || l[6] === dashScope.dept) &&
-    (!dashScope.cat || l[7] === dashScope.cat) &&
-    (!dashScope.vendor || String(l[5]).toUpperCase() === dashScope.vendor.toUpperCase());
+  return (!scope.dept || l[6] === scope.dept) &&
+    (!scope.cat || l[7] === scope.cat) &&
+    (!scope.vendor || String(l[5]).toUpperCase() === scope.vendor.toUpperCase());
 }
 
 /* ---------- lead time: the vendor's own measured median, else the overall one ---------- */
@@ -331,7 +350,7 @@ function dashCompute(){
 
   // open purchase orders in scope, grouped by PO
   const asOf = DATA_AS_OF, groups = {};
-  PO_LINES.filter(dashLineInScope).forEach(l => {
+  PO_LINES.filter(l => dashLineInScope(l)).forEach(l => {
     const g = groups[l[0]] = groups[l[0]] || { po: l[0], vendor: l[5], eta: l[4], units: 0, lines: 0, codes: new Set() };
     g.units += l[3]; g.lines++; g.codes.add(l[1]); if(l[4] < g.eta) g.eta = l[4];
   });
@@ -570,8 +589,8 @@ function renderPOData(){
   if(!root) return;
   const showVendor = canSeeVendorName();
   const vname = c => showVendor ? (VENDOR_CODE_TO_NAME[c] || c) : c;
-  if(!dashScope) dashLoadScope();
-  const lines = PO_LINES.filter(dashLineInScope);
+  if(!poDataScope) poDataLoadScope();
+  const lines = PO_LINES.filter(l => dashLineInScope(l, poDataScope));
 
   const byVendor = {};
   lines.forEach(l => {
@@ -677,7 +696,7 @@ function renderPOData(){
       '</div>' +
       '<div class="dash-links"><button type="button" class="dash-btn ghost" id="poDataHeaderToggle">' + (poDataHeaderCollapsed ? 'Expand &#9662;' : 'Collapse &#9652;') + '</button></div>' +
     '</div>' +
-    (poDataHeaderCollapsed ? '' : dashScopeBar()) +
+    (poDataHeaderCollapsed ? '' : dashScopeBar(poDataScope, poDataVendorAmbiguous)) +
     '</div>' +
     (lines.length ? '' : '<p class="dash-empty">No open PO lines match this selection.</p>') +
     (!lines.length ? '' : '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead>' +
@@ -687,7 +706,7 @@ function renderPOData(){
       sortTh('status', 'Status', 'In order: ' + PO_STATUS_ORDER.join(', ')) + '<th class="c">Port Of Origin</th><th class="c po-ship-end">Discharge Port</th>' +
       '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th class="l">Range Name</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th class="c">Currency</th><th title="Order Qty × Latest FOB Cost">Total</th>' +
     '</tr></thead><tbody>' + bodyHtml + grandTotalRow + '</tbody></table></div>');
-  if(!poDataHeaderCollapsed) dashWireScopeBar(root, renderPOData);
+  if(!poDataHeaderCollapsed) dashWireScopeBar(root, renderPOData, PODATA_SLOT);
   root.querySelector('#poDataHeaderToggle').addEventListener('click', () => { poDataHeaderCollapsed = !poDataHeaderCollapsed; renderPOData(); });
   root.querySelectorAll('th.po-sortable').forEach(th => th.addEventListener('click', () => {
     const key = th.dataset.sort;
@@ -696,27 +715,27 @@ function renderPOData(){
   }));
 }
 
-function dashScopeBar(){
+function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous){
   const uniq = f => [...new Set(ITEMS.map(i => i[f]).filter(Boolean))].sort();
   const opt = (arr, cur) => '<option value="">All</option>' + arr.map(v => '<option' + (v === cur ? ' selected' : '') + '>' + dashEsc(v) + '</option>').join('');
   // Range Name / Group Desc / PUDA Desc run into the hundreds or thousands of
   // values (matching FILTER_SEARCHABLE in app.js) — a plain <select> with
   // that many options is unusable, so these get the same searchable
   // text+datalist combo as Vendor code instead of a dropdown list.
-  const search = (id, field, label) => '<label>' + label + '<input id="' + id + '" list="' + id + 'List" value="' + dashEsc(dashScope[field]) + '" placeholder="All" autocomplete="off"></label>' +
+  const search = (id, field, label) => '<label>' + label + '<input id="' + id + '" list="' + id + 'List" value="' + dashEsc(scope[field]) + '" placeholder="All" autocomplete="off"></label>' +
     '<datalist id="' + id + 'List">' + uniq(field === 'range' ? 'Range Name' : field === 'group' ? 'Group Desc' : 'PUDA Desc').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>';
   return '<div class="dash-scope"><div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' +
-    (dashScopeIsSet() ? '<button type="button" class="dash-btn ghost filters-active-btn" id="dashReset">Show everything</button>' : '') + '</div>' +
-    '<label>Department<select id="dashDept">' + opt(uniq('Department Desc'), dashScope.dept) + '</select></label>' +
-    '<label>Category<select id="dashCat">' + opt(uniq('Category'), dashScope.cat) + '</select></label>' +
-    '<label class="dash-vendor-field">Vendor code<input id="dashVendor" list="dashVendorList" class="' + (dashVendorAmbiguous ? 'dash-vendor-ambiguous' : '') + '" value="' +
-      dashEsc(dashVendorAmbiguous ? dashVendorAmbiguous.raw : dashScope.vendor) + '" title="' + dashEsc(dashVendorAmbiguousTip()) + '" placeholder="All" autocomplete="off">' +
-      dashVendorOptionsHtml() + '</label>' +
+    (dashScopeIsSet(scope) ? '<button type="button" class="dash-btn ghost filters-active-btn" id="dashReset">Show everything</button>' : '') + '</div>' +
+    '<label>Department<select id="dashDept">' + opt(uniq('Department Desc'), scope.dept) + '</select></label>' +
+    '<label>Category<select id="dashCat">' + opt(uniq('Category'), scope.cat) + '</select></label>' +
+    '<label class="dash-vendor-field">Vendor code<input id="dashVendor" list="dashVendorList" class="' + (amb ? 'dash-vendor-ambiguous' : '') + '" value="' +
+      dashEsc(amb ? amb.raw : scope.vendor) + '" title="' + dashEsc(dashVendorAmbiguousTip(amb)) + '" placeholder="All" autocomplete="off">' +
+      dashVendorOptionsHtml(amb) + '</label>' +
     '<datalist id="dashVendorList">' + uniq('Vendor Code').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>' +
     search('dashRange', 'range', 'Range Name') +
     search('dashGroup', 'group', 'Group Desc') +
     search('dashPuda', 'puda', 'PUDA Desc') +
-    '<label>Plan<select id="dashPlan">' + opt(uniq('Current Plan Code'), dashScope.plan) + '</select></label>' +
+    '<label>Plan<select id="dashPlan">' + opt(uniq('Current Plan Code'), scope.plan) + '</select></label>' +
     '</div>';
 }
 
@@ -853,15 +872,16 @@ function renderDashboard(){
   // re-render throws partway through (e.g. $('dashDept').addEventListener
   // on null) and never reaches the toggle's own re-wiring below it,
   // silently breaking the second click.
-  if(!dashHeaderCollapsed) dashWireScopeBar(root, renderDashboard);
+  if(!dashHeaderCollapsed) dashWireScopeBar(root, renderDashboard, DASH_SLOT);
   const headerToggle = $('dashHeaderToggle');
   if(headerToggle) headerToggle.addEventListener('click', () => { dashHeaderCollapsed = !dashHeaderCollapsed; renderDashboard(); });
 }
 
 // Wires a dashScopeBar() rendered inside `root`. Shared by the Dashboard and
-// PO Data pages -- both keep their markup in the DOM at once, so lookups are
+// PO Data pages, each with its own filter state (`slot`: DASH_SLOT or
+// PODATA_SLOT). Both keep their markup in the DOM at once, so lookups are
 // scoped to root rather than document-wide (the ids repeat).
-function dashWireScopeBar(root, rerender){
+function dashWireScopeBar(root, rerender, slot){
   const $ = id => root.querySelector('#' + id);
   const change = () => {
     const raw = $('dashVendor').value;
@@ -871,13 +891,13 @@ function dashWireScopeBar(root, rerender){
     else if(lookup.type === 'resolved'){ vendor = lookup.code; $('dashVendor').value = vendor; }   // box shows the code, never the typed name
     else if(lookup.type === 'unmatched') vendor = raw.trim();   // leave as typed -- filters to nothing, same as before
     // 'ambiguous' and 'empty' both leave vendor === '' (don't guess which of several matches was meant)
-    dashVendorAmbiguous = lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null;
-    dashScope = {
+    slot.setAmb(lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null);
+    slot.set({
       dept: $('dashDept').value, cat: $('dashCat').value, vendor,
       range: $('dashRange').value.trim(), group: $('dashGroup').value.trim(),
       puda: $('dashPuda').value.trim(), plan: $('dashPlan').value,
-    };
-    dashSaveScope(); rerender();
+    });
+    rerender();
   };
   ['dashDept', 'dashCat', 'dashPlan'].forEach(id => $(id).addEventListener('change', change));
   root.querySelectorAll('.dash-vendor-opt').forEach(btn => btn.addEventListener('click', () => {
@@ -908,13 +928,13 @@ function dashWireScopeBar(root, rerender){
       const raw = vendorInput.value;
       const lookup = vendorNameLookup(raw);
       if(lookup.type === 'ambiguous' || lookup.type === 'empty' || lookup.type === 'unmatched'){
-        dashVendorAmbiguous = lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null;
-        vendorInput.classList.toggle('dash-vendor-ambiguous', !!dashVendorAmbiguous);
-        vendorInput.title = dashVendorAmbiguousTip();
+        slot.setAmb(lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null);
+        vendorInput.classList.toggle('dash-vendor-ambiguous', !!slot.getAmb());
+        vendorInput.title = dashVendorAmbiguousTip(slot.getAmb());
         const field = vendorInput.closest('.dash-vendor-field');
         const old = field.querySelector('.dash-vendor-options');
         if(old) old.remove();
-        field.insertAdjacentHTML('beforeend', dashVendorOptionsHtml());
+        field.insertAdjacentHTML('beforeend', dashVendorOptionsHtml(slot.getAmb()));
         field.querySelectorAll('.dash-vendor-opt').forEach(btn => btn.addEventListener('click', () => {
           vendorInput.value = btn.dataset.code;
           change();
@@ -928,7 +948,7 @@ function dashWireScopeBar(root, rerender){
     });
   })();
   const reset = $('dashReset');
-  if(reset) reset.addEventListener('click', () => { dashScope = { ...DASH_SCOPE_DEFAULTS }; dashSaveScope(); rerender(); });
+  if(reset) reset.addEventListener('click', () => { slot.set({ ...DASH_SCOPE_DEFAULTS }); rerender(); });
 }
 // Restore whatever the URL points at -- here rather than in app.js because
 // this is the last script to load, so every view's renderer now exists.
