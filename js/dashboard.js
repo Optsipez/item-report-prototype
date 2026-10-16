@@ -264,6 +264,26 @@ const DASH_PLAN_CODES = new Set(['A', 'K', 'C', 'P']);
 const dashPlan = it => String(it['Current Plan Code'] || '').trim().toUpperCase();
 const dashPlanCell = it => '<td class="plan-cell dash-cpc">' + dashEsc(dashPlan(it)) + '</td>';
 
+/* Discount bands -- the buying team's Excel formula on an item's Disct%:
+   =IF(LEFT(d,1)="N","No Price",IF(d<0.104,"0-10%",IF(d<0.204,"11-20%", ...
+   IF(d<0.804,"71-80%",IF(d>0.80401,"Above 80%"))))). Our data stores a
+   numeric 0 instead of an "N..." text for items with no price, so "No
+   Price" here is an item with neither a Now nor a Was price. The formula
+   leaves 0.804-0.80401 in no band; those few go to 71-80%. */
+const DASH_DISC_BANDS = ['No Price', '0-10%', '11-20%', '21-30%', '31-40%', '41-50%', '51-60%', '61-70%', '71-80%', 'Above 80%'];
+function dashDiscBand(it){
+  if(!(Number(it['Now (Aed)']) || 0) && !(Number(it['Was (Aed)']) || 0)) return 'No Price';
+  const d = Number(it['Disct%']) || 0;
+  if(d < 0.104) return '0-10%';
+  if(d < 0.204) return '11-20%';
+  if(d < 0.304) return '21-30%';
+  if(d < 0.404) return '31-40%';
+  if(d < 0.504) return '41-50%';
+  if(d < 0.604) return '51-60%';
+  if(d < 0.704) return '61-70%';
+  if(d <= 0.80401) return '71-80%';
+  return 'Above 80%';
+}
 function dashCompute(){
   const W = dashWindows();
   const vendorName = {};
@@ -271,12 +291,18 @@ function dashCompute(){
   const R = {
     W, vendorName, items: 0, sold3: 0, prior3: 0, soh: 0, value: 0,
     reorder: [], oos: [], over: [], overValue: 0, movers: [],
+    bands: Object.fromEntries(DASH_DISC_BANDS.map(b => [b, { items: 0, sold: 0, soh: 0 }])),
     monthTotals: MONTH_WINDOW.map(() => 0), branch: {}, codes: new Set(),
   };
   ITEMS.forEach(it => {
     if(!dashItemInScope(it)) return;
     R.items++; R.codes.add(it['Item Code']);
     const sohRaw = Number(it['SOH']) || 0, soh = Math.max(0, sohRaw), po = Number(it['PO-Qty']) || 0;
+    // Discount bands: units sold over a fixed rolling 13 months (not the
+    // All Products Window setting) and units on hand.
+    const band = R.bands[dashDiscBand(it)];
+    band.items++; band.soh += soh;
+    band.sold += trailingSales(it, REPORT_MONTH.year, REPORT_MONTH.month, 13).reduce((a, b) => a + b, 0);
     const cost = Number(it['L-Cost (Aed)']) || 0;
     const price = Number(it['Now (Aed)']) || Number(it['Was (Aed)']) || 0;
     const s3 = unitsIn(it, W.rate), p3 = unitsIn(it, W.prior), rate = s3 / 3;
@@ -839,6 +865,19 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
     '</div>';
 }
 
+// Contribution by discount band: each band's share of units sold (13 mo)
+// and of units on hand, for the items in the current Show me scope.
+function dashBandTable(R){
+  const rows = DASH_DISC_BANDS.map(b => ({ band: b, ...R.bands[b] }));
+  const tot = rows.reduce((t, r) => ({ items: t.items + r.items, sold: t.sold + r.sold, soh: t.soh + r.soh }), { items: 0, sold: 0, soh: 0 });
+  const pct = (v, t) => t ? v / t * 100 : 0;
+  const share = (v, t, cls) => { const p = pct(v, t); return '<td class="dash-band-share"><span class="dash-band-bar ' + cls + '"><i style="width:' + p.toFixed(1) + '%"></i></span>' + p.toFixed(1) + '%</td>'; };
+  return '<section class="dash-card wide tone-warn dash-bands"><h3>Discount bands <span>share of units sold (last 13 months) and units on hand</span></h3>' +
+    '<div class="dash-table-scroll"><table class="dash-table"><thead><tr><th class="l">Discount band</th><th>Items</th><th>Units sold (13 mo)</th><th>% of sales</th><th>Units on hand</th><th>% of stock</th></tr></thead><tbody>' +
+    rows.map(r => '<tr><td class="l"><b>' + r.band + '</b></td><td>' + dashInt(r.items) + '</td><td>' + dashInt(Math.round(r.sold)) + '</td>' + share(r.sold, tot.sold, 'sold') + '<td>' + dashInt(r.soh) + '</td>' + share(r.soh, tot.soh, 'stock') + '</tr>').join('') +
+    '<tr class="dash-band-total"><td class="l"><b>Total</b></td><td><b>' + dashInt(tot.items) + '</b></td><td><b>' + dashInt(Math.round(tot.sold)) + '</b></td><td><b>100%</b></td><td><b>' + dashInt(tot.soh) + '</b></td><td><b>100%</b></td></tr>' +
+    '</tbody></table></div></section>';
+}
 function renderDashboard(){
   const root = document.getElementById('dashRoot');
   if(!root) return;
@@ -898,6 +937,7 @@ function renderDashboard(){
             '<button type="button" class="dash-btn ghost dash-more" data-list="expired">See all ' + dashInt(R.expired.length) + ' POs (' + dashInt(dashPOCodes(R.expired).size) + ' items) &rarr;</button>'
           : '<p class="dash-empty">No pending POs created in the last 15 days.</p>') + '</section>' +
       '<section class="dash-card wide tone-stock"><h3>Units due by month <span>all open POs</span></h3>' + dashColumns(inbound) + '</section>' +
+      dashBandTable(R) +
     '</div>';
 
   // wiring

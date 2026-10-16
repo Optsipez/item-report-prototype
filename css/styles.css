@@ -672,6 +672,14 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .dash-seg button.on{background:var(--primary);color:var(--on-primary);}
 .dash-note{margin:0 0 var(--sp-4);font-size:var(--fs-sm);color:var(--ink-soft);}
 .dash-table tr.dash-pick{cursor:pointer;}
+/* Discount bands: % cells carry a thin share bar (sales brass, stock teal). */
+.dash-bands .dash-table-scroll{max-height:none;}
+.dash-table td.dash-band-share{white-space:nowrap;width:22%;}
+.dash-band-bar{display:inline-block;vertical-align:middle;width:110px;height:6px;margin-right:10px;border-radius:3px;background:var(--sunken);overflow:hidden;}
+.dash-band-bar i{display:block;height:100%;border-radius:3px;}
+.dash-band-bar.sold i{background:var(--primary);}
+.dash-band-bar.stock i{background:var(--soh);}
+.dash-table tr.dash-band-total td{border-top:2px solid var(--line-strong);background:var(--sunken);}
 .dash-table tr.dash-pick:hover td{background:var(--primary-weak);}
 .dash-table td.good{color:var(--pos);font-weight:650;}
 .dash-table .mono{font-family:'IBM Plex Mono',monospace;font-weight:600;}
