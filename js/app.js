@@ -2811,6 +2811,8 @@ function renderDrScopeBar(){
   ['drVendor', 'drRange', 'drGroup', 'drPuda'].forEach(id => {
     const el = $(id);
     el.addEventListener('blur', change);
+    // a datalist pick applies straight away, same as the dashboard's bar
+    if(id !== 'drVendor') el.addEventListener('input', e => { if(e.inputType === 'insertReplacementText' || !e.inputType) change(); });
     el.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); change(); } });
   });
   // Live, as-you-type narrowing for Vendor code -- see the identical

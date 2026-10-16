@@ -199,6 +199,19 @@ function scopeFieldMatch(val, selected){
 }
 // scope defaults to dashScope -- the date-range popup's own "Show me" bar
 // (app.js) reuses this exact matching logic with its own drScope instead.
+// Range Name / Group Desc / PUDA Desc: ignore case and extra spaces. Text
+// that IS one of the field's values (e.g. a picked suggestion) matches that
+// value only; anything else matches every value containing it -- so typing
+// "Comforter Set" finds "A.Soft Furnishing / Comforter Set".
+const dashNormText = s => String(s == null ? '' : s).toLowerCase().replace(/\s+/g, ' ').trim();
+const DASH_TEXT_FIELD = { range: 'Range Name', group: 'Group Desc', puda: 'PUDA Desc' };
+const dashTextValues = {};
+function dashTextMatch(key, val, q){
+  if(!q) return true;
+  const n = dashNormText(q), v = dashNormText(val);
+  if(!dashTextValues[key]) dashTextValues[key] = new Set(ITEMS.map(i => dashNormText(i[DASH_TEXT_FIELD[key]])));
+  return dashTextValues[key].has(n) ? v === n : v.includes(n);
+}
 function dashItemInScope(it, scope){
   scope = scope || dashScope;
   const planVal = String(it['Current Plan Code'] || '').toUpperCase();
@@ -206,18 +219,18 @@ function dashItemInScope(it, scope){
   return scopeFieldMatch(it['Department Desc'], scope.dept) &&
     scopeFieldMatch(it['Category'], scope.cat) &&
     (!scope.vendor || String(it['Vendor Code']).toUpperCase() === scope.vendor.toUpperCase()) &&
-    (!scope.range || it['Range Name'] === scope.range) &&
-    (!scope.group || it['Group Desc'] === scope.group) &&
-    (!scope.puda || it['PUDA Desc'] === scope.puda) &&
+    dashTextMatch('range', it['Range Name'], scope.range) &&
+    dashTextMatch('group', it['Group Desc'], scope.group) &&
+    dashTextMatch('puda', it['PUDA Desc'], scope.puda) &&
     scopeFieldMatch(planVal, planSel);
 }
 function dashLineInScope(l, scope = dashScope){   // a PO line: [po, item, desc, qty, eta, vendor, dept, cat]
   if(scope.range || scope.group || scope.puda || scope.plan){
     const it = DASH_ITEM_BY_CODE[l[1]];
     if(!it) return false;
-    if(scope.range && it['Range Name'] !== scope.range) return false;
-    if(scope.group && it['Group Desc'] !== scope.group) return false;
-    if(scope.puda && it['PUDA Desc'] !== scope.puda) return false;
+    if(!dashTextMatch('range', it['Range Name'], scope.range)) return false;
+    if(!dashTextMatch('group', it['Group Desc'], scope.group)) return false;
+    if(!dashTextMatch('puda', it['PUDA Desc'], scope.puda)) return false;
     if(scope.plan && String(it['Current Plan Code']).toUpperCase() !== scope.plan.toUpperCase()) return false;
   }
   return (!scope.dept || l[6] === scope.dept) &&
@@ -1000,6 +1013,9 @@ function dashWireScopeBar(root, rerender, slot){
   ['dashVendor', 'dashRange', 'dashGroup', 'dashPuda'].forEach(id => {
     const el = $(id);
     el.addEventListener('blur', change);
+    // Picking a suggestion applies it straight away (typing still waits for
+    // blur/Enter) -- the browser marks a datalist pick as replacement text.
+    if(id !== 'dashVendor') el.addEventListener('input', e => { if(e.inputType === 'insertReplacementText' || !e.inputType) change(); });
     el.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); change(); } });
   });
   // Live, as-you-type narrowing for Vendor code -- while a typed name is
