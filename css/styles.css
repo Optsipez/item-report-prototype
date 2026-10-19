@@ -679,6 +679,8 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .dash-band-bar i{display:block;height:100%;border-radius:3px;}
 .dash-band-bar.sold i{background:var(--primary);}
 .dash-band-bar.stock i{background:var(--soh);}
+/* Fixed-width % so every bar starts at the same x, whatever the number's width. */
+.dash-band-pct{display:inline-block;min-width:3.4em;text-align:right;}
 .dash-table tr.dash-band-total td{border-top:2px solid var(--line-strong);background:var(--sunken);}
 .dash-table tr.dash-pick:hover td{background:var(--primary-weak);}
 .dash-table td.good{color:var(--pos);font-weight:650;}
