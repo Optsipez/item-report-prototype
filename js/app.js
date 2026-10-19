@@ -3218,6 +3218,80 @@ function renderTripTable(rows){
   }).join('');
   return '<div class="dr-wrap trip-wrap"><table class="matrix dr-table"><thead><tr>' + cols + '</tr></thead><tbody>' + body + '</tbody></table></div>';
 }
+/* Minimal .xlsx writer -- no library, so it also works offline / where a CDN
+   is blocked. One sheet, bold frozen header row; rows are arrays of strings
+   and numbers (null = blank). The zip is "stored" (uncompressed), which
+   Excel opens fine. ponytail: one sheet, no dates/number formats; swap for
+   SheetJS if exports ever need more. */
+function downloadXlsx(filename, sheetName, header, rows, widths){
+  const esc = v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '');
+  const col = i => { let s = ''; for(i++; i; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s; return s; };
+  const cell = (v, r, i, style) => {
+    const ref = ' r="' + col(i) + r + '"' + (style ? ' s="1"' : '');
+    if(v == null || v === '') return '';
+    return typeof v === 'number' && isFinite(v) ? '<c' + ref + '><v>' + v + '</v></c>'
+      : '<c' + ref + ' t="inlineStr"><is><t xml:space="preserve">' + esc(v) + '</t></is></c>';
+  };
+  const sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+    '<cols>' + header.map((h, i) => '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + ((widths && widths[i]) || 14) + '" customWidth="1"/>').join('') + '</cols><sheetData>' +
+    [header, ...rows].map((row, r) => '<row r="' + (r + 1) + '">' + row.map((v, i) => cell(v, r + 1, i, r === 0)).join('') + '</row>').join('') +
+    '</sheetData><autoFilter ref="A1:' + col(header.length - 1) + (rows.length + 1) + '"/></worksheet>';
+  const files = {
+    '[Content_Types].xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>',
+    '_rels/.rels': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+    'xl/workbook.xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="' + esc(sheetName.replace(/[\\\/?*[\]:]/g, ' ').slice(0, 31)) + '" sheetId="1" r:id="rId1"/></sheets>' +
+      '<definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">\'' + esc(sheetName.replace(/[\\\/?*[\]:]/g, ' ').slice(0, 31)) + '\'!$A$1:$' + col(header.length - 1) + '$' + (rows.length + 1) + '</definedName></definedNames></workbook>',
+    'xl/_rels/workbook.xml.rels': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
+    'xl/styles.xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE2E8F0"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="2"><xf/><xf fontId="1" fillId="2" applyFont="1" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>',
+    'xl/worksheets/sheet1.xml': sheet,
+  };
+  // stored zip: local headers + data, then the central directory
+  const crcTable = downloadXlsx.crc || (downloadXlsx.crc = Array.from({ length: 256 }, (_, n) => { for(let k = 0; k < 8; k++) n = n & 1 ? 0xEDB88320 ^ (n >>> 1) : n >>> 1; return n >>> 0; }));
+  const crc32 = b => { let x = 0xFFFFFFFF; for(let i = 0; i < b.length; i++) x = crcTable[(x ^ b[i]) & 0xFF] ^ (x >>> 8); return (x ^ 0xFFFFFFFF) >>> 0; };
+  const enc = new TextEncoder(), parts = [], central = [];
+  let offset = 0;
+  for(const [name, text] of Object.entries(files)){
+    const nameB = enc.encode(name), data = enc.encode(text), crc = crc32(data);
+    const head = (size, sig) => { const d = new DataView(new ArrayBuffer(size)); d.setUint32(0, sig, true); return d; };
+    const lh = head(30, 0x04034b50);
+    lh.setUint16(4, 20, true); lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, nameB.length, true);
+    const ch = head(46, 0x02014b50);
+    ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, nameB.length, true); ch.setUint32(42, offset, true);
+    parts.push(lh.buffer, nameB, data); central.push(ch.buffer, nameB);
+    offset += 30 + nameB.length + data.length;
+  }
+  const cdSize = central.reduce((a, p) => a + p.byteLength, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, Object.keys(files).length, true); end.setUint16(10, Object.keys(files).length, true); end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+  const blob = new Blob([...parts, ...central, end.buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename.replace(/[\\\/:*?"<>|]/g, ' ');
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  return blob;
+}
+// Trip Requirement's table as an Excel file -- same columns (minus the
+// checkbox and the empty Photo placeholder, plus Vendor Code since a
+// selection can span vendors), hidden lines left out like the printout.
+function tripExportRows(rows){
+  const header = ['No', 'Vendor Code', 'Range Name', 'CPC', 'PUDA Code', 'PUDA Desc', 'Purchase Qty', '2XL Barcode No', 'Description',
+    'SOH', 'Sold (since Lrcv)', 'Recovery %', 'Sold/Lrcv Qty %', 'Disct%', 'Sale Mrg', 'Last Posting Date'];
+  const num = v => typeof v === 'number' && isFinite(v) ? v : (v === '' || v == null || isNaN(Number(v)) ? null : Number(v));
+  const round = (v, d) => v == null ? null : Math.round(v * 10 ** d) / 10 ** d;
+  const body = rows.map((r, i) => {
+    const it = r.it, disc = num(it['Disct%']);
+    return [i + 1, it['Vendor Code'], it['Range Name'], it['Current Plan Code'], it['PUDA Code'], it['PUDA Desc'], num(it['PO-Qty']) || 0,
+      String(it['Item Code']), it['Description'], r.soh, r.sold, r.pct == null ? null : Math.round(r.pct), r.pctOfLrcv == null ? null : Math.round(r.pctOfLrcv),
+      disc == null ? null : round(disc * 100, 1), round(num(it['MRG Factor']), 2), it['Lrcv Date'] ? fmtLrcvDate(it['Lrcv Date']) : null];
+  });
+  return { header, body, widths: [6, 12, 18, 6, 11, 30, 12, 14, 44, 9, 15, 11, 15, 9, 9, 16] };
+}
+function tripExport(rows){
+  const { header, body, widths } = tripExportRows(rows);
+  const tag = DASH_CHIP_LABELS.flatMap(([k]) => [].concat(tripScope[k] || [])).join(' ');
+  return downloadXlsx('Trip Requirement' + (tag ? ' - ' + tag : '') + '.xlsx', 'Trip Requirement', header, body, widths);
+}
 function renderTrip(){
   const root = document.getElementById('tripRoot');
   if(!root) return;
@@ -3239,9 +3313,12 @@ function renderTrip(){
       '<p class="dash-sub">Pick any filters to see those items — stock on hand, units sold since each was last received, and the resulting sell-through.' +
         (typeof DATA_AS_OF !== 'undefined' ? ' <span class="dash-asof">Data as of ' + escHtml(dashDate(DATA_AS_OF)) + '.</span>' : '') + '</p>' +
     '</div>' +
-    (hiddenCount ? '<div class="dash-links"><button type="button" id="tripHiddenToggle" class="dash-btn ghost filters-active-btn trip-hidden-toggle">' +
-        (tripShowHidden ? 'Hide them again' : 'Show hidden lines (' + hiddenCount + ')') + '</button>' +
-      (tripShowHidden ? '<button type="button" id="tripRestoreAll" class="dash-btn ghost">Restore all ' + hiddenCount + '</button>' : '') + '</div>' : '') +
+    (rows && rows.length ? '<div class="dash-links">' +
+      (hiddenCount ? '<button type="button" id="tripHiddenToggle" class="dash-btn ghost filters-active-btn trip-hidden-toggle">' +
+        (tripShowHidden ? 'Hide them again' : 'Show hidden lines (' + hiddenCount + ')') + '</button>' : '') +
+      (hiddenCount && tripShowHidden ? '<button type="button" id="tripRestoreAll" class="dash-btn ghost">Restore all ' + hiddenCount + '</button>' : '') +
+      '<button type="button" id="tripExport" class="dash-btn" title="Download the items below as an Excel file (hidden lines left out)">Export to Excel</button>' +
+    '</div>' : '') +
     '</div>' +
     dashScopeBar(tripScope, tripVendorAmbiguous, { headless: true, listPrefix: 'trip', multiPlan: true }) +
     body;
@@ -3255,6 +3332,8 @@ function renderTrip(){
   }));
   const hiddenToggle = $('tripHiddenToggle');
   if(hiddenToggle) hiddenToggle.addEventListener('click', () => { tripShowHidden = !tripShowHidden; renderTrip(); });
+  const exportBtn = $('tripExport');
+  if(exportBtn) exportBtn.addEventListener('click', () => tripExport(rows.filter(r => !tripHidden.has(r.it['Item Code']))));
   const restoreAll = $('tripRestoreAll');
   if(restoreAll) restoreAll.addEventListener('click', () => { tripHidden = new Set(); tripShowHidden = false; renderTrip(); });
 }
