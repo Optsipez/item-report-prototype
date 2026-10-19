@@ -822,7 +822,7 @@ function renderPOData(){
       '</div>' +
       '<div class="dash-links"><button type="button" class="dash-btn ghost" id="poDataHeaderToggle">' + (poDataHeaderCollapsed ? 'Expand &#9662;' : 'Collapse &#9652;') + '</button></div>' +
     '</div>' +
-    (poDataHeaderCollapsed ? '' : dashScopeBar(poDataScope, poDataVendorAmbiguous, { headless: true, extra: poDateBar(), chips: poDateChips(), anySet: poDatesSet(), baseItems: poDataItems() })) +
+    (poDataHeaderCollapsed ? '' : dashScopeBar(poDataScope, poDataVendorAmbiguous, { headless: true, extra: poDateBar(), chips: poDateChips(), listPrefix: 'po', anySet: poDatesSet(), baseItems: poDataItems() })) +
     '</div>' +
     (lines.length ? '' : '<p class="dash-empty">No open PO lines match these filters and dates.</p>') +
     (!lines.length ? '' : '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead>' +
@@ -861,6 +861,9 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
   // always stays in its own list, so it never silently vanishes while still
   // filtering.
   const base = opts.baseItems || ITEMS;
+  // Suggestion lists get a per-page id prefix: the Dashboard and PO Data bars
+  // are both in the DOM at once, and list="id" resolves document-wide.
+  const lp = opts.listPrefix || '';
   const uniq = (key, f) => {
     const others = { ...scope, [key]: '' };
     const vals = new Set(base.filter(it => dashItemInScope(it, others)).map(i => i[f]).filter(Boolean));
@@ -872,15 +875,15 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
   // values (matching FILTER_SEARCHABLE in app.js) — a plain <select> with
   // that many options is unusable, so these get the same searchable
   // text+datalist combo as Vendor code instead of a dropdown list.
-  const search = (id, field, label) => '<label>' + label + '<input id="' + id + '" list="' + id + 'List" value="' + dashEsc(scope[field]) + '" placeholder="All" autocomplete="off"></label>' +
-    '<datalist id="' + id + 'List">' + uniq(field, field === 'range' ? 'Range Name' : field === 'group' ? 'Group Desc' : 'PUDA Desc').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>';
+  const search = (id, field, label) => '<label>' + label + '<input id="' + id + '" list="' + lp + id + 'List" value="' + dashEsc(scope[field]) + '" placeholder="All" autocomplete="off"></label>' +
+    '<datalist id="' + lp + id + 'List">' + uniq(field, field === 'range' ? 'Range Name' : field === 'group' ? 'Group Desc' : 'PUDA Desc').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>';
   return '<div class="dash-scope">' + (opts.headless ? '' : '<div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' + reset + '</div>') +
     '<label>Category<select id="dashCat">' + opt(uniq('cat', 'Category'), scope.cat) + '</select></label>' +
     '<label>Department<select id="dashDept">' + opt(uniq('dept', 'Department Desc'), scope.dept) + '</select></label>' +
-    '<label class="dash-vendor-field">Vendor code<input id="dashVendor" list="dashVendorList" class="' + (amb ? 'dash-vendor-ambiguous' : '') + '" value="' +
+    '<label class="dash-vendor-field">Vendor code<input id="dashVendor" list="' + lp + 'dashVendorList" class="' + (amb ? 'dash-vendor-ambiguous' : '') + '" value="' +
       dashEsc(amb ? amb.raw : scope.vendor) + '" title="' + dashEsc(dashVendorAmbiguousTip(amb)) + '" placeholder="All" autocomplete="off">' +
       dashVendorOptionsHtml(amb) + '</label>' +
-    '<datalist id="dashVendorList">' + uniq('vendor', 'Vendor Code').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>' +
+    '<datalist id="' + lp + 'dashVendorList">' + uniq('vendor', 'Vendor Code').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>' +
     search('dashRange', 'range', 'Range Name') +
     search('dashGroup', 'group', 'Group Desc') +
     search('dashPuda', 'puda', 'PUDA Desc') +
