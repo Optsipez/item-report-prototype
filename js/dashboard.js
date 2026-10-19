@@ -590,6 +590,9 @@ function renderPOPage(poNo){
    the way across the whole table, down to and including the grand total
    row -- every PO is UAE today; it reads "Mixed" if that ever changes. */
 let poDataHeaderCollapsed = false;
+// Items that appear on at least one open PO -- the option pool for PO Data's filters.
+let poDataItemsCache = null;
+const poDataItems = () => poDataItemsCache || (poDataItemsCache = [...new Set(PO_LINES.map(l => l[1]))].map(c => DASH_ITEM_BY_CODE[c]).filter(Boolean));
 // PO Data's three dates -- PO Create Date, Revised ETD, ETA -- one date
 // each (Date at local midnight, or null), plus one Backward/Forward choice
 // shared by all three. Backward keeps POs whose date is on or before the
@@ -817,7 +820,7 @@ function renderPOData(){
       '</div>' +
       '<div class="dash-links"><button type="button" class="dash-btn ghost" id="poDataHeaderToggle">' + (poDataHeaderCollapsed ? 'Expand &#9662;' : 'Collapse &#9652;') + '</button></div>' +
     '</div>' +
-    (poDataHeaderCollapsed ? '' : dashScopeBar(poDataScope, poDataVendorAmbiguous, { headless: true, extra: poDateBar(), anySet: poDatesSet() })) +
+    (poDataHeaderCollapsed ? '' : dashScopeBar(poDataScope, poDataVendorAmbiguous, { headless: true, extra: poDateBar(), anySet: poDatesSet(), baseItems: poDataItems() })) +
     '</div>' +
     (lines.length ? '' : '<p class="dash-empty">No open PO lines match these filters and dates.</p>') +
     (!lines.length ? '' : '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead>' +
@@ -844,25 +847,37 @@ function renderPOData(){
 // dashboard puts it in its greeting row).
 function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
   const reset = dashScopeIsSet(scope) || opts.anySet ? '<button type="button" class="dash-btn ghost filters-active-btn' + (opts.headless ? ' dash-scope-reset' : '') + '" id="dashReset">Show everything</button>' : '';
-  const uniq = f => [...new Set(ITEMS.map(i => i[f]).filter(Boolean))].sort();
+  // Cascading options: each field lists only the values found among the items
+  // that pass every OTHER field's filter (so Category = Furniture narrows
+  // Department, Vendor, Range... and vice versa). opts.baseItems limits the
+  // pool (PO Data: only items on an open PO). A value that's currently picked
+  // always stays in its own list, so it never silently vanishes while still
+  // filtering.
+  const base = opts.baseItems || ITEMS;
+  const uniq = (key, f) => {
+    const others = { ...scope, [key]: '' };
+    const vals = new Set(base.filter(it => dashItemInScope(it, others)).map(i => i[f]).filter(Boolean));
+    if(scope[key]) vals.add(scope[key]);
+    return [...vals].sort();
+  };
   const opt = (arr, cur) => '<option value="">All</option>' + arr.map(v => '<option' + (v === cur ? ' selected' : '') + '>' + dashEsc(v) + '</option>').join('');
   // Range Name / Group Desc / PUDA Desc run into the hundreds or thousands of
   // values (matching FILTER_SEARCHABLE in app.js) — a plain <select> with
   // that many options is unusable, so these get the same searchable
   // text+datalist combo as Vendor code instead of a dropdown list.
   const search = (id, field, label) => '<label>' + label + '<input id="' + id + '" list="' + id + 'List" value="' + dashEsc(scope[field]) + '" placeholder="All" autocomplete="off"></label>' +
-    '<datalist id="' + id + 'List">' + uniq(field === 'range' ? 'Range Name' : field === 'group' ? 'Group Desc' : 'PUDA Desc').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>';
+    '<datalist id="' + id + 'List">' + uniq(field, field === 'range' ? 'Range Name' : field === 'group' ? 'Group Desc' : 'PUDA Desc').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>';
   return '<div class="dash-scope">' + (opts.headless ? '' : '<div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' + reset + '</div>') +
-    '<label>Category<select id="dashCat">' + opt(uniq('Category'), scope.cat) + '</select></label>' +
-    '<label>Department<select id="dashDept">' + opt(uniq('Department Desc'), scope.dept) + '</select></label>' +
+    '<label>Category<select id="dashCat">' + opt(uniq('cat', 'Category'), scope.cat) + '</select></label>' +
+    '<label>Department<select id="dashDept">' + opt(uniq('dept', 'Department Desc'), scope.dept) + '</select></label>' +
     '<label class="dash-vendor-field">Vendor code<input id="dashVendor" list="dashVendorList" class="' + (amb ? 'dash-vendor-ambiguous' : '') + '" value="' +
       dashEsc(amb ? amb.raw : scope.vendor) + '" title="' + dashEsc(dashVendorAmbiguousTip(amb)) + '" placeholder="All" autocomplete="off">' +
       dashVendorOptionsHtml(amb) + '</label>' +
-    '<datalist id="dashVendorList">' + uniq('Vendor Code').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>' +
+    '<datalist id="dashVendorList">' + uniq('vendor', 'Vendor Code').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>' +
     search('dashRange', 'range', 'Range Name') +
     search('dashGroup', 'group', 'Group Desc') +
     search('dashPuda', 'puda', 'PUDA Desc') +
-    '<label>Plan<select id="dashPlan">' + opt(uniq('Current Plan Code'), scope.plan) + '</select></label>' +
+    '<label>Plan<select id="dashPlan">' + opt(uniq('plan', 'Current Plan Code'), scope.plan) + '</select></label>' +
     (opts.extra ? '<span class="dash-scope-break"></span>' + opts.extra : '') + (opts.headless && !opts.noReset ? reset : '') +
     '</div>';
 }
