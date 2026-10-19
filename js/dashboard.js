@@ -840,6 +840,8 @@ function renderPOData(){
 // after the fields instead (PO Data). opts.extra: HTML for a full-width row
 // inside the same card (PO Data's dates). opts.anySet: show the reset button
 // even when no Show me field is set (PO Data's dates count too).
+// opts.noReset: leave the reset button out -- the caller places it (the
+// dashboard puts it in its greeting row).
 function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
   const reset = dashScopeIsSet(scope) || opts.anySet ? '<button type="button" class="dash-btn ghost filters-active-btn' + (opts.headless ? ' dash-scope-reset' : '') + '" id="dashReset">Show everything</button>' : '';
   const uniq = f => [...new Set(ITEMS.map(i => i[f]).filter(Boolean))].sort();
@@ -861,7 +863,7 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
     search('dashGroup', 'group', 'Group Desc') +
     search('dashPuda', 'puda', 'PUDA Desc') +
     '<label>Plan<select id="dashPlan">' + opt(uniq('Current Plan Code'), scope.plan) + '</select></label>' +
-    (opts.extra ? '<span class="dash-scope-break"></span>' + opts.extra : '') + (opts.headless ? reset : '') +
+    (opts.extra ? '<span class="dash-scope-break"></span>' + opts.extra : '') + (opts.headless && !opts.noReset ? reset : '') +
     '</div>';
 }
 
@@ -909,10 +911,10 @@ function renderDashboard(){
         '<h1 class="dash-greet">' + DASH_GREETINGS[dashGreetingIdx](dashEsc(dashName())) + '</h1>' +
         '<p class="dash-sub">' + dashSubtitle() + ' <span class="dash-asof">Data as of ' + dashEsc(dashDate(DATA_AS_OF)) + '.</span></p>' +
       '</div>' +
-      '<div class="dash-links"><a class="dash-btn' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#products">All Products &rarr;</a><a class="dash-btn ghost' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#lookup">Item Lookup &rarr;</a>' +
+      '<div class="dash-links">' + (!dashHeaderCollapsed && dashScopeIsSet() ? '<button type="button" class="dash-btn ghost filters-active-btn" id="dashReset">Show everything</button>' : '') + '<a class="dash-btn' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#products">All Products &rarr;</a><a class="dash-btn ghost' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#lookup">Item Lookup &rarr;</a>' +
         '<button type="button" class="dash-btn ghost" id="dashHeaderToggle" title="' + (dashHeaderCollapsed ? 'Show the Show me bar and Needs attention tiles' : 'Hide the Show me bar and Needs attention tiles, keep just this line') + '">' + (dashHeaderCollapsed ? 'Expand &#9662;' : 'Collapse &#9652;') + '</button>' +
       '</div></div>' +
-    (dashHeaderCollapsed ? '' : dashScopeBar() +
+    (dashHeaderCollapsed ? '' : dashScopeBar(dashScope, dashVendorAmbiguous, { headless: true, noReset: true }) +
       '<h2 class="dash-h">Needs attention <span>' + dashEsc(scopeLine) + '</span></h2>' + actions.tilesHtml) +
     '</div>' +
     actions.detailHtml +
