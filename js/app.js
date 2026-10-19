@@ -3292,6 +3292,57 @@ function tripExport(rows){
   const tag = DASH_CHIP_LABELS.flatMap(([k]) => [].concat(tripScope[k] || [])).join(' ');
   return downloadXlsx('Trip Requirement' + (tag ? ' - ' + tag : '') + '.xlsx', 'Trip Requirement', header, body, widths);
 }
+// PDF = the browser's own print-to-PDF of a copy of the page as it looks on
+// screen (same stylesheet), in a hidden frame: buttons, tick boxes, the filter
+// dropdowns and hidden lines are stripped; the filter chips stay as a record
+// of what was picked. The table is unfrozen so every row prints, and the page
+// is scaled down to fit A4 landscape when the table is wider than that.
+function tripPrintPdf(root){
+  const clone = root.cloneNode(true);
+  clone.querySelectorAll('.dash-links, .trip-hide-col, .trip-row-hidden, .chip-x, .dash-scope > :not(.dash-chips)').forEach(el => el.remove());
+  const scope = clone.querySelector('.dash-scope');
+  if(scope && !scope.querySelector('.chip')) scope.remove();
+  clone.querySelectorAll('.chip').forEach(ch => ch.replaceWith(Object.assign(document.createElement('span'), { className: 'chip', innerHTML: ch.innerHTML })));
+  clone.querySelectorAll('.branch-sno').forEach((td, i) => { if(td.tagName === 'TD') td.textContent = i; });   // renumber after hidden lines drop out
+  const table = root.querySelector('.trip-wrap table');
+  const pageW = 1080;   // A4 landscape less 8mm margins, in CSS px
+  const zoom = table ? Math.min(1, pageW / table.scrollWidth) : 1;
+  // the print page is narrower than the screen, which would trip the small-
+  // screen rules -- keep the KPI columns and text wrapping the screen shows
+  const kpis = root.querySelector('.dash-kpis'), cellL = root.querySelector('.trip-wrap td.l');
+  const kpiCols = kpis ? getComputedStyle(kpis).gridTemplateColumns.split(' ').length : 4;
+  const wrap = cellL ? getComputedStyle(cellL).whiteSpace : 'normal';
+  const tag = DASH_CHIP_LABELS.flatMap(([k]) => [].concat(tripScope[k] || [])).join(' ');
+  const frame = document.createElement('iframe');
+  frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  document.body.appendChild(frame);
+  const d = frame.contentDocument;
+  d.open();
+  d.write('<!DOCTYPE html><html class="' + document.documentElement.className + '"><head><meta charset="UTF-8"><title>' + escHtml('Trip Requirement' + (tag ? ' - ' + tag : '')) + '</title>' +
+    [...document.querySelectorAll('link[rel=stylesheet]')].map(l => '<link rel="stylesheet" href="' + escHtml(l.href) + '">').join('') +
+    '<style>@page{size:A4 landscape;margin:8mm;}' +
+    'html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+    'body{zoom:' + zoom.toFixed(3) + ';}' +
+    '.main{margin:0!important;padding:0!important;}' +
+    '#tripRoot{display:block!important;height:auto!important;}' +
+    '#tripRoot .trip-wrap{overflow:visible!important;max-height:none!important;height:auto!important;}' +
+    '#tripRoot thead th{position:static!important;}' +
+    '#tripRoot tr{break-inside:avoid;}' +
+    '#tripRoot .dash-kpis{grid-template-columns:repeat(' + kpiCols + ',minmax(0,1fr))!important;}' +
+    '#tripRoot .trip-wrap table.matrix td.l{white-space:' + wrap + '!important;}' +
+    '#tripRoot .dash-scope{padding:var(--sp-2) var(--sp-4);}' +
+    '.view.active{animation:none!important;}*{animation:none!important;transition:none!important;}' +
+    '</style></head><body class="' + document.body.className + '"><div class="main flush"><div class="view active">' + clone.outerHTML + '</div></div></body></html>');
+  d.close();
+  const go = () => {
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
+    setTimeout(() => frame.remove(), 1000);
+  };
+  // wait for the stylesheet + fonts so the PDF isn't printed unstyled
+  frame.onload = () => (d.fonts ? d.fonts.ready : Promise.resolve()).then(go);
+  return frame;
+}
 function renderTrip(){
   const root = document.getElementById('tripRoot');
   if(!root) return;
@@ -3318,6 +3369,7 @@ function renderTrip(){
         (tripShowHidden ? 'Hide them again' : 'Show hidden lines (' + hiddenCount + ')') + '</button>' : '') +
       (hiddenCount && tripShowHidden ? '<button type="button" id="tripRestoreAll" class="dash-btn ghost">Restore all ' + hiddenCount + '</button>' : '') +
       '<button type="button" id="tripExport" class="dash-btn" title="Download the items below as an Excel file (hidden lines left out)">Export to Excel</button>' +
+      '<button type="button" id="tripPdf" class="dash-btn" title="Save this page as a PDF, laid out as it looks here (hidden lines left out) -- pick Save as PDF in the print window">Export to PDF</button>' +
     '</div>' : '') +
     '</div>' +
     dashScopeBar(tripScope, tripVendorAmbiguous, { headless: true, listPrefix: 'trip', multiPlan: true }) +
@@ -3334,6 +3386,8 @@ function renderTrip(){
   if(hiddenToggle) hiddenToggle.addEventListener('click', () => { tripShowHidden = !tripShowHidden; renderTrip(); });
   const exportBtn = $('tripExport');
   if(exportBtn) exportBtn.addEventListener('click', () => tripExport(rows.filter(r => !tripHidden.has(r.it['Item Code']))));
+  const pdfBtn = $('tripPdf');
+  if(pdfBtn) pdfBtn.addEventListener('click', () => tripPrintPdf(root));
   const restoreAll = $('tripRestoreAll');
   if(restoreAll) restoreAll.addEventListener('click', () => { tripHidden = new Set(); tripShowHidden = false; renderTrip(); });
 }
