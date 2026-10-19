@@ -3274,7 +3274,7 @@ function renderTrip(){
     : !rows.length ? '<p class="dr-empty">No items found for vendor ' + escHtml(tripCode) + (tripCpcFilter.length ? ' with CPC ' + tripCpcFilter.map(escHtml).join(', ') : '') + '.</p>'
     : renderTripSummary(tripCode, rows) + renderTripTable(displayRows);
   root.innerHTML =
-    '<div class="dash-hero"><div>' +
+    '<div class="dash-hero"><div class="dash-hero-line">' +
       '<div class="dash-date">Trip Requirement</div>' +
       '<h1 class="dash-greet">Plan your next order</h1>' +
       '<p class="dash-sub">Type a vendor code (or name) to see every item for that vendor — stock on hand, units sold since it was last received, and the resulting sell-through.' +

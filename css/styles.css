@@ -622,6 +622,18 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    lines instead of forcing ~120px columns over 2-digit numbers, and cells
    are a touch tighter. Text columns themselves stay one line. */
 #tripRoot{max-width:none;}
+/* Freeze everything above the table rows: the page itself doesn't scroll;
+   the table scrolls in its own box (both axes) filling the rest of the
+   screen, with its header row pinned (.dr-wrap's sticky thead). Same idea
+   as PO Data. Spacing above the table is tightened too. */
+#tripRoot{display:flex;flex-direction:column;height:calc(100vh - 56px - var(--sp-6) - var(--sp-7));}
+#tripRoot > *{flex:none;}
+#tripRoot > .trip-wrap{flex:1 1 auto;min-height:0;}
+#tripRoot .dash-hero{margin:var(--sp-1) 0 var(--sp-3);}
+#tripRoot .dash-scope{margin-bottom:var(--sp-2);padding-top:var(--sp-2);padding-bottom:var(--sp-3);}
+#tripRoot .dash-h{margin:var(--sp-3) 0 var(--sp-2);}
+#tripRoot .dash-kpis{gap:var(--sp-3);margin-bottom:var(--sp-3);}
+#tripRoot .dash-kpi{padding:var(--sp-3) var(--sp-4);}
 .dr-wrap.trip-wrap table.matrix th{white-space:normal;word-break:keep-all;line-height:1.25;vertical-align:bottom;}
 @media (max-width:1320px){.dr-wrap.trip-wrap table.matrix td.l{white-space:normal;}}
 /* Same card + header language as All Products / PO Data. */
