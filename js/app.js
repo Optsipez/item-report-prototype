@@ -2708,15 +2708,6 @@ document.addEventListener('click', e => {
     renderDrScopeBar();
   }
 });
-// Trip Requirement's own CPC multiselect -- same click-outside-closes
-// behaviour as the date-range popup's, just its own open/closed flag since
-// the two never show at the same time.
-document.addEventListener('click', e => {
-  if(tripCpcOpen && !e.target.closest('.dr-ms-field')){
-    tripCpcOpen = false;
-    renderTrip();
-  }
-});
 function drVendorAmbiguousTip(){
   if(!drVendorAmbiguous) return '';
   const showNames = canSeeVendorName();
@@ -3090,9 +3081,9 @@ function closeDateRangeModal(){
 /* ============================================================
    TRIP REQUIREMENT — vendor-scoped order-planning sheet
    ------------------------------------------------------------
-   Type a vendor code (or name -- same ambiguity-resolution UX as the
-   dashboard's and date-range popup's own Vendor Code fields) to see
-   every item for that vendor: today's SOH, units sold since it was
+   Pick any of the Dashboard's Show me filters (Category, Department,
+   Vendor code, Range, Group, PUDA, Plan -- dashScopeBar() in dashboard.js)
+   to see every matching item: today's SOH, units sold since it was
    last received, and the resulting sell-through (Recovery %) -- the
    numbers a buyer needs before a supplier trip or repeat order,
    replacing a manually rebuilt Excel sheet.
@@ -3101,42 +3092,24 @@ function closeDateRangeModal(){
    entirely, undecided. Recovery % reuses sellThroughPct()/miniVBar(),
    the exact Sold÷(Sold+SOH) formula the 13-mo Trend column uses.
    ============================================================ */
-let tripCode = '';               // resolved vendor code, or '' if none/unresolved
+// Filter state for the shared Show me bar, in memory only. Nothing is listed
+// until at least one field is set.
+let tripScope = null;
 let tripVendorAmbiguous = null;  // { raw, codes } or null -- see vendorNameLookup()
-let tripCpcFilter = [];          // Current Plan Codes selected; [] = all
-let tripCpcOpen = false;         // whether the CPC multiselect panel is open
 // Hiding a line is just a printing convenience -- "I don't want to show this
 // one to them" -- not a data filter, so it never touches KPIs, only which
-// rows the table itself renders. Per vendor session: reset whenever the
-// vendor changes (see change() below), not persisted across reloads.
+// rows the table itself renders. Reset whenever the filters change (see
+// TRIP_SLOT.set), not persisted across reloads.
 let tripHidden = new Set();      // Item Codes hidden from the printed list
 let tripShowHidden = false;      // true while reviewing/restoring hidden lines
-function tripVendorAmbiguousTip(){
-  if(!tripVendorAmbiguous) return '';
-  const showNames = canSeeVendorName();
-  const shown = tripVendorAmbiguous.codes.slice(0, 8);
-  const list = shown.map(c => {
-    if(!showNames) return c;
-    const it = ITEMS.find(i => i['Vendor Code'] === c);
-    return it ? c + ' (' + it['Vendor Name'] + ')' : c;
-  }).join(', ');
-  const more = tripVendorAmbiguous.codes.length > shown.length ? ', +' + (tripVendorAmbiguous.codes.length - shown.length) + ' more' : '';
-  return 'Matches ' + tripVendorAmbiguous.codes.length + ' vendors: ' + list + more + '. Type the exact code, or more letters to narrow it down.';
-}
-function tripVendorOptionsHtml(){
-  if(!tripVendorAmbiguous) return '';
-  const showNames = canSeeVendorName();
-  const shown = tripVendorAmbiguous.codes.slice(0, 8);
-  const more = tripVendorAmbiguous.codes.length - shown.length;
-  const opts = shown.map(c => {
-    const it = ITEMS.find(i => i['Vendor Code'] === c);
-    const label = showNames && it ? c + ' — ' + it['Vendor Name'] : c;
-    return '<button type="button" class="dash-vendor-opt" data-code="' + escHtml(c) + '">' + escHtml(label) + '</button>';
-  }).join('');
-  return '<div class="dash-vendor-options">' + opts +
-    (more > 0 ? '<div class="dash-vendor-more">+' + more + ' more — type more letters to narrow it down</div>' : '') +
-    '</div>';
-}
+const TRIP_SLOT = {
+  get: () => tripScope,
+  set: s => {
+    if(JSON.stringify(s) !== JSON.stringify(tripScope)){ tripHidden = new Set(); tripShowHidden = false; }
+    tripScope = s;
+  },
+  getAmb: () => tripVendorAmbiguous, setAmb: a => { tripVendorAmbiguous = a; },
+};
 // Units sold from the item's own Lrcv Date up to today -- null (not 0) when
 // there's no recorded Lrcv Date to anchor to, since "sold since it arrived"
 // is meaningless without knowing when it arrived.
@@ -3146,8 +3119,8 @@ function tripSoldSinceReceipt(item){
   const to = new Date(REPORT_MONTH.year, REPORT_MONTH.month, 1);
   return rangeSum(item, monthsBetween(d, to), 'sales');
 }
-function tripRows(code){
-  return ITEMS.filter(it => it['Vendor Code'] === code).map(it => {
+function tripRows(scope){
+  return ITEMS.filter(it => dashItemInScope(it, scope)).map(it => {
     const soh = sohValue(it);
     const sold = tripSoldSinceReceipt(it);
     const pct = sold == null ? null : sellThroughPct(sold, soh);
@@ -3161,7 +3134,7 @@ function tripRows(code){
     return { it, soh, sold, pct, pctOfLrcv };
   });
 }
-// Headline numbers for the resolved vendor, shown as a KPI strip above the
+// Headline numbers for the selection, shown as a KPI strip above the
 // table -- avgPct only counts items with a real Lrcv Date (sold != null),
 // same "no data" exclusion sellThroughPct() itself uses.
 function tripSummary(rows){
@@ -3172,17 +3145,19 @@ function tripSummary(rows){
   const avgPct = known.length ? known.reduce((a, r) => a + r.pct, 0) / known.length : null;
   return { items, totalSoh, totalSold, knownCount: known.length, avgPct };
 }
-function renderTripSummary(code, rows){
+function renderTripSummary(rows){
   const S = tripSummary(rows);
   // Buyers must never see Vendor Name (canSeeVendorName()) -- this heading
   // used to be admin-only so the name was always safe to show; now that
   // every role can open this tab, it needs the same gate as everywhere else.
-  const name = canSeeVendorName() ? VENDOR_CODE_TO_NAME[code] : null;
+  const code = tripScope.vendor;
+  const name = code && canSeeVendorName() ? VENDOR_CODE_TO_NAME[code] : null;
+  const parts = DASH_CHIP_LABELS.filter(([k]) => tripScope[k] && !(k === 'vendor' && name)).map(([k]) => tripScope[k]);
   const kpi = (k, v, n) => '<div class="dash-kpi"><span class="dash-kpi-k">' + k + '</span><span class="dash-kpi-v">' + v + '</span><span class="dash-kpi-n">' + n + '</span></div>';
   const noLrcv = S.items - S.knownCount;
-  return '<h2 class="dash-h">' + escHtml(name || code) + (name ? ' <span>' + escHtml(code) + '</span>' : '') + '</h2>' +
+  return '<h2 class="dash-h">' + escHtml(name || 'Your selection') + (parts.length ? ' <span>' + escHtml(parts.join(' · ')) + '</span>' : '') + '</h2>' +
     '<div class="dash-kpis trip-kpis">' +
-      kpi('Items', fmtInt(S.items), 'for this vendor') +
+      kpi('Items', fmtInt(S.items), 'matching these filters') +
       kpi('Total SOH', fmtInt(S.totalSoh), 'units on hand now') +
       kpi('Sold since restock', fmtInt(S.totalSold), noLrcv ? noLrcv + ' item' + (noLrcv === 1 ? '' : 's') + ' with no Lrcv Date' : 'across all ' + S.items + ' items') +
       kpi('Avg Recovery %', S.avgPct == null ? '—' : Math.round(S.avgPct) + '%', 'average sell-through since last receipt') +
@@ -3202,8 +3177,8 @@ function tripEmptyState(){
       '<circle cx="80" cy="66" r="16" class="ea-lens"/>' +
       '<line x1="91" y1="77" x2="102" y2="88" class="ea-handle"/>' +
     '</svg>' +
-    '<h3>No vendor selected</h3>' +
-    '<p>Type a vendor code or name above to see every item for that vendor — stock on hand, units sold since it was last received, and the resulting sell-through.</p>' +
+    '<h3>Nothing selected yet</h3>' +
+    '<p>Pick a vendor, category, range or any other filter above to see those items — stock on hand, units sold since each was last received, and the resulting sell-through.</p>' +
   '</div>';
 }
 function renderTripTable(rows){
@@ -3246,118 +3221,33 @@ function renderTripTable(rows){
 function renderTrip(){
   const root = document.getElementById('tripRoot');
   if(!root) return;
-  // Normalized the same way every other Plan-Code comparison in this app is
-  // (trim + uppercase) -- raw values are fine for display (see the CPC
-  // column itself below) but not for an equality/dedupe check, matching the
-  // established convention anywhere Current Plan Code is actually compared.
-  const cpcOf = r => String(r.it['Current Plan Code'] || '').trim().toUpperCase();
-  const allRows = tripCode ? tripRows(tripCode) : null;
-  const cpcOptions = allRows ? [...new Set(allRows.map(cpcOf).filter(Boolean))].sort() : [];
-  const rows = allRows
-    ? allRows.filter(r => tripCpcFilter.length === 0 || tripCpcFilter.includes(cpcOf(r)))
-        .sort((a, b) => a.it['Description'].localeCompare(b.it['Description']))
-    : null;
+  if(!tripScope) tripScope = { ...DASH_SCOPE_DEFAULTS };
+  const picked = dashScopeIsSet(tripScope);
+  const rows = picked ? tripRows(tripScope).sort((a, b) => a.it['Description'].localeCompare(b.it['Description'])) : null;
   // Hiding a line is a printing convenience, not a filter -- KPIs above
-  // still reflect every item for this vendor (rows), only the table itself
-  // drops hidden lines, unless tripShowHidden is on for review/restore.
+  // still reflect every matching item (rows), only the table itself drops
+  // hidden lines, unless tripShowHidden is on for review/restore.
   const displayRows = rows && !tripShowHidden ? rows.filter(r => !tripHidden.has(r.it['Item Code'])) : rows;
   const hiddenCount = rows ? rows.filter(r => tripHidden.has(r.it['Item Code'])).length : 0;
-  const cpcSummary = tripCpcFilter.length === 0 ? 'All' : tripCpcFilter.length === 1 ? tripCpcFilter[0] : tripCpcFilter.length + ' selected';
-  const cpcFieldHtml = !tripCode ? '' : '<label class="dash-vendor-field dr-ms-field">CPC' +
-    '<button type="button" id="tripCpcBtn" class="dr-ms-btn' + (tripCpcFilter.length ? ' dr-ms-active' : '') + '">' + escHtml(cpcSummary) + '<span class="dr-ms-caret">▾</span></button>' +
-    (tripCpcOpen ? '<div class="dr-ms-panel" id="tripCpcPanel">' +
-        (tripCpcFilter.length ? '<button type="button" class="dr-ms-clear" id="tripCpcClear">Clear</button>' : '') +
-        cpcOptions.map(v => '<label class="dr-ms-opt' + (tripCpcFilter.includes(v) ? ' dr-ms-checked' : '') + '"><input type="checkbox" value="' + escHtml(v) + '"' + (tripCpcFilter.includes(v) ? ' checked' : '') + '><span class="dr-ms-lbl">' + escHtml(v) + '</span></label>').join('') +
-      '</div>' : '') +
-    '</label>';
-  const body = !tripCode ? tripEmptyState()
-    : !rows.length ? '<p class="dr-empty">No items found for vendor ' + escHtml(tripCode) + (tripCpcFilter.length ? ' with CPC ' + tripCpcFilter.map(escHtml).join(', ') : '') + '.</p>'
-    : renderTripSummary(tripCode, rows) + renderTripTable(displayRows);
+  const body = !picked ? tripEmptyState()
+    : !rows.length ? '<p class="dr-empty">No items match these filters.</p>'
+    : renderTripSummary(rows) + renderTripTable(displayRows);
   root.innerHTML =
     '<div class="dash-hero"><div class="dash-hero-line">' +
       '<div class="dash-date">Trip Requirement</div>' +
       '<h1 class="dash-greet">Plan your next order</h1>' +
-      '<p class="dash-sub">Type a vendor code (or name) to see every item for that vendor — stock on hand, units sold since it was last received, and the resulting sell-through.' +
+      '<p class="dash-sub">Pick any filters to see those items — stock on hand, units sold since each was last received, and the resulting sell-through.' +
         (typeof DATA_AS_OF !== 'undefined' ? ' <span class="dash-asof">Data as of ' + escHtml(dashDate(DATA_AS_OF)) + '.</span>' : '') + '</p>' +
-    '</div></div>' +
-    '<div class="dash-scope trip-scope">' +
-      '<label class="dash-vendor-field">Vendor code<span class="trip-vendor-input-wrap">' +
-        '<svg class="trip-vendor-icon" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6.5 3 3h10l1 3.5"/><path d="M2 6.5v7h12v-7"/><path d="M6 13.5v-4h4v4"/></svg>' +
-        '<input id="tripVendor" list="tripVendorList" class="' + (tripVendorAmbiguous ? 'dash-vendor-ambiguous' : '') + '" value="' +
-        escHtml(tripVendorAmbiguous ? tripVendorAmbiguous.raw : tripCode) + '" title="' + escHtml(tripVendorAmbiguousTip()) + '" placeholder="Type a vendor code or name…" autocomplete="off">' +
-        '</span>' + tripVendorOptionsHtml() + '</label>' +
-      '<datalist id="tripVendorList">' + [...VENDOR_CODES].sort().map(v => '<option value="' + escHtml(v) + '">').join('') + '</datalist>' +
-      (hiddenCount ? '<button type="button" id="tripHiddenToggle" class="dash-btn ghost filters-active-btn trip-hidden-toggle">' +
-        (tripShowHidden ? 'Hide them again' : 'Show hidden lines (' + hiddenCount + ')') + '</button>' : '') +
-      (hiddenCount && tripShowHidden ? '<button type="button" id="tripRestoreAll" class="dash-btn ghost">Restore all ' + hiddenCount + '</button>' : '') +
-      cpcFieldHtml +
     '</div>' +
+    (hiddenCount ? '<div class="dash-links"><button type="button" id="tripHiddenToggle" class="dash-btn ghost filters-active-btn trip-hidden-toggle">' +
+        (tripShowHidden ? 'Hide them again' : 'Show hidden lines (' + hiddenCount + ')') + '</button>' +
+      (tripShowHidden ? '<button type="button" id="tripRestoreAll" class="dash-btn ghost">Restore all ' + hiddenCount + '</button>' : '') + '</div>' : '') +
+    '</div>' +
+    dashScopeBar(tripScope, tripVendorAmbiguous, { headless: true, listPrefix: 'trip' }) +
     body;
 
+  dashWireScopeBar(root, renderTrip, TRIP_SLOT);
   const $ = id => document.getElementById(id);
-  const change = () => {
-    const raw = $('tripVendor').value;
-    const lookup = vendorNameLookup(raw);
-    const prevCode = tripCode;
-    if(lookup.type === 'code' || lookup.type === 'unmatched') tripCode = raw.trim().toUpperCase();
-    else if(lookup.type === 'resolved') tripCode = lookup.code;
-    else if(lookup.type === 'empty') tripCode = '';
-    // 'ambiguous' leaves tripCode untouched -- don't guess which vendor was meant
-    tripVendorAmbiguous = lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null;
-    if(tripCode !== prevCode){
-      tripCpcFilter = []; tripCpcOpen = false;   // a CPC that doesn't exist for the new vendor shouldn't linger
-      tripHidden = new Set(); tripShowHidden = false;   // hidden lines belong to the old vendor's sheet, not this one
-    }
-    renderTrip();
-  };
-  const vendorInput = $('tripVendor');
-  vendorInput.addEventListener('blur', change);
-  vendorInput.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); change(); } });
-  // Live, as-you-type narrowing -- while a typed name is still ambiguous or
-  // matches nothing yet, just refresh the floating options list in place
-  // (cheap, and the field never loses focus mid-keystroke). Only once it
-  // actually resolves to a single vendor or a real code does it commit via
-  // the full change()/re-render, same as blur always did -- that's also the
-  // one moment the field needs its focus/caret restored afterwards.
-  vendorInput.addEventListener('input', () => {
-    const raw = vendorInput.value;
-    const lookup = vendorNameLookup(raw);
-    if(lookup.type === 'ambiguous' || lookup.type === 'empty' || lookup.type === 'unmatched'){
-      tripVendorAmbiguous = lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null;
-      vendorInput.classList.toggle('dash-vendor-ambiguous', !!tripVendorAmbiguous);
-      vendorInput.title = tripVendorAmbiguousTip();
-      const field = vendorInput.closest('.dash-vendor-field');
-      const old = field.querySelector('.dash-vendor-options');
-      if(old) old.remove();
-      field.insertAdjacentHTML('beforeend', tripVendorOptionsHtml());
-      field.querySelectorAll('.dash-vendor-opt').forEach(btn => btn.addEventListener('click', () => {
-        vendorInput.value = btn.dataset.code;
-        change();
-      }));
-    } else {
-      const pos = vendorInput.selectionStart;
-      change();
-      refocusCaret('tripVendor', pos);
-    }
-  });
-  root.querySelectorAll('.dash-vendor-opt').forEach(btn => btn.addEventListener('click', () => {
-    vendorInput.value = btn.dataset.code;
-    change();
-  }));
-  const cpcBtn = $('tripCpcBtn');
-  if(cpcBtn) cpcBtn.addEventListener('click', e => { e.stopPropagation(); tripCpcOpen = !tripCpcOpen; renderTrip(); });
-  const cpcPanel = $('tripCpcPanel');
-  if(cpcPanel){
-    cpcPanel.addEventListener('click', e => e.stopPropagation());
-    cpcPanel.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', () => {
-      const set = new Set(tripCpcFilter);
-      if(cb.checked) set.add(cb.value); else set.delete(cb.value);
-      tripCpcFilter = [...set];
-      renderTrip();
-    }));
-  }
-  const cpcClear = $('tripCpcClear');
-  if(cpcClear) cpcClear.addEventListener('click', e => { e.stopPropagation(); tripCpcFilter = []; renderTrip(); });
   root.querySelectorAll('.trip-hide-cb').forEach(cb => cb.addEventListener('change', () => {
     if(cb.checked) tripHidden.add(cb.dataset.code);
     else tripHidden.delete(cb.dataset.code);

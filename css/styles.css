@@ -585,22 +585,6 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    ingested yet (see js/app.js). A plain dash for the text column; a small
    empty box standing in for the photo so the layout doesn't shift once a
    real image is wired in. */
-/* The search card is a full .dash-scope but with only one field in it --
-   left unconstrained it would stretch edge to edge (the 150px flex-basis
-   assumes several fields sharing a row), so this caps it to a sane width. */
-.trip-scope .dash-vendor-field{flex:0 1 420px;}
-/* The CPC multiselect also carries .dash-vendor-field (needed for its
-   position:relative, so its dropdown panel can anchor) but shouldn't be as
-   wide as the vendor name/code field -- same narrower width the date-range
-   popup's own multiselect fields use. Comes after the rule above so it
-   wins the tie (equal specificity, later wins). */
-.trip-scope .dr-ms-field{flex:0 1 180px;}
-.trip-scope label{flex:0 1 140px;}
-/* A small icon inside the field -- "this box takes a vendor" at a glance,
-   same stroke-icon style as the date fields' calendar glyph elsewhere. */
-.trip-vendor-input-wrap{position:relative;}
-.trip-vendor-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--ink-faint);pointer-events:none;}
-.trip-scope input#tripVendor{padding:10px 12px 10px 34px;font-size:var(--fs-base);}
 .trip-photo-ph{display:inline-block;width:28px;height:28px;border-radius:var(--r-sm);
   background:var(--s-100);border:1px dashed var(--line-strong);}
 /* Each KPI tile picks up the same colour its own metric already wears in
