@@ -99,7 +99,7 @@ function dashLoadScope(){
   dashScope = { ...DASH_SCOPE_DEFAULTS, ...(s || {}) };
 }
 function dashSaveScope(){ try { localStorage.setItem(dashScopeKey(), JSON.stringify(dashScope)); } catch(e){} }
-const dashScopeIsSet = (scope = dashScope) => Object.keys(DASH_SCOPE_DEFAULTS).some(k => scope[k]);
+const dashScopeIsSet = (scope = dashScope) => Object.keys(DASH_SCOPE_DEFAULTS).some(k => (scope[k] || '').length);
 // PO Data keeps its own Show me filters, saved separately -- picking a Plan
 // on the dashboard must not change PO Data, and vice versa.
 let poDataScope = null, poDataVendorAmbiguous = null;
@@ -851,8 +851,17 @@ function renderPOData(){
 // opts.chips: extra chip HTML (PO Data's dates).
 const DASH_CHIP_LABELS = [['cat', 'Category'], ['dept', 'Department'], ['vendor', 'Vendor code'], ['range', 'Range Name'], ['group', 'Group Desc'], ['puda', 'PUDA Desc'], ['plan', 'Plan']];
 const dashChip = (attr, k, v) => '<button type="button" class="chip" ' + attr + ' title="Remove this filter"><span class="chip-k">' + k + '</span><span class="chip-v">' + dashEsc(v) + '</span><span class="chip-x">&times;</span></button>';
+// opts.multiPlan: Plan as tick boxes (several codes at once; scope.plan is
+// then an array) -- Trip Requirement. Only one such bar exists, so one open
+// flag; a click anywhere outside closes it.
+let dashPlanOpen = false, dashPlanRerender = null;
+document.addEventListener('click', e => {
+  if(dashPlanOpen && !e.target.closest('.dr-ms-field')){ dashPlanOpen = false; if(dashPlanRerender) dashPlanRerender(); }
+});
 function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
-  const chips = DASH_CHIP_LABELS.filter(([k]) => scope[k]).map(([k, l]) => dashChip('data-k="' + k + '"', l, scope[k])).join('') + (opts.chips || '');
+  // a multi-pick Plan gets one chip per code
+  const chips = DASH_CHIP_LABELS.flatMap(([k, l]) => [].concat(scope[k] || []).map(v => dashChip('data-k="' + k + '" data-v="' + dashEsc(v) + '"', l, v))).join('') + (opts.chips || '');
+
   const reset = dashScopeIsSet(scope) || opts.anySet ? '<button type="button" class="dash-btn ghost filters-active-btn' + (opts.headless ? ' dash-scope-reset' : '') + '" id="dashReset">Show everything</button>' : '';
   // Cascading options: each field lists only the values found among the items
   // that pass every OTHER field's filter (so Category = Furniture narrows
@@ -867,7 +876,7 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
   const uniq = (key, f) => {
     const others = { ...scope, [key]: '' };
     const vals = new Set(base.filter(it => dashItemInScope(it, others)).map(i => i[f]).filter(Boolean));
-    if(scope[key]) vals.add(scope[key]);
+    [].concat(scope[key] || []).forEach(v => vals.add(v));
     return [...vals].sort();
   };
   const opt = (arr, cur) => '<option value="">All</option>' + arr.map(v => '<option' + (v === cur ? ' selected' : '') + '>' + dashEsc(v) + '</option>').join('');
@@ -877,6 +886,16 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
   // text+datalist combo as Vendor code instead of a dropdown list.
   const search = (id, field, label) => '<label>' + label + '<input id="' + id + '" list="' + lp + id + 'List" value="' + dashEsc(scope[field]) + '" placeholder="All" autocomplete="off"></label>' +
     '<datalist id="' + lp + id + 'List">' + uniq(field, field === 'range' ? 'Range Name' : field === 'group' ? 'Group Desc' : 'PUDA Desc').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>';
+  const planSel = [].concat(scope.plan || []);
+  const planField = !opts.multiPlan
+    ? '<label>Plan<select id="dashPlan">' + opt(uniq('plan', 'Current Plan Code'), scope.plan) + '</select></label>'
+    : '<label class="dash-vendor-field dr-ms-field">Plan' +
+      '<button type="button" id="dashPlanBtn" class="dr-ms-btn' + (planSel.length ? ' dr-ms-active' : '') + '">' +
+        dashEsc(!planSel.length ? 'All' : planSel.length === 1 ? planSel[0] : planSel.length + ' selected') + '<span class="dr-ms-caret">▾</span></button>' +
+      (dashPlanOpen ? '<div class="dr-ms-panel" id="dashPlanPanel">' +
+        (planSel.length ? '<button type="button" class="dr-ms-clear" id="dashPlanClear">Clear</button>' : '') +
+        uniq('plan', 'Current Plan Code').map(v => '<label class="dr-ms-opt' + (planSel.includes(v) ? ' dr-ms-checked' : '') + '"><input type="checkbox" value="' + dashEsc(v) + '"' + (planSel.includes(v) ? ' checked' : '') + '><span class="dr-ms-lbl">' + dashEsc(v) + '</span></label>').join('') +
+      '</div>' : '') + '</label>';
   return '<div class="dash-scope">' + (opts.headless ? '' : '<div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' + reset + '</div>') +
     '<label>Category<select id="dashCat">' + opt(uniq('cat', 'Category'), scope.cat) + '</select></label>' +
     '<label>Department<select id="dashDept">' + opt(uniq('dept', 'Department Desc'), scope.dept) + '</select></label>' +
@@ -887,7 +906,7 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
     search('dashRange', 'range', 'Range Name') +
     search('dashGroup', 'group', 'Group Desc') +
     search('dashPuda', 'puda', 'PUDA Desc') +
-    '<label>Plan<select id="dashPlan">' + opt(uniq('plan', 'Current Plan Code'), scope.plan) + '</select></label>' +
+    planField +
     (opts.extra ? '<span class="dash-scope-break"></span>' + opts.extra : '') + (opts.headless && !opts.noReset ? reset : '') +
     (chips ? '<div class="filter-chips dash-chips">' + chips + '</div>' : '') +
     '</div>';
@@ -1063,11 +1082,26 @@ function dashWireScopeBar(root, rerender, slot){
     slot.set({
       dept: $('dashDept').value, cat: $('dashCat').value, vendor,
       range: $('dashRange').value.trim(), group: $('dashGroup').value.trim(),
-      puda: $('dashPuda').value.trim(), plan: $('dashPlan').value,
+      puda: $('dashPuda').value.trim(),
+      plan: $('dashPlan') ? $('dashPlan').value : slot.get().plan,
     });
     rerender();
   };
-  ['dashDept', 'dashCat', 'dashPlan'].forEach(id => $(id).addEventListener('change', change));
+  ['dashDept', 'dashCat', 'dashPlan'].forEach(id => { if($(id)) $(id).addEventListener('change', change); });
+  const planBtn = $('dashPlanBtn');
+  if(planBtn){
+    dashPlanRerender = rerender;
+    const setPlan = plan => { slot.set({ ...slot.get(), plan }); rerender(); };
+    planBtn.addEventListener('click', e => { e.stopPropagation(); dashPlanOpen = !dashPlanOpen; rerender(); });
+    const panel = $('dashPlanPanel');
+    if(panel){
+      panel.addEventListener('click', e => e.stopPropagation());
+      panel.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', () =>
+        setPlan([...panel.querySelectorAll('input:checked')].map(x => x.value))));
+      const clear = $('dashPlanClear');
+      if(clear) clear.addEventListener('click', () => setPlan([]));
+    }
+  }
   root.querySelectorAll('.dash-vendor-opt').forEach(btn => btn.addEventListener('click', () => {
     $('dashVendor').value = btn.dataset.code;
     change();
@@ -1121,8 +1155,9 @@ function dashWireScopeBar(root, rerender, slot){
   const reset = $('dashReset');
   if(reset) reset.addEventListener('click', () => { slot.set({ ...DASH_SCOPE_DEFAULTS }); rerender(); });
   root.querySelectorAll('.dash-chips .chip[data-k]').forEach(chip => chip.addEventListener('click', () => {
-    if(chip.dataset.k === 'vendor') slot.setAmb(null);
-    slot.set({ ...slot.get(), [chip.dataset.k]: '' });
+    const k = chip.dataset.k, cur = slot.get()[k];
+    if(k === 'vendor') slot.setAmb(null);
+    slot.set({ ...slot.get(), [k]: Array.isArray(cur) ? cur.filter(v => v !== chip.dataset.v) : '' });
     rerender();
   }));
 }

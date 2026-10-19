@@ -3152,7 +3152,7 @@ function renderTripSummary(rows){
   // every role can open this tab, it needs the same gate as everywhere else.
   const code = tripScope.vendor;
   const name = code && canSeeVendorName() ? VENDOR_CODE_TO_NAME[code] : null;
-  const parts = DASH_CHIP_LABELS.filter(([k]) => tripScope[k] && !(k === 'vendor' && name)).map(([k]) => tripScope[k]);
+  const parts = DASH_CHIP_LABELS.filter(([k]) => tripScope[k] && !(k === 'vendor' && name)).map(([k]) => [].concat(tripScope[k]).join(', '));
   const kpi = (k, v, n) => '<div class="dash-kpi"><span class="dash-kpi-k">' + k + '</span><span class="dash-kpi-v">' + v + '</span><span class="dash-kpi-n">' + n + '</span></div>';
   const noLrcv = S.items - S.knownCount;
   return '<h2 class="dash-h">' + escHtml(name || 'Your selection') + (parts.length ? ' <span>' + escHtml(parts.join(' · ')) + '</span>' : '') + '</h2>' +
@@ -3243,7 +3243,7 @@ function renderTrip(){
         (tripShowHidden ? 'Hide them again' : 'Show hidden lines (' + hiddenCount + ')') + '</button>' +
       (tripShowHidden ? '<button type="button" id="tripRestoreAll" class="dash-btn ghost">Restore all ' + hiddenCount + '</button>' : '') + '</div>' : '') +
     '</div>' +
-    dashScopeBar(tripScope, tripVendorAmbiguous, { headless: true, listPrefix: 'trip' }) +
+    dashScopeBar(tripScope, tripVendorAmbiguous, { headless: true, listPrefix: 'trip', multiPlan: true }) +
     body;
 
   dashWireScopeBar(root, renderTrip, TRIP_SLOT);
