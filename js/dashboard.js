@@ -853,8 +853,8 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
   const search = (id, field, label) => '<label>' + label + '<input id="' + id + '" list="' + id + 'List" value="' + dashEsc(scope[field]) + '" placeholder="All" autocomplete="off"></label>' +
     '<datalist id="' + id + 'List">' + uniq(field === 'range' ? 'Range Name' : field === 'group' ? 'Group Desc' : 'PUDA Desc').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>';
   return '<div class="dash-scope">' + (opts.headless ? '' : '<div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' + reset + '</div>') +
-    '<label>Department<select id="dashDept">' + opt(uniq('Department Desc'), scope.dept) + '</select></label>' +
     '<label>Category<select id="dashCat">' + opt(uniq('Category'), scope.cat) + '</select></label>' +
+    '<label>Department<select id="dashDept">' + opt(uniq('Department Desc'), scope.dept) + '</select></label>' +
     '<label class="dash-vendor-field">Vendor code<input id="dashVendor" list="dashVendorList" class="' + (amb ? 'dash-vendor-ambiguous' : '') + '" value="' +
       dashEsc(amb ? amb.raw : scope.vendor) + '" title="' + dashEsc(dashVendorAmbiguousTip(amb)) + '" placeholder="All" autocomplete="off">' +
       dashVendorOptionsHtml(amb) + '</label>' +
