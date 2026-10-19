@@ -640,6 +640,7 @@ function poDateBar(){
     }).join('') +
   '</div>';
 }
+const poDateChips = () => PO_DATE_FIELDS.filter(f => poDataDates[f.key]).map(f => dashChip('data-dk="' + f.key + '"', f.label, (poDateDir === 'back' ? 'on/before ' : 'on/after ') + formatDMY(poDataDates[f.key]))).join('');
 function poWireDateBar(root){
   const dir = root.querySelector('#poDateDir');
   if(dir) dir.addEventListener('change', () => { poDateDir = dir.value; renderPOData(); });
@@ -647,6 +648,7 @@ function poWireDateBar(root){
   // so "Show everything" clears the dates too.
   const reset = root.querySelector('#dashReset');
   if(reset) reset.addEventListener('click', () => PO_DATE_FIELDS.forEach(f => { poDataDates[f.key] = null; }));
+  root.querySelectorAll('.dash-chips .chip[data-dk]').forEach(chip => chip.addEventListener('click', () => { poDataDates[chip.dataset.dk] = null; renderPOData(); }));
   root.querySelectorAll('.po-dates .date-field').forEach(box => {
     const key = box.dataset.dk;
     const text = box.querySelector('.date-text'), btn = box.querySelector('.cal-btn'), native = box.querySelector('.cal-native');
@@ -820,7 +822,7 @@ function renderPOData(){
       '</div>' +
       '<div class="dash-links"><button type="button" class="dash-btn ghost" id="poDataHeaderToggle">' + (poDataHeaderCollapsed ? 'Expand &#9662;' : 'Collapse &#9652;') + '</button></div>' +
     '</div>' +
-    (poDataHeaderCollapsed ? '' : dashScopeBar(poDataScope, poDataVendorAmbiguous, { headless: true, extra: poDateBar(), anySet: poDatesSet(), baseItems: poDataItems() })) +
+    (poDataHeaderCollapsed ? '' : dashScopeBar(poDataScope, poDataVendorAmbiguous, { headless: true, extra: poDateBar(), chips: poDateChips(), anySet: poDatesSet(), baseItems: poDataItems() })) +
     '</div>' +
     (lines.length ? '' : '<p class="dash-empty">No open PO lines match these filters and dates.</p>') +
     (!lines.length ? '' : '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead>' +
@@ -845,7 +847,12 @@ function renderPOData(){
 // even when no Show me field is set (PO Data's dates count too).
 // opts.noReset: leave the reset button out -- the caller places it (the
 // dashboard puts it in its greeting row).
+// One removable chip per set Show me field (same chips as All Products).
+// opts.chips: extra chip HTML (PO Data's dates).
+const DASH_CHIP_LABELS = [['cat', 'Category'], ['dept', 'Department'], ['vendor', 'Vendor code'], ['range', 'Range Name'], ['group', 'Group Desc'], ['puda', 'PUDA Desc'], ['plan', 'Plan']];
+const dashChip = (attr, k, v) => '<button type="button" class="chip" ' + attr + ' title="Remove this filter"><span class="chip-k">' + k + '</span><span class="chip-v">' + dashEsc(v) + '</span><span class="chip-x">&times;</span></button>';
 function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
+  const chips = DASH_CHIP_LABELS.filter(([k]) => scope[k]).map(([k, l]) => dashChip('data-k="' + k + '"', l, scope[k])).join('') + (opts.chips || '');
   const reset = dashScopeIsSet(scope) || opts.anySet ? '<button type="button" class="dash-btn ghost filters-active-btn' + (opts.headless ? ' dash-scope-reset' : '') + '" id="dashReset">Show everything</button>' : '';
   // Cascading options: each field lists only the values found among the items
   // that pass every OTHER field's filter (so Category = Furniture narrows
@@ -879,6 +886,7 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
     search('dashPuda', 'puda', 'PUDA Desc') +
     '<label>Plan<select id="dashPlan">' + opt(uniq('plan', 'Current Plan Code'), scope.plan) + '</select></label>' +
     (opts.extra ? '<span class="dash-scope-break"></span>' + opts.extra : '') + (opts.headless && !opts.noReset ? reset : '') +
+    (chips ? '<div class="filter-chips dash-chips">' + chips + '</div>' : '') +
     '</div>';
 }
 
@@ -1109,6 +1117,11 @@ function dashWireScopeBar(root, rerender, slot){
   })();
   const reset = $('dashReset');
   if(reset) reset.addEventListener('click', () => { slot.set({ ...DASH_SCOPE_DEFAULTS }); rerender(); });
+  root.querySelectorAll('.dash-chips .chip[data-k]').forEach(chip => chip.addEventListener('click', () => {
+    if(chip.dataset.k === 'vendor') slot.setAmb(null);
+    slot.set({ ...slot.get(), [chip.dataset.k]: '' });
+    rerender();
+  }));
 }
 // Restore whatever the URL points at -- here rather than in app.js because
 // this is the last script to load, so every view's renderer now exists.

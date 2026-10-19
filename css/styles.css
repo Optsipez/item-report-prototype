@@ -1561,6 +1561,7 @@ table.grid tbody tr.row-item td.wk-cell:hover{
    for PO Create Date, Revised ETD, ETA. The card's own input styling
    (padding, border, full width) is undone so each is a single compact box. */
 .dash-scope-break{flex-basis:100%;height:0;}
+.dash-scope .dash-chips{flex-basis:100%;margin-top:0;gap:6px;}
 /* The break is its own flex line, so the row gap lands twice above the dates -- 4px each keeps it to 8px. */
 .dash-scope:has(.po-dates){row-gap:var(--sp-1);}
 .po-dates{flex:1 1 auto;display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-2) var(--sp-3);}
