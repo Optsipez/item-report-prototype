@@ -3300,6 +3300,18 @@ const loadScript = src => new Promise((ok, fail) => {
   const s = Object.assign(document.createElement('script'), { src, onload: ok, onerror: () => fail(new Error('Could not load ' + src)) });
   document.head.appendChild(s);
 });
+// The picked filters as one sentence, e.g. "Plan A & C Bath Textiles items in
+// Furniture › Bedroom from Kimberley International Ltd (V0761), range Axion".
+function tripSentence(scope, name){
+  const list = v => { const a = [].concat(v || []); return a.length > 1 ? a.slice(0, -1).join(', ') + ' & ' + a[a.length - 1] : a.join(''); };
+  const noun = [scope.group, scope.puda].filter(Boolean).join(' / ');
+  let s = (list(scope.plan) ? 'Plan ' + list(scope.plan) + ' ' : '') + (noun ? noun + ' items' : 'items');
+  const where = [scope.cat, scope.dept].filter(Boolean).join(' › ');
+  if(where) s += ' in ' + where;
+  if(scope.vendor) s += ' from ' + (name ? name + ' (' + scope.vendor + ')' : 'vendor ' + scope.vendor);
+  if(scope.range) s += ', range ' + scope.range;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 async function tripPdf(rows, save = true){
   await loadScript('js/vendor/jspdf.umd.min.js');
   await loadScript('js/vendor/jspdf.plugin.autotable.min.js');
@@ -3310,7 +3322,7 @@ async function tripPdf(rows, save = true){
   const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 8;
   const NAVY = [15, 23, 42], SLATE = [30, 41, 59], BRASS = [163, 120, 29], FAINT = [100, 116, 139], TEAL = [13, 148, 136];
   const code = tripScope.vendor, name = code && canSeeVendorName() ? VENDOR_CODE_TO_NAME[code] : null;
-  const filters = DASH_CHIP_LABELS.filter(([k]) => [].concat(tripScope[k] || []).length).map(([k, l]) => l + ': ' + [].concat(tripScope[k]).join(', ')).join('   ·   ');
+  const sentence = tripSentence(tripScope, name);
   const S = tripSummary(rows);
 
   // title band (first page)
@@ -3324,8 +3336,10 @@ async function tripPdf(rows, save = true){
   const fit = (text, size, min, maxW) => { doc.setFontSize(size); while(size > min && doc.getTextWidth(text) > maxW) doc.setFontSize(size -= 0.5); };
   const maxW = W - 2 * M - 115;
   doc.setTextColor(255, 255, 255);
-  fit(name || filters, 15, 9, maxW); doc.text(name || filters, M, 16.5);
-  if(name && filters){ doc.setFont('helvetica', 'bold'); doc.setTextColor(226, 232, 240); fit(filters, 11, 7.5, maxW); doc.text(filters, M, 23); }
+  fit(sentence, 15, 11, maxW);
+  // still too long at 11pt: wrap onto a second line (the band has room for two)
+  const lines = doc.splitTextToSize(sentence, maxW).slice(0, 2);
+  doc.text(lines, M, lines.length > 1 ? 15 : 17, { lineHeightFactor: 1.25 });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(203, 213, 225);
   doc.text('Data as of ' + dashDate(DATA_AS_OF), W - M, 8.5, { align: 'right' });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
