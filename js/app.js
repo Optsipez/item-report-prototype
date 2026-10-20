@@ -3219,33 +3219,82 @@ function renderTripTable(rows){
   return '<div class="dr-wrap trip-wrap"><table class="matrix dr-table"><thead><tr>' + cols + '</tr></thead><tbody>' + body + '</tbody></table></div>';
 }
 /* Minimal .xlsx writer -- no library, so it also works offline / where a CDN
-   is blocked. One sheet, bold frozen header row; rows are arrays of strings
-   and numbers (null = blank). The zip is "stored" (uncompressed), which
-   Excel opens fine. ponytail: one sheet, no dates/number formats; swap for
-   SheetJS if exports ever need more. */
-function downloadXlsx(filename, sheetName, header, rows, widths){
+   is blocked. One sheet: a navy title band (title + subtitle), then a styled
+   table -- slate header row (frozen, with filter arrows, repeated on every
+   printed page), thin gridlines, zebra rows. Prints landscape, fit to width.
+   `types` sets each column's look: text | center | int | pct | pct1 | x | soh
+   (number columns keep real numbers, only formatted). The zip is "stored"
+   (uncompressed), which Excel opens fine. ponytail: one sheet, no images or
+   dates; swap for a library if exports ever need more. */
+function downloadXlsx(filename, sheetName, { title, subtitle, header, rows, widths, types }){
   const esc = v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '');
   const col = i => { let s = ''; for(i++; i; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s; return s; };
-  const cell = (v, r, i, style) => {
-    const ref = ' r="' + col(i) + r + '"' + (style ? ' s="1"' : '');
-    if(v == null || v === '') return '';
-    return typeof v === 'number' && isFinite(v) ? '<c' + ref + '><v>' + v + '</v></c>'
-      : '<c' + ref + ' t="inlineStr"><is><t xml:space="preserve">' + esc(v) + '</t></is></c>';
+  const sheetTitle = sheetName.replace(/[\\\/?*[\]:]/g, ' ').slice(0, 31);
+  const last = col(header.length - 1), HEAD = 4, n = rows.length;   // header sits on row 4
+
+  // styles, registered on first use: fonts/fills/borders/numFmts -> cellXfs index
+  const fonts = ['<font><sz val="10"/><name val="Calibri"/></font>'], fills = ['<fill><patternFill patternType="none"/></fill>', '<fill><patternFill patternType="gray125"/></fill>'];
+  const borders = ['<border/>', '<border><left style="thin"><color rgb="FFE2E8F0"/></left><right style="thin"><color rgb="FFE2E8F0"/></right><top style="thin"><color rgb="FFE2E8F0"/></top><bottom style="thin"><color rgb="FFE2E8F0"/></bottom></border>'];
+  const numFmts = [], xfs = ['<xf/>'], memo = {};
+  const idx = (arr, x) => { const i = arr.indexOf(x); return i >= 0 ? i : arr.push(x) - 1; };
+  const FMT = { int: 3, pct: '0"%"', pct1: '0.0"%"', x: '0.00"x"' };
+  const style = ({ b, sz = 10, color = 'FF0F172A', fill, border, fmt, h, v = 'center', wrap }) => {
+    const key = [b, sz, color, fill, border, fmt, h, v, wrap].join('|');
+    if(memo[key] != null) return memo[key];
+    const fontId = idx(fonts, '<font>' + (b ? '<b/>' : '') + '<sz val="' + sz + '"/><color rgb="' + color + '"/><name val="Calibri"/></font>');
+    const fillId = fill ? idx(fills, '<fill><patternFill patternType="solid"><fgColor rgb="' + fill + '"/></patternFill></fill>') : 0;
+    let fmtId = 0;
+    if(typeof fmt === 'number') fmtId = fmt;
+    else if(fmt){ const i = numFmts.indexOf(fmt); fmtId = 164 + (i >= 0 ? i : numFmts.push(fmt) - 1); }
+    return memo[key] = xfs.push('<xf numFmtId="' + fmtId + '" fontId="' + fontId + '" fillId="' + fillId + '" borderId="' + (border ? 1 : 0) + '" applyFont="1" applyFill="1" applyBorder="1" applyNumberFormat="1" applyAlignment="1">' +
+      '<alignment' + (h ? ' horizontal="' + h + '"' : '') + ' vertical="' + v + '"' + (wrap ? ' wrapText="1"' : '') + '/></xf>') - 1;
   };
-  const sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-    '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
-    '<cols>' + header.map((h, i) => '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + ((widths && widths[i]) || 14) + '" customWidth="1"/>').join('') + '</cols><sheetData>' +
-    [header, ...rows].map((row, r) => '<row r="' + (r + 1) + '">' + row.map((v, i) => cell(v, r + 1, i, r === 0)).join('') + '</row>').join('') +
-    '</sheetData><autoFilter ref="A1:' + col(header.length - 1) + (rows.length + 1) + '"/></worksheet>';
+  const NAVY = 'FF0F172A';
+  const sTitle = style({ b: true, sz: 16, color: 'FFFFFFFF', fill: NAVY });
+  const sSub = style({ sz: 10, color: 'FFCBD5E1', fill: NAVY });
+  const sBrass = style({ fill: 'FFA3781D' });
+  const sHead = style({ b: true, color: 'FFFFFFFF', fill: 'FF1E293B', border: true, h: 'center', wrap: true });
+  const bodyStyle = (type, zebra) => {
+    const fill = type === 'soh' ? 'FFF0FDFA' : zebra ? 'FFF8FAFC' : null;
+    return style({ border: true, fill, b: type === 'soh', color: type === 'soh' ? 'FF0D9488' : undefined,
+      fmt: FMT[type === 'soh' ? 'int' : type], h: type === 'text' ? 'left' : type === 'center' ? 'center' : 'right' });
+  };
+
+  const cell = (v, ref, s) => {
+    if(v == null || v === '') return '<c r="' + ref + '" s="' + s + '"/>';
+    return typeof v === 'number' && isFinite(v) ? '<c r="' + ref + '" s="' + s + '"><v>' + v + '</v></c>'
+      : '<c r="' + ref + '" s="' + s + '" t="inlineStr"><is><t xml:space="preserve">' + esc(v) + '</t></is></c>';
+  };
+  const band = (r, text, s, ht) => '<row r="' + r + '" ht="' + ht + '" customHeight="1">' + header.map((_, i) => cell(i ? null : text, col(i) + r, s)).join('') + '</row>';
+  const sheetRows = band(1, title, sTitle, 34) + band(2, subtitle, sSub, 20) + band(3, null, sBrass, 4) +
+    '<row r="' + HEAD + '" ht="32" customHeight="1">' + header.map((h, i) => cell(h, col(i) + HEAD, sHead)).join('') + '</row>' +
+    rows.map((row, r) => '<row r="' + (HEAD + 1 + r) + '" ht="18" customHeight="1">' + row.map((v, i) => cell(v, col(i) + (HEAD + 1 + r), bodyStyle(types[i] || 'text', r % 2 === 1))).join('') + '</row>').join('');
+  const range = 'A' + HEAD + ':' + last + (HEAD + n);
+  const sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>' +
+    '<sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="' + HEAD + '" topLeftCell="A' + (HEAD + 1) + '" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+    '<cols>' + header.map((h, i) => '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + ((widths && widths[i]) || 14) + '" customWidth="1"/>').join('') + '</cols>' +
+    '<sheetData>' + sheetRows + '</sheetData>' +
+    '<autoFilter ref="' + range + '"/>' +
+    '<mergeCells count="3"><mergeCell ref="A1:' + last + '1"/><mergeCell ref="A2:' + last + '2"/><mergeCell ref="A3:' + last + '3"/></mergeCells>' +
+    '<pageMargins left="0.3" right="0.3" top="0.4" bottom="0.4" header="0.2" footer="0.2"/>' +
+    '<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>' +
+    '<headerFooter><oddFooter>&amp;L' + esc(sheetTitle) + '&amp;RPage &amp;P of &amp;N</oddFooter></headerFooter>' +
+    '</worksheet>';
   const files = {
     '[Content_Types].xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>',
     '_rels/.rels': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
-    'xl/workbook.xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="' + esc(sheetName.replace(/[\\\/?*[\]:]/g, ' ').slice(0, 31)) + '" sheetId="1" r:id="rId1"/></sheets>' +
-      '<definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">\'' + esc(sheetName.replace(/[\\\/?*[\]:]/g, ' ').slice(0, 31)) + '\'!$A$1:$' + col(header.length - 1) + '$' + (rows.length + 1) + '</definedName></definedNames></workbook>',
+    'xl/workbook.xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="' + esc(sheetTitle) + '" sheetId="1" r:id="rId1"/></sheets>' +
+      '<definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">\'' + esc(sheetTitle) + '\'!$A$' + HEAD + ':$' + last + '$' + (HEAD + n) + '</definedName>' +
+      '<definedName name="_xlnm.Print_Titles" localSheetId="0">\'' + esc(sheetTitle) + '\'!$' + HEAD + ':$' + HEAD + '</definedName></definedNames></workbook>',
     'xl/_rels/workbook.xml.rels': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
-    'xl/styles.xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE2E8F0"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="2"><xf/><xf fontId="1" fillId="2" applyFont="1" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>',
     'xl/worksheets/sheet1.xml': sheet,
   };
+  // styles.xml last: the sheet above registered every style it uses
+  files['xl/styles.xml'] = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    (numFmts.length ? '<numFmts count="' + numFmts.length + '">' + numFmts.map((f, i) => '<numFmt numFmtId="' + (164 + i) + '" formatCode="' + esc(f) + '"/>').join('') + '</numFmts>' : '') +
+    '<fonts count="' + fonts.length + '">' + fonts.join('') + '</fonts><fills count="' + fills.length + '">' + fills.join('') + '</fills><borders count="' + borders.length + '">' + borders.join('') + '</borders>' +
+    '<cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="' + xfs.length + '">' + xfs.join('') + '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
   // stored zip: local headers + data, then the central directory
   const crcTable = downloadXlsx.crc || (downloadXlsx.crc = Array.from({ length: 256 }, (_, n) => { for(let k = 0; k < 8; k++) n = n & 1 ? 0xEDB88320 ^ (n >>> 1) : n >>> 1; return n >>> 0; }));
   const crc32 = b => { let x = 0xFFFFFFFF; for(let i = 0; i < b.length; i++) x = crcTable[(x ^ b[i]) & 0xFF] ^ (x >>> 8); return (x ^ 0xFFFFFFFF) >>> 0; };
@@ -3271,26 +3320,41 @@ function downloadXlsx(filename, sheetName, header, rows, widths){
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   return blob;
 }
-// Trip Requirement's table as an Excel file -- same columns (minus the
-// checkbox and the empty Photo placeholder, plus Vendor Code since a
-// selection can span vendors), hidden lines left out like the printout.
+// Trip Requirement's table for the Excel/PDF exports -- same columns as the
+// page minus the checkbox and the empty Photo placeholder, plus Vendor Code
+// when the selection can span vendors (one vendor picked: it's in the title,
+// so the column would just repeat). Hidden lines are left out by the caller.
 function tripExportRows(rows){
-  const header = ['No', 'Vendor Code', 'Range Name', 'CPC', 'PUDA Code', 'PUDA Desc', 'Purchase Qty', '2XL Barcode No', 'Description',
+  const all = ['No', 'Vendor Code', 'Range Name', 'CPC', 'PUDA Code', 'PUDA Desc', 'Purchase Qty', '2XL Barcode No', 'Description',
     'SOH', 'Sold (since Lrcv)', 'Recovery %', 'Sold/Lrcv Qty %', 'Disct%', 'Sale Mrg', 'Last Posting Date'];
+  const allTypes = ['center', 'text', 'text', 'center', 'text', 'text', 'int', 'center', 'text', 'soh', 'int', 'pct', 'pct', 'pct1', 'x', 'center'];
+  const allWidths = [6, 12, 16, 6, 11, 34, 10, 12, 42, 8, 11, 10, 11, 8, 8, 12];
   const num = v => typeof v === 'number' && isFinite(v) ? v : (v === '' || v == null || isNaN(Number(v)) ? null : Number(v));
   const round = (v, d) => v == null ? null : Math.round(v * 10 ** d) / 10 ** d;
-  const body = rows.map((r, i) => {
+  let body = rows.map((r, i) => {
     const it = r.it, disc = num(it['Disct%']);
     return [i + 1, it['Vendor Code'], it['Range Name'], it['Current Plan Code'], it['PUDA Code'], it['PUDA Desc'], num(it['PO-Qty']) || 0,
       String(it['Item Code']), it['Description'], r.soh, r.sold, r.pct == null ? null : Math.round(r.pct), r.pctOfLrcv == null ? null : Math.round(r.pctOfLrcv),
       disc == null ? null : round(disc * 100, 1), round(num(it['MRG Factor']), 2), it['Lrcv Date'] ? fmtLrcvDate(it['Lrcv Date']) : null];
   });
-  return { header, body, widths: [6, 12, 18, 6, 11, 30, 12, 14, 44, 9, 15, 11, 15, 9, 9, 16] };
+  const keep = all.map((h, i) => i).filter(i => !(tripScope.vendor && all[i] === 'Vendor Code'));
+  const pick = arr => keep.map(i => arr[i]);
+  return { header: pick(all), types: pick(allTypes), widths: pick(allWidths), body: body.map(pick) };
+}
+// Title + summary shared by the Excel and PDF exports.
+function tripExportHeading(rows){
+  const code = tripScope.vendor, name = code && canSeeVendorName() ? VENDOR_CODE_TO_NAME[code] : null;
+  const S = tripSummary(rows);
+  return { name, code, title: tripSentence(tripScope, name),
+    summary: fmtInt(S.items) + ' items  ·  ' + fmtInt(S.totalSoh) + ' units on hand' + (S.avgPct == null ? '' : '  ·  ' + Math.round(S.avgPct) + '% avg recovery') };
 }
 function tripExport(rows){
-  const { header, body, widths } = tripExportRows(rows);
+  const { header, body, widths, types } = tripExportRows(rows);
+  const H = tripExportHeading(rows);
   const tag = DASH_CHIP_LABELS.flatMap(([k]) => [].concat(tripScope[k] || [])).join(' ');
-  return downloadXlsx('Trip Requirement' + (tag ? ' - ' + tag : '') + '.xlsx', 'Trip Requirement', header, body, widths);
+  return downloadXlsx('Trip Requirement' + (tag ? ' - ' + tag : '') + '.xlsx', 'Trip Requirement', {
+    title: H.title, subtitle: 'TRIP REQUIREMENT   ·   ' + H.summary + '   ·   Data as of ' + dashDate(DATA_AS_OF),
+    header, rows: body, widths, types });
 }
 // PDF export: a styled table only (no filters/KPIs), downloaded straight
 // away. jsPDF + AutoTable are vendored in js/vendor (works offline, no CDN)
@@ -3315,9 +3379,7 @@ function tripSentence(scope, name){
 async function tripPdf(rows, save = true){
   await loadScript('js/vendor/jspdf.umd.min.js');
   await loadScript('js/vendor/jspdf.plugin.autotable.min.js');
-  let { header, body } = tripExportRows(rows);
-  // one vendor picked: it's in the title, so its column would just repeat
-  if(tripScope.vendor){ const iv = header.indexOf('Vendor Code'); header = header.filter((_, i) => i !== iv); body = body.map(r => r.filter((_, i) => i !== iv)); }
+  const { header, body } = tripExportRows(rows);
   const doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 8;
   const NAVY = [15, 23, 42], SLATE = [30, 41, 59], BRASS = [163, 120, 29], FAINT = [100, 116, 139], TEAL = [13, 148, 136];
