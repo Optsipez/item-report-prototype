@@ -291,18 +291,12 @@ function dashCompute(){
   const R = {
     W, vendorName, items: 0, sold3: 0, prior3: 0, soh: 0, value: 0,
     reorder: [], oos: [], over: [], overValue: 0, movers: [],
-    bands: Object.fromEntries(DASH_DISC_BANDS.map(b => [b, { items: 0, sold: 0, soh: 0 }])),
     monthTotals: MONTH_WINDOW.map(() => 0), branch: {}, codes: new Set(),
   };
   ITEMS.forEach(it => {
     if(!dashItemInScope(it)) return;
     R.items++; R.codes.add(it['Item Code']);
     const sohRaw = Number(it['SOH']) || 0, soh = Math.max(0, sohRaw), po = Number(it['PO-Qty']) || 0;
-    // Discount bands: units sold over a fixed rolling 13 months (not the
-    // All Products Window setting) and units on hand.
-    const band = R.bands[dashDiscBand(it)];
-    band.items++; band.soh += soh;
-    band.sold += trailingSales(it, REPORT_MONTH.year, REPORT_MONTH.month, 13).reduce((a, b) => a + b, 0);
     const cost = Number(it['L-Cost (Aed)']) || 0;
     const price = Number(it['Now (Aed)']) || Number(it['Was (Aed)']) || 0;
     const s3 = unitsIn(it, W.rate), p3 = unitsIn(it, W.prior), rate = s3 / 3;
@@ -912,18 +906,147 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
     '</div>';
 }
 
-// Contribution by discount band: each band's share of units sold (13 mo)
-// and of units on hand, for the items in the current Show me scope.
-function dashBandTable(R){
-  const rows = DASH_DISC_BANDS.map(b => ({ band: b, ...R.bands[b] }));
-  const tot = rows.reduce((t, r) => ({ items: t.items + r.items, sold: t.sold + r.sold, soh: t.soh + r.soh }), { items: 0, sold: 0, soh: 0 });
-  const pct = (v, t) => t ? v / t * 100 : 0;
-  const share = (v, t, cls) => { const p = pct(v, t); return '<td class="dash-band-share"><span class="dash-band-bar ' + cls + '"><i style="width:' + p.toFixed(1) + '%"></i></span><span class="dash-band-pct">' + p.toFixed(1) + '%</span></td>'; };
-  return '<section class="dash-card wide tone-warn dash-bands"><h3>Discount bands <span>share of units sold (last 13 months) and units on hand</span></h3>' +
-    '<div class="dash-table-scroll"><table class="dash-table"><thead><tr><th class="l">Discount band</th><th>Items</th><th>Units sold (13 mo)</th><th>% of sales</th><th>Units on hand</th><th>% of stock</th></tr></thead><tbody>' +
-    rows.map(r => '<tr><td class="l"><b>' + r.band + '</b></td><td>' + dashInt(r.items) + '</td><td>' + dashInt(Math.round(r.sold)) + '</td>' + share(r.sold, tot.sold, 'sold') + '<td>' + dashInt(r.soh) + '</td>' + share(r.soh, tot.soh, 'stock') + '</tr>').join('') +
-    '<tr class="dash-band-total"><td class="l"><b>Total</b></td><td><b>' + dashInt(tot.items) + '</b></td><td><b>' + dashInt(Math.round(tot.sold)) + '</b></td><td><b>100%</b></td><td><b>' + dashInt(tot.soh) + '</b></td><td><b>100%</b></td></tr>' +
+/* ---------- Discount banding (Stock ↔ Sales, and by stock age) ----------
+   Stock side: every in-scope item's units on hand at L-Cost / Was / Now,
+   banded by its current Was-vs-Now discount (dashDiscBand).
+   Sales side: SALES_VALUES (sales-values.js), banded by the discount each
+   sale actually went out at, over the chosen period: rolling 3/6/9/12
+   months or everything on record, ending at the latest month on file
+   (SALES_LAST_MONTH), or a custom From/To month range.
+   Consignment (Cons. Status = Yes) is kept out of every band, total and
+   margin -- its value shows on a separate line instead, so it can't skew
+   the margins.
+     Discount %     = 1 - Now / Was                (sales: discount / RSP)
+     Margin factor  = Now / Cost                   (sales: net / COGS)
+     Margin %       = (Now - Cost) / Now           (sales: (net - COGS) / net)
+     Contribution % = band's share of total stock at cost (sales: of net sales)
+   Bands use the existing DASH_DISC_BANDS boundaries (0-10% means up to 10%). */
+let dashBandPeriod = { mode: '3', from: null, to: null };
+const dashBandOpenAges = new Set();
+const DASH_BAND_LABEL = { 'No Price': 'No price', '0-10%': '0–10%', 'Above 80%': 'Above 80%' };
+const dashBandLabel = b => DASH_BAND_LABEL[b] || b.replace('-', '–');
+const dashMonthLabel = i => MONTHS[i % 12] + " '" + String(2024 + Math.floor(i / 12)).slice(-2);
+function dashBandRange(){
+  const last = SALES_LAST_MONTH, p = dashBandPeriod;
+  if(p.mode === 'custom'){
+    const from = p.from == null ? Math.max(0, last - 2) : p.from, to = p.to == null ? last : p.to;
+    return from <= to ? [from, to] : [to, from];
+  }
+  return p.mode === 'all' ? [0, last] : [Math.max(0, last - Number(p.mode) + 1), last];
+}
+function dashBanding(){
+  const [from, to] = dashBandRange();
+  const blank = () => ({ items: 0, units: 0, cost: 0, was: 0, now: 0, sItems: 0, sUnits: 0, cogs: 0, rsp: 0, net: 0, disc: 0, codes: new Set(), sCodes: new Set() });
+  const bands = DASH_DISC_BANDS.map(blank), cons = blank();
+  const ages = {};   // age label -> { sno, bands: [...] }
+  ITEMS.forEach(it => {
+    if(!dashItemInScope(it)) return;
+    const code = it['Item Code'], isCons = CONS_ITEMS.has(code);
+    const soh = Math.max(0, Number(it['SOH']) || 0);
+    const bi = DASH_DISC_BANDS.indexOf(dashDiscBand(it));
+    const age = stkAgeFor(it);
+    const A = ages[age.label] || (ages[age.label] = { sno: age.sno, bands: DASH_DISC_BANDS.map(blank) });
+    const stock = (b) => {
+      b.items++; b.units += soh; b.codes.add(code);
+      b.cost += soh * (Number(it['L-Cost (Aed)']) || 0); b.was += soh * (Number(it['Was (Aed)']) || 0); b.now += soh * (Number(it['Now (Aed)']) || 0);
+    };
+    if(isCons) stock(cons); else { stock(bands[bi]); stock(A.bands[bi]); }
+    (SALES_VALUES[code] || []).forEach(r => {
+      if(r[0] < from || r[0] > to) return;
+      const add = b => { b.sUnits += r[3]; b.cogs += r[4]; b.rsp += r[5]; b.net += r[6]; b.disc += r[7]; b.sCodes.add(code); };
+      if(r[2] || isCons) add(cons); else { add(bands[r[1]]); add(A.bands[r[1]]); }
+    });
+  });
+  const total = arr => arr.reduce((t, b) => {
+    for(const k in t) if(typeof t[k] === 'number') t[k] += b[k];
+    b.codes.forEach(c => t.codes.add(c)); b.sCodes.forEach(c => t.sCodes.add(c));
+    return t;
+  }, blank());
+  [...bands, cons].forEach(b => { b.sItems = b.sCodes.size; });
+  Object.values(ages).forEach(A => A.bands.forEach(b => { b.sItems = b.sCodes.size; }));
+  const T = total(bands); T.sItems = T.sCodes.size; T.items = T.codes.size;
+  return { from, to, bands, cons, total: T,
+    ages: Object.entries(ages).sort((a, b) => a[1].sno - b[1].sno).map(([label, A]) => ({ label, bands: A.bands, total: total(A.bands) })) };
+}
+const dashPct = (v, t) => t ? v / t * 100 : null;
+const dashFmtPct = (p, d = 1) => p == null || !isFinite(p) ? '—' : p.toFixed(d) + '%';
+const dashFmtX = v => v == null || !isFinite(v) || !v ? '—' : v.toFixed(2) + 'x';
+const dashAed = v => '<span title="AED ' + dashInt(v) + '">' + dashCompact(v) + '</span>';
+function dashBandCells(b, T, excluded){
+  const shareBar = (p, cls) => '<td class="dash-band-share">' + (p == null ? '—' : '<span class="dash-band-bar ' + cls + '"><i style="width:' + Math.max(0, Math.min(100, p)).toFixed(1) + '%"></i></span><span class="dash-band-pct">' + p.toFixed(1) + '%</span>') + '</td>';
+  const view = (n, side) => n ? '<button type="button" class="dash-band-view" data-side="' + side + '" title="Show these items in All Products">' + dashInt(n) + '</button>' : '0';
+  const m = (a, b2) => excluded ? '<td class="muted">—</td>' : '<td>' + a + '</td>';
+  return '<td>' + view(b.items, 'stock') + '</td><td>' + dashInt(b.units) + '</td><td>' + dashAed(b.cost) + '</td><td>' + dashAed(b.was) + '</td><td>' + dashAed(b.now) + '</td>' +
+    (excluded ? '<td class="muted">—</td>' : shareBar(dashPct(b.cost, T.cost), 'stock')) +
+    m(dashFmtPct(b.was ? (1 - b.now / b.was) * 100 : null)) + m(dashFmtX(b.cost ? b.now / b.cost : null)) + m(dashFmtPct(b.now ? (b.now - b.cost) / b.now * 100 : null)) +
+    '<td class="band-split">' + view(b.sItems, 'sales') + '</td><td>' + dashInt(b.sUnits) + '</td><td>' + dashAed(b.cogs) + '</td><td>' + dashAed(b.rsp) + '</td><td>' + dashAed(b.net) + '</td>' +
+    (excluded ? '<td class="muted">—</td>' : shareBar(dashPct(b.net, T.net), 'sold')) +
+    m(dashFmtPct(b.rsp ? b.disc / b.rsp * 100 : null)) + m(dashFmtX(b.cogs ? b.net / b.cogs : null)) + m(dashFmtPct(b.net ? (b.net - b.cogs) / b.net * 100 : null));
+}
+function dashBandPeriodBar(B){
+  const opt = (v, l) => '<option value="' + v + '"' + (dashBandPeriod.mode === v ? ' selected' : '') + '>' + l + '</option>';
+  const months = (sel, id) => '<select id="' + id + '">' + Array.from({ length: SALES_LAST_MONTH + 1 }, (_, i) => '<option value="' + i + '"' + (i === sel ? ' selected' : '') + '>' + dashMonthLabel(i) + '</option>').join('') + '</select>';
+  return '<div class="band-period"><label>Sales period<select id="dashBandMode">' + opt('3', 'Last 3 months') + opt('6', 'Last 6 months') + opt('9', 'Last 9 months') + opt('12', 'Last 12 months') + opt('all', 'All on record') + opt('custom', 'Custom…') + '</select></label>' +
+    (dashBandPeriod.mode === 'custom' ? '<label>From' + months(B.from, 'dashBandFrom') + '</label><label>To' + months(B.to, 'dashBandTo') + '</label>' : '') +
+    '<span class="band-period-note">' + dashEsc(dashMonthLabel(B.from) + ' – ' + dashMonthLabel(B.to)) + (B.to === SALES_LAST_MONTH ? ' (sales to ' + dashEsc(dashDate(DATA_AS_OF)) + ')' : '') + '</span></div>';
+}
+function dashBandTables(){
+  const B = dashBanding(), T = B.total, per = dashMonthLabel(B.from) + ' – ' + dashMonthLabel(B.to);
+  const head = '<thead><tr class="band-grp"><th rowspan="2" class="l">Discount band</th><th colspan="9">Stock on hand (today)</th><th colspan="9" class="band-split">Sales · ' + dashEsc(per) + '</th></tr><tr>' +
+    '<th>Items</th><th>Units</th><th>At cost</th><th>At Was</th><th>At Now</th><th>% of stock</th><th>Disc %</th><th>Margin factor</th><th>Margin %</th>' +
+    '<th class="band-split">Items</th><th>Units</th><th>COGS</th><th>RSP</th><th>Net sale</th><th>% of sales</th><th>Disc %</th><th>Margin factor</th><th>Margin %</th></tr></thead>';
+  const row = (b, i) => '<tr data-band="' + i + '"><td class="l"><b>' + dashBandLabel(DASH_DISC_BANDS[i]) + '</b></td>' + dashBandCells(b, T) + '</tr>';
+  const main = '<section class="dash-card wide tone-warn dash-bands"><h3>Stock ↔ Sales discount banding <span>consignment excluded from bands and margins</span></h3>' +
+    dashBandPeriodBar(B) +
+    '<div class="band-wrap"><table class="dash-table band-table">' + head + '<tbody>' + B.bands.map(row).join('') +
+    '<tr class="band-total" data-band="total"><td class="l"><b>Total</b></td>' + dashBandCells(T, T) + '</tr>' +
+    '<tr class="band-cons" data-band="cons"><td class="l">Consignment <small>(excluded from margin)</small></td>' + dashBandCells(B.cons, T, true) + '</tr>' +
     '</tbody></table></div></section>';
+  // consolidated: per stock-age bracket, the bands' share of all stock (at cost) vs of all net sales
+  const share = (v, t) => dashFmtPct(dashPct(v, t));
+  const ageRow = (b, label, cls, attrs) => '<tr class="' + cls + '"' + attrs + '><td class="l">' + label + '</td><td>' + (b.codes.size || b.items ? '<button type="button" class="dash-band-view" data-side="stock">' + dashInt(b.codes.size || b.items) + '</button>' : '0') + '</td><td>' + dashInt(b.units) + '</td><td>' + dashAed(b.cost) + '</td><td class="band-pct">' + share(b.cost, T.cost) + '</td>' +
+    '<td class="band-split">' + dashInt(b.sUnits) + '</td><td>' + dashAed(b.net) + '</td><td class="band-pct">' + share(b.net, T.net) + '</td></tr>';
+  const ageBody = B.ages.map((A, ai) => {
+    const open = dashBandOpenAges.has(A.label);
+    return ageRow(A.total, '<button type="button" class="band-age-toggle" aria-expanded="' + open + '">' + (open ? '&#9662;' : '&#9656;') + '</button><b>' + dashEsc(A.label === '24 Above' ? '24+ months' : /^New/.test(A.label) ? A.label : A.label + ' months') + '</b>', 'band-age', ' data-age="' + ai + '"') +
+      (open ? A.bands.map((b, i) => (b.items || b.sUnits) ? ageRow(b, dashBandLabel(DASH_DISC_BANDS[i]), 'band-age-band', ' data-age="' + ai + '" data-band="' + i + '"') : '').join('') : '');
+  }).join('');
+  const aging = '<section class="dash-card wide tone-stock dash-bands"><h3>Discount banding by stock age <span>share of all stock (at cost) vs share of net sales, ' + dashEsc(per) + '</span></h3>' +
+    '<div class="band-age-tools"><button type="button" class="dash-btn ghost" id="dashBandAgesAll">' + (dashBandOpenAges.size === B.ages.length ? 'Collapse all' : 'Expand all') + '</button></div>' +
+    '<div class="band-wrap"><table class="dash-table band-table band-age-table"><thead><tr class="band-grp"><th rowspan="2" class="l">Stock age / discount band</th><th colspan="4">Stock on hand</th><th colspan="3" class="band-split">Sales · ' + dashEsc(per) + '</th></tr>' +
+    '<tr><th>Items</th><th>Units</th><th>At cost</th><th>% of stock</th><th class="band-split">Units</th><th>Net sale</th><th>% of sales</th></tr></thead><tbody>' + ageBody +
+    '<tr class="band-total"><td class="l"><b>Total</b></td><td>' + dashInt(T.items) + '</td><td>' + dashInt(T.units) + '</td><td>' + dashAed(T.cost) + '</td><td class="band-pct">100%</td><td class="band-split">' + dashInt(T.sUnits) + '</td><td>' + dashAed(T.net) + '</td><td class="band-pct">100%</td></tr>' +
+    '</tbody></table></div></section>';
+  return { html: main + aging, B };
+}
+function dashWireBands(root, B, scopeSuffix){
+  const $ = id => root.querySelector('#' + id);
+  const mode = $('dashBandMode');
+  if(mode) mode.addEventListener('change', () => {
+    dashBandPeriod = { ...dashBandPeriod, mode: mode.value };
+    if(mode.value === 'custom' && dashBandPeriod.from == null){ dashBandPeriod.from = B.from; dashBandPeriod.to = B.to; }
+    renderDashboard();
+  });
+  ['From', 'To'].forEach(k => { const el = $('dashBand' + k); if(el) el.addEventListener('change', () => { dashBandPeriod = { ...dashBandPeriod, [k.toLowerCase()]: Number(el.value) }; renderDashboard(); }); });
+  const all = $('dashBandAgesAll');
+  if(all) all.addEventListener('click', () => {
+    if(dashBandOpenAges.size === B.ages.length) dashBandOpenAges.clear(); else B.ages.forEach(A => dashBandOpenAges.add(A.label));
+    renderDashboard();
+  });
+  root.querySelectorAll('.band-age-toggle').forEach(btn => btn.addEventListener('click', () => {
+    const A = B.ages[btn.closest('tr').dataset.age];
+    if(dashBandOpenAges.has(A.label)) dashBandOpenAges.delete(A.label); else dashBandOpenAges.add(A.label);
+    renderDashboard();
+  }));
+  const per = dashMonthLabel(B.from) + '–' + dashMonthLabel(B.to);
+  root.querySelectorAll('.dash-band-view').forEach(btn => btn.addEventListener('click', () => {
+    const tr = btn.closest('tr'), side = btn.dataset.side, band = tr.dataset.band, ageI = tr.dataset.age;
+    const A = ageI != null ? B.ages[ageI] : null;
+    const b = band === 'total' ? B.total : band === 'cons' ? B.cons : band != null ? (A ? A.bands[band] : B.bands[band]) : A.total;
+    const what = band === 'total' ? 'All bands' : band === 'cons' ? 'Consignment' : band != null ? 'Discount ' + dashBandLabel(DASH_DISC_BANDS[band]) : 'All bands';
+    const label = (A ? 'Age ' + A.label + ' · ' : '') + what + (side === 'sales' ? ' · sold ' + per : ' · in stock') + scopeSuffix;
+    openGridFocus(label, [...(side === 'sales' ? b.sCodes : b.codes)], null);
+  }));
 }
 function renderDashboard(){
   const root = document.getElementById('dashRoot');
@@ -948,6 +1071,7 @@ function renderDashboard(){
   const scopeLine = (scopeParts.length ? scopeParts.join(' · ') + ' · ' : 'All ') + dashInt(R.items) + ' items';
 
   const actions = dashActions(R);
+  const bandT = dashBandTables();
   root.innerHTML =
     '<div class="dash-sticky">' +
     '<div class="dash-hero">' +
@@ -984,7 +1108,7 @@ function renderDashboard(){
             '<button type="button" class="dash-btn ghost dash-more" data-list="expired">See all ' + dashInt(R.expired.length) + ' POs (' + dashInt(dashPOCodes(R.expired).size) + ' items) &rarr;</button>'
           : '<p class="dash-empty">No pending POs created in the last 15 days.</p>') + '</section>' +
       '<section class="dash-card wide tone-stock"><h3>Units due by month <span>all open POs</span></h3>' + dashColumns(inbound) + '</section>' +
-      dashBandTable(R) +
+      bandT.html +
     '</div>';
 
   // wiring
@@ -999,6 +1123,7 @@ function renderDashboard(){
     dashTab = tr.dataset.goto || 'late';
     renderDashboard();
   }));
+  dashWireBands(root, bandT.B, scopeParts.length ? ' – ' + scopeParts.join(' · ') : '');
   root.querySelectorAll('.dash-more').forEach(b => b.addEventListener('click', () => {
     const suffix = scopeParts.length ? ' – ' + scopeParts.join(' · ') : '';
     if(b.dataset.list){
