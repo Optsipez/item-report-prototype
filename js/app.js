@@ -3314,14 +3314,19 @@ async function tripPdf(rows, save = true){
   const S = tripSummary(rows);
 
   // title band (first page)
-  doc.setFillColor(...NAVY); doc.rect(0, 0, W, 24, 'F');
-  doc.setFillColor(...BRASS); doc.rect(0, 24, W, 0.8, 'F');
+  doc.setFillColor(...NAVY); doc.rect(0, 0, W, 27, 'F');
+  doc.setFillColor(...BRASS); doc.rect(0, 27, W, 0.8, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...BRASS);
   doc.text('TRIP REQUIREMENT', M, 8.5, { charSpace: 0.6 });
-  doc.setFontSize(15); doc.setTextColor(255, 255, 255);
-  doc.text(name || 'Your selection', M, 16);
+  // the selection is the point of the sheet: with no vendor it IS the title;
+  // under a vendor name it still gets a large line of its own. Long text
+  // shrinks to fit beside the summary on the right.
+  const fit = (text, size, min, maxW) => { doc.setFontSize(size); while(size > min && doc.getTextWidth(text) > maxW) doc.setFontSize(size -= 0.5); };
+  const maxW = W - 2 * M - 115;
+  doc.setTextColor(255, 255, 255);
+  fit(name || filters, 15, 9, maxW); doc.text(name || filters, M, 16.5);
+  if(name && filters){ doc.setFont('helvetica', 'bold'); doc.setTextColor(226, 232, 240); fit(filters, 11, 7.5, maxW); doc.text(filters, M, 23); }
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(203, 213, 225);
-  doc.text(filters, M, 21);
   doc.text('Data as of ' + dashDate(DATA_AS_OF), W - M, 8.5, { align: 'right' });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
   doc.text(fmtInt(S.items) + ' items  ·  ' + fmtInt(S.totalSoh) + ' units on hand' + (S.avgPct == null ? '' : '  ·  ' + Math.round(S.avgPct) + '% avg recovery'), W - M, 16, { align: 'right' });
@@ -3341,7 +3346,7 @@ async function tripPdf(rows, save = true){
   const iRec = header.indexOf('Recovery %'), iSoh = header.indexOf('SOH');
   doc.autoTable({
     head: [header], body: body.map(r => r.map(fmt)),
-    startY: 29, margin: { top: 12, left: M, right: M, bottom: 12 },
+    startY: 32, margin: { top: 12, left: M, right: M, bottom: 12 },
     theme: 'grid',
     styles: { font: 'helvetica', fontSize: 7, cellPadding: { top: 2, bottom: 2, left: 1.8, right: 1.8 }, lineColor: [226, 232, 240], lineWidth: 0.15, textColor: NAVY, valign: 'middle', halign: 'right', overflow: 'linebreak' },
     headStyles: { fillColor: SLATE, textColor: 255, fontStyle: 'bold', fontSize: 6.5, halign: 'center', lineColor: [51, 65, 85] },
