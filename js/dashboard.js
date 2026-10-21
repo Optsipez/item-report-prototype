@@ -405,14 +405,6 @@ function dashCompute(){
     return { ...p, status, created, age };
   }).filter(p => p.status === 'pending' && p.age != null && p.age >= 0 && p.age < 15)
     .sort((a, b) => b.age - a.age);
-  // units due per month, from the data date forward, next 6 months
-  const start = dashAsOf();
-  R.inbound = [];
-  for(let i = 0; i < 6; i++){
-    const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
-    R.inbound.push({ label: MONTHS[d.getMonth()] + "'" + String(d.getFullYear()).slice(-2), key: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), units: 0 });
-  }
-  pos.forEach(p => { const b = R.inbound.find(x => x.key === p.eta.slice(0, 7)); if(b) b.units += p.units; });
   return R;
 }
 
@@ -424,14 +416,6 @@ function dashBarList(rows){
     '<div class="dash-bar-row"><span class="dash-bar-k" title="' + dashEsc(r.label) + '">' + dashEsc(r.label) + '</span>' +
       '<span class="dash-bar-track"><span class="dash-bar-fill" style="width:' + Math.max(2, r.value / max * 100).toFixed(1) + '%;background:' + (r.color || 'var(--stock)') + '"></span></span>' +
       '<span class="dash-bar-v">' + dashInt(r.value) + '</span></div>').join('') + '</div>';
-}
-function dashColumns(items){   // vertical bars: [{label, value, partial, nodata, title, color}]
-  const max = Math.max(1, ...items.map(x => x.value));
-  return '<div class="dash-trend">' + items.map(x =>
-    '<div class="dash-trend-col' + (x.nodata ? ' nodata' : '') + (x.partial ? ' partial' : '') + '" title="' + dashEsc(x.title || x.label) + '">' +
-      '<span class="dash-trend-v">' + (x.nodata ? '' : dashCompact(x.value)) + '</span>' +
-      '<span class="dash-trend-bar"><span style="height:' + (x.nodata ? 0 : Math.max(3, x.value / max * 100)).toFixed(1) + '%;' + (x.color ? 'background:' + x.color : '') + '"></span></span>' +
-      '<span class="dash-trend-k">' + dashEsc(x.label) + (x.partial ? '<small>to date</small>' : '') + '</span></div>').join('') + '</div>';
 }
 const dashItemCell = it => '<td class="l"><a ' + dashLink(it['Item Code']) + '><b>' + dashEsc(it['Item Code']) + '</b> ' + dashEsc(it['Description']) + '</a></td>';
 
@@ -1062,7 +1046,6 @@ function renderDashboard(){
   const winLabel = monthColLabel(W.rate[0]) + '–' + monthColLabel(W.rate[2]);
   const kpi = (k, v, n, tone) => '<div class="dash-kpi' + (tone ? ' ' + tone : '') + '"><span class="dash-kpi-k">' + k + '</span><span class="dash-kpi-v">' + v + '</span><span class="dash-kpi-n">' + n + '</span></div>';
 
-  const inbound = R.inbound.map(b => ({ label: b.label, value: b.units, color: 'var(--stock)', title: b.label + ': ' + dashInt(b.units) + ' units due' }));
 
   const scopeParts = [
     dashScope.dept, dashScope.cat, dashScope.vendor && 'Vendor ' + dashScope.vendor,
@@ -1080,7 +1063,7 @@ function renderDashboard(){
         '<h1 class="dash-greet">' + DASH_GREETINGS[dashGreetingIdx](dashEsc(dashName())) + '</h1>' +
         '<p class="dash-sub">' + dashSubtitle() + ' <span class="dash-asof">Data as of ' + dashEsc(dashDate(DATA_AS_OF)) + '.</span></p>' +
       '</div>' +
-      '<div class="dash-links">' + (!dashHeaderCollapsed && dashScopeIsSet() ? '<button type="button" class="dash-btn ghost filters-active-btn" id="dashReset">Show everything</button>' : '') + '<a class="dash-btn' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#products">All Products &rarr;</a><a class="dash-btn ghost' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#lookup">Item Lookup &rarr;</a>' +
+      '<div class="dash-links">' + (!dashHeaderCollapsed && (dashScopeIsSet() || dashBandPeriod.mode !== '3') ? '<button type="button" class="dash-btn ghost filters-active-btn" id="dashReset">Show everything</button>' : '') + '<a class="dash-btn' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#products">All Products &rarr;</a><a class="dash-btn ghost' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#lookup">Item Lookup &rarr;</a>' +
         '<button type="button" class="dash-btn ghost" id="dashHeaderToggle" title="' + (dashHeaderCollapsed ? 'Show the Show me bar and Needs attention tiles' : 'Hide the Show me bar and Needs attention tiles, keep just this line') + '">' + (dashHeaderCollapsed ? 'Expand &#9662;' : 'Collapse &#9652;') + '</button>' +
       '</div></div>' +
     (dashHeaderCollapsed ? '' : dashScopeBar(dashScope, dashVendorAmbiguous, { headless: true, noReset: true }) +
@@ -1107,7 +1090,6 @@ function renderDashboard(){
           R.expired.map(p => '<tr class="dash-pick dash-po" data-po="' + dashEsc(p.po) + '" title="Show the items on this PO"><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l">' + dashEsc(vcodeName(p.vendor)) + '</td><td>' + dashEsc(dashDate(p.created)) + '</td><td class="bad">' + p.age + ' d</td><td>' + dashInt(p.units) + '</td></tr>').join('') + '</tbody></table></div>' +
             '<button type="button" class="dash-btn ghost dash-more" data-list="expired">See all ' + dashInt(R.expired.length) + ' POs (' + dashInt(dashPOCodes(R.expired).size) + ' items) &rarr;</button>'
           : '<p class="dash-empty">No pending POs created in the last 15 days.</p>') + '</section>' +
-      '<section class="dash-card wide tone-stock"><h3>Units due by month <span>all open POs</span></h3>' + dashColumns(inbound) + '</section>' +
       bandT.html +
     '</div>';
 
@@ -1184,6 +1166,10 @@ function renderDashboard(){
   // re-render throws partway through (e.g. $('dashDept').addEventListener
   // on null) and never reaches the toggle's own re-wiring below it,
   // silently breaking the second click.
+  // Show everything also puts the banding period back to the last 3 months --
+  // registered first, since the scope bar's own reset handler re-renders.
+  const resetBtn = $('dashReset');
+  if(resetBtn) resetBtn.addEventListener('click', () => { dashBandPeriod = { mode: '3', from: null, to: null }; });
   if(!dashHeaderCollapsed) dashWireScopeBar(root, renderDashboard, DASH_SLOT);
   const headerToggle = $('dashHeaderToggle');
   if(headerToggle) headerToggle.addEventListener('click', () => { dashHeaderCollapsed = !dashHeaderCollapsed; renderDashboard(); });
