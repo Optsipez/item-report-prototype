@@ -684,7 +684,11 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .band-table th,.band-table td{white-space:nowrap;}
 .band-table thead th{white-space:normal;vertical-align:bottom;}
 .band-table thead th.l{vertical-align:bottom;}
-.band-table thead tr.band-grp th{white-space:nowrap;text-align:center;padding-bottom:6px;border-bottom:1px solid var(--line);}
+.band-table thead tr.band-grp th{white-space:nowrap;text-align:center;padding-bottom:7px;border-bottom:0;position:relative;}
+/* each group label gets its own underline, inset from both edges, so it's
+   clear which columns it spans (the rowspan'd first cell keeps its normal rule) */
+.band-table thead tr.band-grp th:not(.l)::after{content:"";position:absolute;left:10px;right:10px;bottom:0;border-bottom:1px solid var(--line-strong);}
+.band-table thead tr.band-grp th.l{border-bottom:1px solid var(--line-strong);}
 .band-table thead tr.band-grp th.l{text-align:left;}
 .band-table td.l{max-width:none;overflow:visible;text-overflow:clip;}
 .band-table .band-split{border-left:1px solid var(--line-strong);}
@@ -696,6 +700,9 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .band-table tr.band-cons td.l{white-space:normal;}
 .band-table tr.band-cons td.l small{display:block;font-size:var(--fs-2xs);}
 .band-table td,.band-table th{padding-left:4px;padding-right:4px;}
+/* breathing room either side of the Stock | Sales divider */
+.band-table .band-split{padding-left:12px;}
+.band-table td:has(+ .band-split),.band-table th:has(+ .band-split){padding-right:12px;}
 .band-table tr.band-cons td small{font-size:var(--fs-2xs);}
 .dash-band-view{font:inherit;color:var(--primary-hover);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-decoration-color:var(--primary-line);text-underline-offset:3px;}
 .dash-band-view:hover{color:var(--primary);text-decoration-color:currentColor;}
