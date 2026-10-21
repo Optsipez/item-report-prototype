@@ -1003,6 +1003,36 @@ function dashBandTables(){
     '</tbody></table></div></section>';
   return { html: main + aging, B };
 }
+/* ---------- Sales by Category / Department / CPC ----------
+   For the items in the Show me scope: stock on hand today (units, at L-Cost)
+   and sales in the current calendar month (REPORT_MONTH -- today's month,
+   so until that month's data is imported its sales read 0). Consignment is
+   included: it only stays out of margins, and this has none. */
+let dashSalesBy = 'cat';
+const DASH_SALES_BY = { cat: ['Category', it => it['Category']], dept: ['Department', it => it['Department Desc']], cpc: ['CPC', it => dashPlan(it)] };
+function dashSalesByTable(){
+  const [label, keyOf] = DASH_SALES_BY[dashSalesBy];
+  const month = (REPORT_MONTH.year - 2024) * 12 + REPORT_MONTH.month, monthName = MONTHS[REPORT_MONTH.month] + " '" + String(REPORT_MONTH.year).slice(-2);
+  const rows = {}, T = { units: 0, cost: 0, sUnits: 0, net: 0 };
+  ITEMS.forEach(it => {
+    if(!dashItemInScope(it)) return;
+    const k = keyOf(it) || '(none)', r = rows[k] || (rows[k] = { k, units: 0, cost: 0, sUnits: 0, net: 0 });
+    const soh = Math.max(0, Number(it['SOH']) || 0);
+    r.units += soh; r.cost += soh * (Number(it['L-Cost (Aed)']) || 0);
+    (SALES_VALUES[it['Item Code']] || []).forEach(s => { if(s[0] === month){ r.sUnits += s[3]; r.net += s[6]; } });
+  });
+  const list = Object.values(rows).sort((a, b) => b.cost - a.cost || a.k.localeCompare(b.k));
+  list.forEach(r => { for(const f in T) T[f] += r[f]; });
+  const seg = Object.entries(DASH_SALES_BY).map(([id, [l]]) => '<button type="button" data-by="' + id + '" class="' + (id === dashSalesBy ? 'on' : '') + '">By ' + l + '</button>').join('');
+  const note = month > SALES_LAST_MONTH ? '<p class="dash-note">No ' + dashEsc(monthName) + ' sales on file yet — sales data runs to ' + dashEsc(dashDate(DATA_AS_OF)) + '.</p>' : '';
+  const cells = r => '<td>' + dashInt(r.units) + '</td><td>' + dashAed(r.cost) + '</td><td class="band-split">' + dashInt(r.sUnits) + '</td><td>' + dashAed(r.net) + '</td>';
+  return '<section class="dash-card wide tone-pos dash-bands"><h3>Sales by Category, by Department, by CPC <span>stock today · sales ' + dashEsc(monthName) + '</span></h3>' +
+    '<div class="band-period"><div class="dash-seg" id="dashSalesBySeg">' + seg + '</div></div>' + note +
+    '<div class="band-wrap"><table class="dash-table band-table"><thead><tr class="band-grp"><th></th><th colspan="2">Stock on hand (today)</th><th colspan="2" class="band-split">Sales · ' + dashEsc(monthName) + '</th></tr>' +
+    '<tr><th class="l">' + label + '</th><th>Units</th><th>At cost</th><th class="band-split">Units sold</th><th>Net sale</th></tr></thead><tbody>' +
+    list.map(r => '<tr><td class="l"><b>' + dashEsc(r.k) + '</b></td>' + cells(r) + '</tr>').join('') +
+    '<tr class="band-total"><td class="l"><b>Total</b></td>' + cells(T) + '</tr></tbody></table></div></section>';
+}
 function dashWireBands(root, B, scopeSuffix){
   const $ = id => root.querySelector('#' + id);
   const mode = $('dashBandMode');
@@ -1090,7 +1120,7 @@ function renderDashboard(){
           R.expired.map(p => '<tr class="dash-pick dash-po" data-po="' + dashEsc(p.po) + '" title="Show the items on this PO"><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l">' + dashEsc(vcodeName(p.vendor)) + '</td><td>' + dashEsc(dashDate(p.created)) + '</td><td class="bad">' + p.age + ' d</td><td>' + dashInt(p.units) + '</td></tr>').join('') + '</tbody></table></div>' +
             '<button type="button" class="dash-btn ghost dash-more" data-list="expired">See all ' + dashInt(R.expired.length) + ' POs (' + dashInt(dashPOCodes(R.expired).size) + ' items) &rarr;</button>'
           : '<p class="dash-empty">No pending POs created in the last 15 days.</p>') + '</section>' +
-      bandT.html +
+      bandT.html + dashSalesByTable() +
     '</div>';
 
   // wiring
@@ -1105,6 +1135,7 @@ function renderDashboard(){
     dashTab = tr.dataset.goto || 'late';
     renderDashboard();
   }));
+  root.querySelectorAll('#dashSalesBySeg button').forEach(b => b.addEventListener('click', () => { dashSalesBy = b.dataset.by; renderDashboard(); }));
   dashWireBands(root, bandT.B, scopeParts.length ? ' – ' + scopeParts.join(' · ') : '');
   root.querySelectorAll('.dash-more').forEach(b => b.addEventListener('click', () => {
     const suffix = scopeParts.length ? ' – ' + scopeParts.join(' · ') : '';
