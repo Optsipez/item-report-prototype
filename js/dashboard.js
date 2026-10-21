@@ -976,7 +976,7 @@ function dashBandPeriodBar(B){
 }
 function dashBandTables(){
   const B = dashBanding(), T = B.total, per = dashMonthLabel(B.from) + ' – ' + dashMonthLabel(B.to);
-  const head = '<thead><tr class="band-grp"><th rowspan="2" class="l">Discount band</th><th colspan="9">Stock on hand (today)</th><th colspan="9" class="band-split">Sales · ' + dashEsc(per) + '</th></tr><tr>' +
+  const head = '<thead><tr class="band-grp"><th></th><th colspan="9">Stock on hand (today)</th><th colspan="9" class="band-split">Sales · ' + dashEsc(per) + '</th></tr><tr><th class="l">Discount band</th>' +
     '<th>Items</th><th>Units</th><th>At cost</th><th>At Was</th><th>At Now</th><th>% of stock</th><th>Disc %</th><th>Margin factor</th><th>Margin %</th>' +
     '<th class="band-split">Items</th><th>Units</th><th>COGS</th><th>RSP</th><th>Net sale</th><th>% of sales</th><th>Disc %</th><th>Margin factor</th><th>Margin %</th></tr></thead>';
   const row = (b, i) => '<tr data-band="' + i + '"><td class="l"><b>' + dashBandLabel(DASH_DISC_BANDS[i]) + '</b></td>' + dashBandCells(b, T) + '</tr>';
@@ -997,8 +997,8 @@ function dashBandTables(){
   }).join('');
   const aging = '<section class="dash-card wide tone-stock dash-bands"><h3>Discount banding by stock age <span>share of all stock (at cost) vs share of net sales, ' + dashEsc(per) + '</span></h3>' +
     '<div class="band-age-tools"><button type="button" class="dash-btn ghost" id="dashBandAgesAll">' + (dashBandOpenAges.size === B.ages.length ? 'Collapse all' : 'Expand all') + '</button></div>' +
-    '<div class="band-wrap"><table class="dash-table band-table band-age-table"><thead><tr class="band-grp"><th rowspan="2" class="l">Stock age / discount band</th><th colspan="4">Stock on hand</th><th colspan="3" class="band-split">Sales · ' + dashEsc(per) + '</th></tr>' +
-    '<tr><th>Items</th><th>Units</th><th>At cost</th><th>% of stock</th><th class="band-split">Units</th><th>Net sale</th><th>% of sales</th></tr></thead><tbody>' + ageBody +
+    '<div class="band-wrap"><table class="dash-table band-table band-age-table"><thead><tr class="band-grp"><th></th><th colspan="4">Stock on hand</th><th colspan="3" class="band-split">Sales · ' + dashEsc(per) + '</th></tr>' +
+    '<tr><th class="l">Stock age / discount band</th><th>Items</th><th>Units</th><th>At cost</th><th>% of stock</th><th class="band-split">Units</th><th>Net sale</th><th>% of sales</th></tr></thead><tbody>' + ageBody +
     '<tr class="band-total"><td class="l"><b>Total</b></td><td>' + dashInt(T.items) + '</td><td>' + dashInt(T.units) + '</td><td>' + dashAed(T.cost) + '</td><td class="band-pct">100%</td><td class="band-split">' + dashInt(T.sUnits) + '</td><td>' + dashAed(T.net) + '</td><td class="band-pct">100%</td></tr>' +
     '</tbody></table></div></section>';
   return { html: main + aging, B };
