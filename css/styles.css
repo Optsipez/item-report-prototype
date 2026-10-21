@@ -686,34 +686,32 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .band-period select{padding:6px 28px 6px 10px;font:inherit;font-size:var(--fs-sm);text-transform:none;letter-spacing:0;color:var(--ink);font-weight:600;border:1px solid var(--line-strong);border-radius:var(--r-sm);background-color:var(--panel);}
 .band-period select:focus{outline:none;border-color:var(--primary);box-shadow:var(--ring);}
 .band-period-note{font-size:var(--fs-xs);color:var(--ink-soft);padding-bottom:8px;}
-.band-wrap{overflow-x:auto;border:1px solid var(--s-300);border-radius:var(--r-md);box-shadow:var(--sh-xs);}
-.band-table{border-collapse:collapse;}
-.band-table th,.band-table td{border:1px solid var(--s-300);white-space:nowrap;}
-.band-table tr:first-child th{border-top:0;}
-.band-table tr > :first-child{border-left:0;}
-.band-table tr > :last-child{border-right:0;}
-.band-table tbody tr:last-child td{border-bottom:0;}
-.band-table thead th{background:linear-gradient(180deg,var(--subhead-top),var(--subhead));color:var(--subhead-ink);font-weight:700;font-size:var(--fs-2xs);letter-spacing:.04em;padding:9px 8px;line-height:1.25;vertical-align:bottom;text-align:right;border-bottom:2px solid var(--subhead-line);}
-.band-table thead th.l{text-align:left;vertical-align:middle;}
-.band-table thead tr.band-grp th{background:var(--s-200);color:var(--s-700);text-align:center;letter-spacing:.1em;padding:6px 8px;border-bottom:1px solid var(--s-300);}
-.band-table td{padding:7px 5px;font-size:var(--fs-xs);}
-.band-table thead th{white-space:normal;padding:7px 5px;}
-.band-table thead tr.band-grp th{white-space:nowrap;}
+/* Same look as the Dashboard's other tables (.dash-table): faint uppercase
+   headers, a hairline under each row. Only extras: a faint Stock / Sales
+   label row, a thin divider between the two sides, and the usual total row. */
+.band-wrap{overflow-x:auto;}
+.band-table th,.band-table td{white-space:nowrap;}
+.band-table thead th{white-space:normal;vertical-align:bottom;}
+.band-table thead th.l{vertical-align:bottom;}
+.band-table thead tr.band-grp th{white-space:nowrap;text-align:center;padding-bottom:6px;border-bottom:1px solid var(--line);}
+.band-table thead tr.band-grp th.l{text-align:left;}
 .band-table td.l{max-width:none;overflow:visible;text-overflow:clip;}
-.band-table .band-split{border-left:2px solid var(--s-400);}
+.band-table .band-split{border-left:1px solid var(--line-strong);}
 .band-table td.dash-band-share{width:auto;}
 .band-table .dash-band-bar{width:28px;margin-right:5px;}
 .band-table .dash-band-pct{min-width:3em;}
-.band-table tbody tr:not(.band-total):not(.band-cons):hover td{background:var(--row-hover);}
-.band-table tr.band-total td{border-top:2px solid var(--s-400);background:var(--s-100);font-weight:650;}
-.band-table tr.band-cons td{color:var(--ink-faint);background:var(--panel);font-style:italic;}
+.band-table tr.band-total td{border-top:2px solid var(--line-strong);background:var(--sunken);font-weight:650;}
+.band-table tr.band-cons td{color:var(--ink-faint);font-style:italic;}
+.band-table tr.band-cons td.l{white-space:normal;}
+.band-table tr.band-cons td.l small{display:block;font-size:var(--fs-2xs);}
+.band-table td,.band-table th{padding-left:4px;padding-right:4px;}
 .band-table tr.band-cons td small{font-size:var(--fs-2xs);}
 .dash-band-view{font:inherit;color:var(--primary-hover);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-decoration-color:var(--primary-line);text-underline-offset:3px;}
 .dash-band-view:hover{color:var(--primary);text-decoration-color:currentColor;}
 .band-cons .dash-band-view{color:var(--ink-faint);}
 .band-age-tools{display:flex;justify-content:flex-end;margin:calc(-1 * var(--sp-2)) 0 var(--sp-2);}
 .band-age-tools .dash-btn{padding:4px 10px;font-size:var(--fs-xs);}
-.band-age-table tr.band-age td{background:var(--s-50);}
+.band-age-table tr.band-age td{font-weight:600;}
 .band-age-table tr.band-age-band td.l{padding-left:38px;color:var(--ink-soft);}
 .band-age-toggle{width:22px;height:22px;margin-right:8px;border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--panel);color:var(--ink-soft);font-size:13px;line-height:1;cursor:pointer;vertical-align:middle;}
 .band-age-toggle:hover{border-color:var(--primary);color:var(--primary);}
