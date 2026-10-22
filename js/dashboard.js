@@ -83,6 +83,8 @@ function dashDate(iso){
   return d.getDate() + ' ' + MONTHS[d.getMonth()] + " '" + String(d.getFullYear()).slice(-2);
 }
 const dashAsOf = () => new Date(DATA_AS_OF + 'T00:00:00');
+// Stock and sales/PO can come from different exports -- say both.
+const dashAsOfText = () => STOCK_AS_OF === DATA_AS_OF ? 'Data as of ' + dashDate(DATA_AS_OF) : 'Stock as of ' + dashDate(STOCK_AS_OF) + ' · sales & POs to ' + dashDate(DATA_AS_OF);
 const dashLink = code => 'href="#item=' + encodeURIComponent(code) + '"';
 const dashPOLink = po => 'href="#po=' + encodeURIComponent(po) + '"';
 
@@ -339,6 +341,14 @@ function dashCompute(){
     }
     if(Math.max(s3, p3) >= 15) R.movers.push({ it, s3, p3, d: s3 - p3 });
   });
+  // Sales of items not in ITEMS (dropped by the stock logic): sales only.
+  SALES_ONLY_ITEMS.forEach(it => {
+    if(!dashItemInScope(it)) return;
+    const s3 = unitsIn(it, W.rate), p3 = unitsIn(it, W.prior);
+    R.sold3 += s3; R.prior3 += p3;
+    MONTH_WINDOW.forEach((w, i) => { R.monthTotals[i] += unitsIn(it, [w]); });
+    if(Math.max(s3, p3) >= 15) R.movers.push({ it, s3, p3, d: s3 - p3 });
+  });
   // Least cover first in cover mode (most urgent), highest Recovery% first
   // in recovery mode (recovery is never null here -- the qualifying filter
   // above already requires it in this mode).
@@ -417,7 +427,10 @@ function dashBarList(rows){
       '<span class="dash-bar-track"><span class="dash-bar-fill" style="width:' + Math.max(2, r.value / max * 100).toFixed(1) + '%;background:' + (r.color || 'var(--stock)') + '"></span></span>' +
       '<span class="dash-bar-v">' + dashInt(r.value) + '</span></div>').join('') + '</div>';
 }
-const dashItemCell = it => '<td class="l"><a ' + dashLink(it['Item Code']) + '><b>' + dashEsc(it['Item Code']) + '</b> ' + dashEsc(it['Description']) + '</a></td>';
+// Items the stock logic dropped (sales-only.js) still count in sales figures,
+// but aren't in ITEMS -- so they're listed without an Item Lookup link.
+SALES_ONLY_ITEMS.forEach(it => { it._salesOnly = true; });
+const dashItemCell = it => it._salesOnly ? '<td class="l" title="Not in the stock list (dropped by the Stock SetUp keep/drop rules) -- sales only"><b>' + dashEsc(it['Item Code']) + '</b> ' + dashEsc(it['Description']) + ' <small class="muted">· not in stock list</small></td>' : '<td class="l"><a ' + dashLink(it['Item Code']) + '><b>' + dashEsc(it['Item Code']) + '</b> ' + dashEsc(it['Description']) + '</a></td>';
 
 /* ---------- the four action lists ---------- */
 function dashActions(R){
@@ -547,7 +560,7 @@ function renderPOPage(poNo){
     '<div class="po-table-wrap"><table class="dash-table po-sheet"><thead>' +
       '<tr class="po-grp"><th colspan="6" class="po-ship-end">Shipment</th><th colspan="5">Product</th><th colspan="4">Order</th></tr><tr>' +
       '<th class="c">Ship Date</th><th class="c">Revised-Ship</th><th class="c">Revised-ETA</th><th class="c">Status</th><th class="c">Port Of Origin</th><th class="c po-ship-end">Discharge Port</th>' +
-      '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th class="c">Currency</th><th title="Order Qty × Latest FOB Cost">Total</th>' +
+      '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th>CPC</th><th>Order Qty</th><th>Container Size</th><th class="c">Currency</th><th title="Order Qty × Latest FOB Cost">Total</th>' +
     '</tr></thead><tbody>' +
       rowsHtml +
     '</tbody><tfoot><tr class="po-total-row"><td class="l" colspan="11"><b>' + dashEsc(poNo) + ' Total</b></td><td><b>' + dashInt(totalQty) + '</b></td><td></td>' + dashMoneyCells(totalMoney) + '</tr></tfoot></table></div>';
@@ -808,7 +821,7 @@ function renderPOData(){
       '<th class="c terr">Territory</th><th class="l">Vendor</th>' + sortTh('created', 'PO Create Date', 'PO creation date') + '<th class="l">PO No</th>' +
       '<th class="c">Ship Date</th>' + sortTh('etd', 'Revised-Ship', 'Revised ETD, or the original Ship Date when there is no revision') + sortTh('eta', 'Revised-ETA', 'ETA') +
       sortTh('status', 'Status', 'In order: ' + PO_STATUS_ORDER.join(', ')) + '<th class="c">Port Of Origin</th><th class="c po-ship-end">Discharge Port</th>' +
-      '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th class="l">Range Name</th><th>Plan Code</th><th>Order Qty</th><th>Container Size</th><th class="c">Currency</th><th title="Order Qty × Latest FOB Cost">Total</th>' +
+      '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th class="l">Range Name</th><th>CPC</th><th>Order Qty</th><th>Container Size</th><th class="c">Currency</th><th title="Order Qty × Latest FOB Cost">Total</th>' +
     '</tr></thead><tbody>' + bodyHtml + grandTotalRow + '</tbody></table></div>');
   if(!poDataHeaderCollapsed){ poWireDateBar(root); dashWireScopeBar(root, renderPOData, PODATA_SLOT); }
   root.querySelector('#poDataHeaderToggle').addEventListener('click', () => { poDataHeaderCollapsed = !poDataHeaderCollapsed; renderPOData(); });
@@ -918,23 +931,26 @@ function dashBandRange(){
   }
   return p.mode === 'all' ? [0, last] : [Math.max(0, last - Number(p.mode) + 1), last];
 }
+const DASH_AGE_SALES_ONLY = 'Not in stock list';
 function dashBanding(){
   const [from, to] = dashBandRange();
   const blank = () => ({ items: 0, units: 0, cost: 0, was: 0, now: 0, sItems: 0, sUnits: 0, cogs: 0, rsp: 0, net: 0, disc: 0, codes: new Set(), sCodes: new Set() });
   const bands = DASH_DISC_BANDS.map(blank), cons = blank();
   const ages = {};   // age label -> { sno, bands: [...] }
-  ITEMS.forEach(it => {
+  // ITEMS give stock and sales; SALES_ONLY_ITEMS (dropped from stock) only
+  // sales, under their own 'Not in stock list' row in the age table.
+  ITEMS.concat(SALES_ONLY_ITEMS).forEach(it => {
     if(!dashItemInScope(it)) return;
-    const code = it['Item Code'], isCons = CONS_ITEMS.has(code);
+    const code = it['Item Code'], isCons = CONS_ITEMS.has(code), salesOnly = it._salesOnly;
     const soh = Math.max(0, Number(it['SOH']) || 0);
     const bi = DASH_DISC_BANDS.indexOf(dashDiscBand(it));
-    const age = stkAgeFor(it);
+    const age = salesOnly ? { label: DASH_AGE_SALES_ONLY, sno: 99 } : stkAgeFor(it);
     const A = ages[age.label] || (ages[age.label] = { sno: age.sno, bands: DASH_DISC_BANDS.map(blank) });
     const stock = (b) => {
       b.items++; b.units += soh; b.codes.add(code);
       b.cost += soh * (Number(it['L-Cost (Aed)']) || 0); b.was += soh * (Number(it['Was (Aed)']) || 0); b.now += soh * (Number(it['Now (Aed)']) || 0);
     };
-    if(isCons) stock(cons); else { stock(bands[bi]); stock(A.bands[bi]); }
+    if(salesOnly){} else if(isCons) stock(cons); else { stock(bands[bi]); stock(A.bands[bi]); }
     (SALES_VALUES[code] || []).forEach(r => {
       if(r[0] < from || r[0] > to) return;
       const add = b => { b.sUnits += r[3]; b.cogs += r[4]; b.rsp += r[5]; b.net += r[6]; b.disc += r[7]; b.sCodes.add(code); };
@@ -992,7 +1008,7 @@ function dashBandTables(){
     '<td class="band-split">' + dashInt(b.sUnits) + '</td><td>' + dashAed(b.net) + '</td><td class="band-pct">' + share(b.net, T.net) + '</td></tr>';
   const ageBody = B.ages.map((A, ai) => {
     const open = dashBandOpenAges.has(A.label);
-    return ageRow(A.total, '<button type="button" class="band-age-toggle" aria-expanded="' + open + '">' + (open ? '&#9662;' : '&#9656;') + '</button><b>' + dashEsc(A.label === '24 Above' ? '24+ months' : /^New/.test(A.label) ? A.label : A.label + ' months') + '</b>', 'band-age', ' data-age="' + ai + '"') +
+    return ageRow(A.total, '<button type="button" class="band-age-toggle" aria-expanded="' + open + '">' + (open ? '&#9662;' : '&#9656;') + '</button><b>' + dashEsc(A.label === '24 Above' ? '24+ months' : /^New/.test(A.label) || A.label === DASH_AGE_SALES_ONLY ? A.label : A.label + ' months') + '</b>', 'band-age', ' data-age="' + ai + '"') +
       (open ? A.bands.map((b, i) => (b.items || b.sUnits) ? ageRow(b, dashBandLabel(DASH_DISC_BANDS[i]), 'band-age-band', ' data-age="' + ai + '" data-band="' + i + '"') : '').join('') : '');
   }).join('');
   const aging = '<section class="dash-card wide tone-stock dash-bands"><h3>Discount banding by stock age <span>share of all stock (at cost) vs share of net sales, ' + dashEsc(per) + '</span></h3>' +
@@ -1014,10 +1030,10 @@ function dashSalesByTable(){
   const [label, keyOf] = DASH_SALES_BY[dashSalesBy];
   const month = (REPORT_MONTH.year - 2024) * 12 + REPORT_MONTH.month, monthName = MONTHS[REPORT_MONTH.month] + " '" + String(REPORT_MONTH.year).slice(-2);
   const rows = {}, T = { units: 0, cost: 0, sUnits: 0, net: 0 };
-  ITEMS.forEach(it => {
+  ITEMS.concat(SALES_ONLY_ITEMS).forEach(it => {
     if(!dashItemInScope(it)) return;
     const k = keyOf(it) || '(none)', r = rows[k] || (rows[k] = { k, units: 0, cost: 0, sUnits: 0, net: 0 });
-    const soh = Math.max(0, Number(it['SOH']) || 0);
+    const soh = it._salesOnly ? 0 : Math.max(0, Number(it['SOH']) || 0);
     r.units += soh; r.cost += soh * (Number(it['L-Cost (Aed)']) || 0);
     (SALES_VALUES[it['Item Code']] || []).forEach(s => { if(s[0] === month){ r.sUnits += s[3]; r.net += s[6]; } });
   });
@@ -1091,7 +1107,7 @@ function renderDashboard(){
       '<div class="dash-hero-line">' +
         '<span class="dash-date">' + dashEsc(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + '</span>' +
         '<h1 class="dash-greet">' + DASH_GREETINGS[dashGreetingIdx](dashEsc(dashName())) + '</h1>' +
-        '<p class="dash-sub">' + dashSubtitle() + ' <span class="dash-asof">Data as of ' + dashEsc(dashDate(DATA_AS_OF)) + '.</span></p>' +
+        '<p class="dash-sub">' + dashSubtitle() + ' <span class="dash-asof">' + dashEsc(dashAsOfText()) + '.</span></p>' +
       '</div>' +
       '<div class="dash-links">' + (!dashHeaderCollapsed && (dashScopeIsSet() || dashBandPeriod.mode !== '3') ? '<button type="button" class="dash-btn ghost filters-active-btn" id="dashReset">Show everything</button>' : '') + '<a class="dash-btn' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#products">All Products &rarr;</a><a class="dash-btn ghost' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#lookup">Item Lookup &rarr;</a>' +
         '<button type="button" class="dash-btn ghost" id="dashHeaderToggle" title="' + (dashHeaderCollapsed ? 'Show the Show me bar and Needs attention tiles' : 'Hide the Show me bar and Needs attention tiles, keep just this line') + '">' + (dashHeaderCollapsed ? 'Expand &#9662;' : 'Collapse &#9652;') + '</button>' +

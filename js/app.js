@@ -23,26 +23,9 @@ function lifestyleLabel(code){
   return LIFESTYLE_LABELS[String(code).trim().toUpperCase()] || code;
 }
 
-/* Products matching any of these are internal / out of scope — drop them
-   entirely on load so they never appear anywhere (grid, search, filters,
-   counts). Matched on the raw Navision export values. */
-const HIDDEN_PLAN_CODES = new Set(['B', 'O', 'W', 'S']);
-const HIDDEN_CATG_CODES = new Set(['O', 'S', 'W']);          // Office Furniture, Services, Wall Paper & Window Décor
-const HIDDEN_CATEGORIES = new Set([
-  'office furniture',
-  'services',
-  'wall paper & window décor',
-  'wall paper & window decor',
-]);
-function isHiddenItem(it){
-  const norm = v => String(v == null ? '' : v).trim().toLowerCase();
-  return HIDDEN_PLAN_CODES.has(String(it['Current Plan Code']).trim().toUpperCase())
-    || HIDDEN_CATG_CODES.has(String(it['Catg Code']).trim().toUpperCase())
-    || HIDDEN_CATEGORIES.has(norm(it['Category']));
-}
-for(let i = ITEMS.length - 1; i >= 0; i--){
-  if(isHiddenItem(ITEMS[i])) ITEMS.splice(i, 1);
-}
+/* Which items exist is decided by the import (tools/stock_import.py): only
+   items the Stock SetUp logic keeps (Action-FINAL = Keep-Fnl) are in ITEMS,
+   so nothing is filtered out here. */
 
 /* Size Master / Fabric / Price Point come from js/item-attrs.js (Stock Data sheet);
    copy them onto each item so they behave like any other field. */
@@ -1602,7 +1585,7 @@ const COLUMN_LAYOUT = [
   { type:'group', key:'puda', title:'PUDA', short:'PUDA', cols:[
       { field:'PUDA Code', label:'PUDA Code', sortable:true },
       { field:'PUDA Desc', label:'PUDA Desc' } ] },
-  { type:'core', field:'Current Plan Code', label:'Plan', sortable:true },
+  { type:'core', field:'Current Plan Code', label:'CPC', sortable:true },
   { type:'group', key:'price', title:'Pricing', short:'Pricing', cols:[
       { field:'L-Cost (Aed)', label:'L-Cost', fmt:'money2' },
       { field:'Was (Aed)', label:'Was', fmt:'money0' },
@@ -1932,9 +1915,8 @@ function cycleGroup(field){
 // dir:'desc', same as every other sortable column) lands on K-first without
 // needing any field-specific direction flip. P is a newly-added code with no
 // data yet (it may or may not ever appear) — ranked here regardless, so it
-// sorts correctly the moment it does. Anything outside this list (B/O/W/S
-// are dropped entirely on load, see HIDDEN_PLAN_CODES; M isn't ingested at
-// all, see FULL_VALUE_LISTS) sorts after R.
+// sorts correctly the moment it does. Anything outside this list (e.g.
+// B/O/W/S) sorts after R.
 const PLAN_CODE_RANK = { K:9, P:8, C:7, A:6, N:5, H:4, D:3, U:2, R:1 };
 // A few fields are computed rather than stored directly (whsoh/SR Qty/total
 // received), and Vendor Code / Range Name / PUDA Code sort as text rather
@@ -2979,7 +2961,7 @@ function buildDateRangeTable(){
     '<th class="branch-sno"' + (twoRow ? ' rowspan="2"' : '') + '>S.No</th>' + sh('code', 'Item Code') + sh('desc', 'Description') +
     sh('vendor', 'Vendor', 'Vendor Code') + sh('range', 'Range', 'Range Name') +
     classHeader +
-    sh('pudaCode', 'PUDA Code') + sh('pudaDesc', 'PUDA Desc') + sh('plan', 'Plan', null, 'dr-plan') +
+    sh('pudaCode', 'PUDA Code') + sh('pudaDesc', 'PUDA Desc') + sh('plan', 'CPC', null, 'dr-plan') +
     sh('soh', 'SOH', null, 'dr-soh') + sh('wh', 'WH', 'WH SOH', 'dr-wh') + sh('sr', 'SR', 'SR Qty', 'dr-sr') + sh('po', 'PO', 'PO Qty', 'dr-po') +
     sh('sold', 'Sold', 'Sold, this range', 'dr-main3 dr-main3-l') + sh('lrcv', 'LRCV', 'Lrcv Date', 'dr-main3') + sh('received', 'Rcvd', 'Received (GRN), this range', 'dr-main3 dr-main3-r') +
     sh('age', 'Age', 'STK Age') + sh('trend', 'Trend', 'Trend, this range') +
@@ -3353,7 +3335,7 @@ function tripExport(rows){
   const H = tripExportHeading(rows);
   const tag = DASH_CHIP_LABELS.flatMap(([k]) => [].concat(tripScope[k] || [])).join(' ');
   return downloadXlsx('Trip Requirement' + (tag ? ' - ' + tag : '') + '.xlsx', 'Trip Requirement', {
-    title: H.title, subtitle: 'TRIP REQUIREMENT   ·   ' + H.summary + '   ·   Data as of ' + dashDate(DATA_AS_OF),
+    title: H.title, subtitle: 'TRIP REQUIREMENT   ·   ' + H.summary + '   ·   ' + dashAsOfText(),
     header, rows: body, widths, types });
 }
 // PDF export: a styled table only (no filters/KPIs), downloaded straight
@@ -3403,7 +3385,7 @@ async function tripPdf(rows, save = true){
   const lines = doc.splitTextToSize(sentence, maxW).slice(0, 2);
   doc.text(lines, M, lines.length > 1 ? 15 : 17, { lineHeightFactor: 1.25 });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(203, 213, 225);
-  doc.text('Data as of ' + dashDate(DATA_AS_OF), W - M, 8.5, { align: 'right' });
+  doc.text(dashAsOfText(), W - M, 8.5, { align: 'right' });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
   doc.text(fmtInt(S.items) + ' items  ·  ' + fmtInt(S.totalSoh) + ' units on hand' + (S.avgPct == null ? '' : '  ·  ' + Math.round(S.avgPct) + '% avg recovery'), W - M, 16, { align: 'right' });
 
@@ -3473,7 +3455,7 @@ function renderTrip(){
       '<div class="dash-date">Trip Requirement</div>' +
       '<h1 class="dash-greet">Plan your next order</h1>' +
       '<p class="dash-sub">Pick any filters to see those items — stock on hand, units sold since each was last received, and the resulting sell-through.' +
-        (typeof DATA_AS_OF !== 'undefined' ? ' <span class="dash-asof">Data as of ' + escHtml(dashDate(DATA_AS_OF)) + '.</span>' : '') + '</p>' +
+        (typeof DATA_AS_OF !== 'undefined' ? ' <span class="dash-asof">' + escHtml(dashAsOfText()) + '.</span>' : '') + '</p>' +
     '</div>' +
     (rows && rows.length ? '<div class="dash-links">' +
       (hiddenCount ? '<button type="button" id="tripHiddenToggle" class="dash-btn ghost filters-active-btn trip-hidden-toggle">' +
@@ -3747,10 +3729,8 @@ const FILTER_FIELD_MAP = {
 // happens to be in the current sample data — show the full list and grey
 // out codes that aren't present yet, rather than only listing what's loaded.
 const FULL_VALUE_LISTS = {
-  // O / S / W items are dropped on load (see HIDDEN_CATG_CODES), so they're not
-  // offered here either.
-  'Category Code': ['A','F','K'],
-  'Current Plan Code': ['A','C','D','H','K','N','P','R','U'],
+  'Category Code': ['A','F','K','O','S','W'],
+  'Current Plan Code': ['A','B','C','D','H','K','N','O','P','R','S','U','W'],
 };
 // Per-filter display names for coded values. The checkbox value stays the raw
 // code (that's what the item data holds); only the visible label changes.
@@ -3759,6 +3739,9 @@ const FILTER_VALUE_LABELS = {
     A: 'Accessory',
     F: 'Furniture',
     K: 'Kids',
+    O: 'Office Furniture',
+    S: 'Services',
+    W: 'Wall Paper & Window Décor',
   },
 };
 // Filters that get a text box to search within their (often long) option list.

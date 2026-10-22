@@ -130,7 +130,7 @@ function fillPrimaryStats(){
       lookup: 'Search ' + n(ITEMS.length) + ' items',
       trip: n(vendors) + ' vendors',
       podata: n(pos) + ' open',
-      foot: 'Figures as of ' + new Date(DATA_AS_OF + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+      foot: (typeof dashAsOfText === 'function' ? dashAsOfText() : 'Figures as of ' + DATA_AS_OF),
     };
   }
   document.querySelectorAll('#primaryGrid [data-stat]').forEach(el => { el.textContent = primaryStats[el.dataset.stat] || ''; });
