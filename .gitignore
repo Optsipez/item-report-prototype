@@ -6,3 +6,5 @@ Thumbs.db
 
 # graphify local analysis output
 graphify-out/
+__pycache__/
+*.pyc
