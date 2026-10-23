@@ -1,5 +1,5 @@
 /* ============================================================
-   BRANCH-LEVEL MONTHLY SOLD -- from the Sales sheets of "22-Oct (Sales 2026, GRN) + 25-Sep (Sales 2024-25)",
+   BRANCH-LEVEL MONTHLY SOLD -- from the Sales sheets of "2XL Data 22-Oct-26.xlsm (Sales 2024-25 from 25-Sep)",
    per item x branch x year as a 12-slot Jan..Dec array (same shape as an
    item's years[year].sales). Covers ITEMS only. See branchMonthlySold() in app.js.
    ============================================================ */

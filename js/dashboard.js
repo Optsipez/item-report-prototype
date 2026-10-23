@@ -395,7 +395,7 @@ function dashCompute(){
 
   // open purchase orders in scope, grouped by PO
   const asOf = DATA_AS_OF, groups = {};
-  PO_LINES.filter(l => dashLineInScope(l)).forEach(l => {
+  PO_LINES.filter(l => !poCancelled(l[0]) && dashLineInScope(l)).forEach(l => {
     const g = groups[l[0]] = groups[l[0]] || { po: l[0], vendor: l[5], eta: l[4], units: 0, lines: 0, codes: new Set() };
     g.units += l[3]; g.lines++; g.codes.add(l[1]); if(l[4] < g.eta) g.eta = l[4];
   });
@@ -541,7 +541,7 @@ function renderPOPage(poNo){
     const [, code, desc, qty, , , dept, cat] = l;
     const it = DASH_ITEM_BY_CODE[code];
     const puda = it ? it['PUDA Desc'] : '';
-    const plan = it ? dashPlan(it) : '';
+    const plan = l[8] || (it ? dashPlan(it) : '');
     const { fob, cur } = dashFob(it);
     const value = fob * qty;
     totalQty += qty;
@@ -560,12 +560,12 @@ function renderPOPage(poNo){
     '<div class="dash-detail-head"><h3>Items on this PO <span>' + dashInt(lines.length) + ' lines</span></h3>' +
       '<button type="button" class="dash-btn" id="poOpenAll">Open in All Products &rarr;</button></div>' +
     '<div class="po-table-wrap"><table class="dash-table po-sheet"><thead>' +
-      '<tr class="po-grp"><th colspan="6" class="po-ship-end">Shipment</th><th colspan="5">Product</th><th colspan="4">Order</th></tr><tr>' +
-      '<th class="c">Ship Date</th><th class="c">Revised-Ship</th><th class="c">Revised-ETA</th><th class="c">Status</th><th class="c">Port Of Origin</th><th class="c po-ship-end">Discharge Port</th>' +
+      '<tr class="po-grp"><th colspan="5" class="po-ship-end">Shipment</th><th colspan="5">Product</th><th colspan="4">Order</th></tr><tr>' +
+      '<th class="c">Fnl ETD</th><th class="c">Fnl ETA</th><th class="c">Status</th><th class="c">Port Of Origin</th><th class="c po-ship-end">Discharge Port</th>' +
       '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th>CPC</th><th>Order Qty</th><th>Container Size</th><th class="c">Currency</th><th title="Order Qty × Latest FOB Cost">Total</th>' +
     '</tr></thead><tbody>' +
       rowsHtml +
-    '</tbody><tfoot><tr class="po-total-row"><td class="l" colspan="11"><b>' + dashEsc(poNo) + ' Total</b></td><td><b>' + dashInt(totalQty) + '</b></td><td></td>' + dashMoneyCells(totalMoney) + '</tr></tfoot></table></div>';
+    '</tbody><tfoot><tr class="po-total-row"><td class="l" colspan="10"><b>' + dashEsc(poNo) + ' Total</b></td><td><b>' + dashInt(totalQty) + '</b></td><td></td>' + dashMoneyCells(totalMoney) + '</tr></tfoot></table></div>';
   const openAll = document.getElementById('poOpenAll');
   if(openAll) openAll.addEventListener('click', () => openGridFocus(poNo, lines.map(l => l[1]), null));
 }
@@ -594,8 +594,8 @@ const poDataItems = () => poDataItemsCache || (poDataItemsCache = [...new Set(PO
 // calendar as All Products' From/To (parseDMY/formatDMY in app.js).
 const PO_DATE_FIELDS = [
   { key: 'created', label: 'PO Create Date' },
-  { key: 'etd',     label: 'Revised ETD' },
-  { key: 'eta',     label: 'ETA' },
+  { key: 'etd',     label: 'Fnl ETD' },
+  { key: 'eta',     label: 'Fnl ETA' },
 ];
 const poDataDates = { created: null, etd: null, eta: null };
 let poDateDir = 'back';   // 'back' (on or before) | 'fwd' (on or after)
@@ -604,7 +604,7 @@ const poDatesSet = () => PO_DATE_FIELDS.some(f => poDataDates[f.key]);
 // revised ship date when there is one, otherwise the original ship date.
 function poDateValue(key, po, eta){
   if(key === 'created') return PO_CREATED[po] || null;
-  if(key === 'etd'){ const s = PO_SHIP[po] || []; return s[1] || s[0] || null; }
+  if(key === 'etd') return (PO_SHIP[po] || [])[0] || null;
   return eta || null;
 }
 function poDatesMatch(po, eta){
@@ -671,12 +671,15 @@ function poWireDateBar(root){
   });
 }
 // Shipment status order, from the buying team's status key.
-const PO_STATUS_ORDER = ['GRN Pending', 'At Port', 'In Transit', 'Released', 'Under Process', 'Pending', 'Local Order', 'Hold', 'Cancelled'];
+// SetUp sheet order (its 0.1, 0.2 ... series).
+const PO_STATUS_ORDER = ['GRN Pending', 'At Port', 'Released', 'In Transit', 'Pending', 'Hold', 'Cancelled'];
+// Cancelled POs stay listed (PO Data, PO page) but are not open orders.
+const poCancelled = po => (PO_SHIP[po] || [])[2] === 'Cancelled';
 // Sort for PO Data: null (Vendor then PO No) or { key: 'created'|'eta'|'etd'|'status', dir: 1|-1 }.
 // Clicking a sortable header cycles ascending -> descending -> off.
 let poDataSort = null;
-// Per-PO shipment fields (PO_SHIP in po-data.js). ETD = Revised Ship Date
-// when the PO was revised, otherwise the original Ship Date.
+// Per-PO shipment fields (PO_SHIP in po-data.js): ship = Fnl ETD (logistics
+// New ETD, else Revised Ship Date, else Ship Date), status = logistics status.
 function poShipInfo(po){
   const s = PO_SHIP[po] || [];
   return { ship: s[0] || null, revShip: s[1] || null, status: s[2] || null, territory: s[3] || null, container: s[4] || null, origin: s[5] || null, discharge: s[6] || null };
@@ -684,11 +687,11 @@ function poShipInfo(po){
 // The 6 merged shipment cells, shared by the PO detail and PO Data pages.
 function poShipCells(g, rowspan){
   const d = v => v ? dashDate(v) : '—', t = v => v ? dashEsc(v) : '—';
-  return [d(g.ship), d(poEtd(g)), d(g.eta), t(g.status), t(g.origin), t(g.discharge)]
+  return [d(g.ship), d(g.eta), t(g.status), t(g.origin), t(g.discharge)]
     .map((v, i, arr) => '<td class="po-ship' + (i === arr.length - 1 ? ' po-ship-end' : '') + '" rowspan="' + rowspan + '">' + v + '</td>').join('');
 }
 const poContainerCell = (g, rowspan) => '<td class="po-ship c" rowspan="' + rowspan + '">' + (g.container ? dashEsc(g.container) : '—') + '</td>';
-const poEtd = g => g.revShip || g.ship || null;
+const poEtd = g => g.ship || null;   // PO_SHIP[0] is already the Fnl ETD
 function poSortValue(g, key){
   if(key === 'eta') return g.eta || null;
   if(key === 'created') return g.created || null;
@@ -757,7 +760,7 @@ function renderPOData(){
         const [, code, desc, qty] = l;
         const it = DASH_ITEM_BY_CODE[code];
         const puda = it ? it['PUDA Desc'] : '';
-        const plan = it ? dashPlan(it) : '';
+        const plan = l[8] || (it ? dashPlan(it) : '');
         const range = it ? it['Range Name'] : '';
         const cat = l[7], dept = l[6];
         const fob = it ? Number(it['Latest FOB Cost']) || 0 : 0;
@@ -788,17 +791,17 @@ function renderPOData(){
       vendorQty += poQty;
       // Territory and Vendor are both covered by active rowspans from
       // above -- this row's own cells start at PO Create Date.
-      bodyHtml += '<tr class="po-total-row"><td class="l" colspan="14"><b>' + dashEsc(po) + ' Total</b></td><td><b>' + dashInt(poQty) + '</b></td><td></td>' + dashMoneyCells(poMoney) + '</tr>';
+      bodyHtml += '<tr class="po-total-row"><td class="l" colspan="13"><b>' + dashEsc(po) + ' Total</b></td><td><b>' + dashInt(poQty) + '</b></td><td></td>' + dashMoneyCells(poMoney) + '</tr>';
     });
     grandQty += vendorQty;
     const vendorLabel = dashEsc(vendor) + (showVendor ? ' — ' + dashEsc(vname(vendor)) : '');
     // Vendor's own rowspan has ended by here, but Territory's table-wide
     // one hasn't -- this row's own cells still start at Vendor.
-    bodyHtml += '<tr class="vendor-total-row"><td class="l" colspan="15"><b>' + vendorLabel + ' · Total</b></td><td><b>' + dashInt(vendorQty) + '</b></td><td></td>' + dashMoneyCells(vendorMoney) + '</tr>';
+    bodyHtml += '<tr class="vendor-total-row"><td class="l" colspan="14"><b>' + vendorLabel + ' · Total</b></td><td><b>' + dashInt(vendorQty) + '</b></td><td></td>' + dashMoneyCells(vendorMoney) + '</tr>';
   });
   // Territory's rowspan reaches all the way down to here too, so this
   // row's own span starts one column later than it would otherwise.
-  const grandTotalRow = '<tr class="grand-total-row"><td class="l" colspan="15"><b>Grand Total</b></td><td><b>' + dashInt(grandQty) + '</b></td><td></td>' + dashMoneyCells(grandMoney) + '</tr>';
+  const grandTotalRow = '<tr class="grand-total-row"><td class="l" colspan="14"><b>Grand Total</b></td><td><b>' + dashInt(grandQty) + '</b></td><td></td>' + dashMoneyCells(grandMoney) + '</tr>';
 
   const sortTh = (key, label, tip) => {
     const on = s && s.key === key;
@@ -819,9 +822,9 @@ function renderPOData(){
     '</div>' +
     (lines.length ? '' : '<p class="dash-empty">No open PO lines match these filters and dates.</p>') +
     (!lines.length ? '' : '<div class="dash-table-scroll podata-scroll"><table class="dash-table po-sheet"><thead>' +
-      '<tr class="po-grp"><th colspan="4">Purchase Order</th><th colspan="6" class="po-ship-end">Shipment</th><th colspan="6">Product</th><th colspan="4">Order</th></tr><tr>' +
+      '<tr class="po-grp"><th colspan="4">Purchase Order</th><th colspan="5" class="po-ship-end">Shipment</th><th colspan="6">Product</th><th colspan="4">Order</th></tr><tr>' +
       '<th class="c terr">Territory</th><th class="l">Vendor</th>' + sortTh('created', 'PO Create Date', 'PO creation date') + '<th class="l">PO No</th>' +
-      '<th class="c">Ship Date</th>' + sortTh('etd', 'Revised-Ship', 'Revised ETD, or the original Ship Date when there is no revision') + sortTh('eta', 'Revised-ETA', 'ETA') +
+      sortTh('etd', 'Fnl ETD', 'Logistics New ETD, else Revised Ship Date, else Ship Date') + sortTh('eta', 'Fnl ETA', 'Logistics New ETA, else Arrival Date') +
       sortTh('status', 'Status', 'In order: ' + PO_STATUS_ORDER.join(', ')) + '<th class="c">Port Of Origin</th><th class="c po-ship-end">Discharge Port</th>' +
       '<th class="l item">Item</th><th class="l">Category</th><th class="l">Department</th><th class="l">PUDA</th><th class="l">Range Name</th><th>CPC</th><th>Order Qty</th><th>Container Size</th><th class="c">Currency</th><th title="Order Qty × Latest FOB Cost">Total</th>' +
     '</tr></thead><tbody>' + bodyHtml + grandTotalRow + '</tbody></table></div>');

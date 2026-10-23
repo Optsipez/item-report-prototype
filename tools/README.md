@@ -46,6 +46,27 @@ The sales date becomes `SALES_AS_OF`. The app shows it separately from the stock
 
 `merge_pkl.py` stops with an error if a sheet you name is empty, so an empty sheet can't silently wipe history.
 
+**Lrcv Date / Qty** (replaces U-Lrcv). Each step applies only if the one before found nothing:
+1. **CPC N:** `New Launch`, qty 0.
+2. **GRN:** the latest day an item was received (all that day's lines added up). If that day is under 5 pieces, use the latest day with 5 or more. If no day has 5, use the latest day.
+3. **No GRN record:** the first of IT's U-Last Purchase Date, U-Last Purchase Date Old, U-First Transfer Date and U-Last Transfer Date. The qty is the item's current SOH, set by the app.
+4. **Nothing at all:** 01-01-2015.
+
+`Lrcv Src` records the source. The app colours steps 3 and 4 (`lrcv-est`), since those dates aren't real GRN receipts.
+
+**POs** (`pologic.py`, the PO Data sheet's formulas) are rebuilt when the sales cache also has **PO Data, Logistics Status and SetUp**. Otherwise `js/po-data.js` is kept as it is.
+- **Status:** the Logistics Status entry (PO numbers cleaned of split-shipment suffixes like PO-20453-2), mapped through SetUp D:G (Under Proces / Short Ship / Next Booking → Pending; no entry → Pending).
+- **Fnl ETD:** logistics' New ETD, else Revised Ship Date, else Ship Date.
+- **Fnl ETA:** logistics' New ETA, else Arrival Date.
+- **CPC:** the corrected stock CPC, else the PO's own.
+
+Checked against all 4,185 lines of the 22-Oct workbook: identical, except 7 lines whose CPC is deliberately the corrected one (N → A). Cancelled POs stay listed, but don't count as open PO quantity. The PO date is the last (10th) argument.
+
+```sh
+python tools/merge_pkl.py /tmp/sales.pkl "Sales 2024=/tmp/x25.pkl" "Sales 2025=/tmp/x25.pkl" "Sales 2026=/tmp/x22.pkl" "GRN Data=/tmp/x22.pkl" "PO Data=/tmp/x22.pkl" "Logistics Status=/tmp/x22.pkl" "SetUp=/tmp/x22.pkl"
+python tools/stock_import.py /tmp/x22.pkl "Raw - Stock Data" /tmp/sales.pkl js /tmp/out 2026-10-22 "2XL Data 22-Oct-26.xlsm" "2XL Data 22-Oct-26.xlsm (Sales 2024-25 from 25-Sep)" 2026-10-22 2026-10-22
+```
+
 It prints the counts: kept, dropped, sales-only, and the Action-3 breakdown. Compare them with the workbook's own pivot.
 
 **Note:** `build_js.py` (below) predates this. It rewrites `data.js` from the *current* items, so for a sales or PO refresh run `stock_import.py` again with the new sales workbook rather than `build_js.py`'s data.js. `build_js.py` is still the way to rebuild `po-data.js` / `lead-times.js`.

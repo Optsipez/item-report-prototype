@@ -584,15 +584,24 @@ ITEMS.forEach(it => {
   const age = stkAgeFor(it);
   it['STK Age'] = age.label;
   it['__stkAgeSno'] = age.sno;
+  if(lrcvEstimated(it)) it['Lrcv Qty'] = it['SOH'];
 });
 /* SOH (and SM, which is derived from it) are cached on the item rather than
    recomputed on every read — but SOH now moves with the SR Qty Oman toggle,
    so that cache goes stale the moment the toggle flips. Call this right
    after flipping srQtyInclOman, before re-rendering anything that shows
    SOH/SM (the grid, and the Item Lookup metrics band). */
+/* Lrcv Date/Qty not taken from a GRN receipt (tools/stock_import.py: Lrcv Src
+   is one of IT's purchase/transfer dates or the 2015 default) -- shown in a
+   different colour, and their Lrcv Qty is the item's current SOH. */
+function lrcvEstimated(it){ const s = it['Lrcv Src']; return !!s && s !== 'GRN' && s !== 'New Launch'; }
+const lrcvTip = it => 'Not from GRN — date from ' + (it['Lrcv Src'] === 'Default 2015' ? 'the 01-Jan-2015 default (no date anywhere)' : 'IT’s ' + it['Lrcv Src']) + '; Lrcv Qty = current SOH';
+const lrcvCls = it => lrcvEstimated(it) ? ' lrcv-est' : '';
+const lrcvTitle = it => lrcvEstimated(it) ? ' title="' + escHtml(lrcvTip(it)) + '"' : '';
 function refreshSohDependents(){
   ITEMS.forEach(it => {
     it['SOH'] = sohValue(it);
+    if(lrcvEstimated(it)) it['Lrcv Qty'] = it['SOH'];
     it['SM'] = monthsOfCover(Number(it['SOH']) || 0, it['AVG']);
   });
 }
@@ -1474,6 +1483,7 @@ function renderReport(item){
   document.getElementById('mPoQty').textContent = fmtInt(item['PO-Qty']);
   document.getElementById('mLrcvQty').textContent = fmtInt(item['Lrcv Qty']);
   document.getElementById('mLrcvDate').textContent = fmtLrcvDate(item['Lrcv Date']);
+  ['mLrcvQty', 'mLrcvDate'].forEach(id => { const el = document.getElementById(id); el.classList.toggle('lrcv-est', lrcvEstimated(item)); el.title = lrcvEstimated(item) ? lrcvTip(item) : ''; });
   document.getElementById('mLastSold').textContent = fmtLastSoldDate(item['Last Sold Date']) + ' (' + item['Last Sold Qty'] + ')';
 
   document.getElementById('mFirstFob').textContent = fmtMoney(item['First FOB']);
@@ -2464,6 +2474,7 @@ function buildGridBody(items, cols, pageStart){
           if(col.field === 'SOH') td.classList.add('soh-cell');
           if(col.field === 'PO-Qty') td.classList.add('poqty-cell');
           if(col.field === 'Current Plan Code') td.classList.add('plan-cell');
+          if((col.field === 'Lrcv Date' || col.field === 'Lrcv Qty') && lrcvEstimated(item)){ td.classList.add('lrcv-est'); td.title = lrcvTip(item); }
           if(col.field === 'Item Code'){
             // Only this cell has these handlers — everywhere else in the row
             // stays plain text so values can be selected and copied.
@@ -2491,6 +2502,7 @@ function buildGridBody(items, cols, pageStart){
           td.textContent = fmtCell(item[col.field], col.fmt);
           if(col.field === 'L-Cost (Aed)') td.classList.add('cell-lcost');
           else if(col.field === 'Now (Aed)') td.classList.add('cell-now');
+          else if((col.field === 'Lrcv Date' || col.field === 'Lrcv Qty') && lrcvEstimated(item)){ td.classList.add('lrcv-est'); td.title = lrcvTip(item); }
         }
       }
       tr.appendChild(td);
@@ -2992,7 +3004,7 @@ function buildDateRangeTable(){
       '<td class="dr-sr">' + fmtInt(srQtyValue(it)) + '</td>' +
       '<td class="dr-po">' + fmtInt(it['PO-Qty']) + '</td>' +
       '<td class="dr-main3 dr-main3-l' + last + '">' + fmtInt(s3) + '</td>' +
-      '<td class="dr-main3' + last + '">' + fmtLrcvDate(it['Lrcv Date']) + '</td>' +
+      '<td class="dr-main3' + last + lrcvCls(it) + '"' + lrcvTitle(it) + '>' + fmtLrcvDate(it['Lrcv Date']) + '</td>' +
       '<td class="dr-main3 dr-main3-r' + last + '">' + fmtInt(r3) + '</td>' +
       '<td>' + escHtml(age.label) + '</td>' +
       '<td>' + miniVBar(sohNow, s3, trendTitle, 'No stock or sales activity over this range') + '</td>' +
@@ -3195,7 +3207,7 @@ function renderTripTable(rows){
       '<td>' + (pctOfLrcv == null ? '—' : Math.round(pctOfLrcv) + '%') + '</td>' +
       '<td>' + fmtPct(it['Disct%']) + '</td>' +
       '<td>' + mrg + '</td>' +
-      '<td>' + fmtLrcvDate(it['Lrcv Date']) + '</td>' +
+      '<td class="' + lrcvCls(it).trim() + '"' + lrcvTitle(it) + '>' + fmtLrcvDate(it['Lrcv Date']) + '</td>' +
       '</tr>';
   }).join('');
   return '<div class="dr-wrap trip-wrap"><table class="matrix dr-table"><thead><tr>' + cols + '</tr></thead><tbody>' + body + '</tbody></table></div>';

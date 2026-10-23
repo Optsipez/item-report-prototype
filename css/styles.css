@@ -1790,6 +1790,9 @@ table.grid thead tr.group-row th.core.navstock-head:not(.sorted){background:var(
 /* PO Qty -- green, a hue no other column uses (royal is Now (Aed), sky is AVG, red is L-Cost). */
 table.grid tbody tr.row-item td.poqty-cell{background:var(--po-bg);color:var(--po);font-weight:600;}
 table.grid tbody tr.row-item td.poqty-cell.zero{color:var(--ink-faint);}
+/* Lrcv Date / Qty not taken from a GRN receipt (fallback purchase/transfer date,
+   or the 2015 default) -- one standard colour everywhere they show. */
+table.grid tbody tr.row-item td.lrcv-est,.dr-wrap table.matrix td.lrcv-est,.metric-row .v.lrcv-est{background:var(--warn-bg);color:var(--warn);font-style:italic;font-weight:600;}
 table.grid thead tr.group-row th.core.poqty-head:not(.sorted){background:var(--po-bg);color:var(--po);}
 
 /* Plan Code — a yellow-brown accent, distinct from the primary gold used for

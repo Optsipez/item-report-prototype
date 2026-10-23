@@ -123,7 +123,7 @@ function fillPrimaryStats(){
     const n = v => v.toLocaleString('en-US');
     const vendors = new Set(ITEMS.map(i => i['Vendor Code'])).size;
     const pos = new Set(PO_LINES.map(l => l[0])).size;
-    const late = new Set(PO_LINES.filter(l => l[4] < DATA_AS_OF).map(l => l[0])).size;
+    const late = new Set(PO_LINES.filter(l => l[4] < DATA_AS_OF && (PO_SHIP[l[0]] || [])[2] !== 'Cancelled').map(l => l[0])).size;
     primaryStats = {
       dashboard: n(late) + ' late POs to follow up',
       products: n(ITEMS.length) + ' items',

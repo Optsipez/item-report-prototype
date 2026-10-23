@@ -1,5 +1,5 @@
 /* ============================================================
-   SALES VALUES -- from the Sales sheets of "22-Oct (Sales 2026, GRN) + 25-Sep (Sales 2024-25)", for every
+   SALES VALUES -- from the Sales sheets of "2XL Data 22-Oct-26.xlsm (Sales 2024-25 from 25-Sep)", for every
    item that sold (ITEMS and SALES_ONLY_ITEMS). Per item, one row per
    (month, discount band, consignment) group of sales lines:
    [monthIdx, band, cons, qty, cost, rsp, net, disc]
