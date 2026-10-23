@@ -8,7 +8,7 @@ columns). Sales are kept for every item: items the stock logic drops go to
 SALES_ONLY_ITEMS (attributes + monthly sales) so sales totals stay complete.
 
 usage: stock_import.py <stock.pkl> <stock sheet> <sales.pkl> <js dir> <out dir>
-                       <stock as-of YYYY-MM-DD> <stock source name> <sales source name>
+                       <stock as-of YYYY-MM-DD> <stock source name> <sales source name> <sales as-of YYYY-MM-DD>
   stock.pkl / sales.pkl: workbooks cached by dump.py. The sales workbook gives
   the Sales, GRN sheets (sales history, Lrcv Qty); PO quantities come from the
   current js/po-data.js. See README.md."""
@@ -18,7 +18,7 @@ from stocklogic import evaluate, t, n
 from derive import derive, MON
 from salesval import sales_values
 
-STOCK_PKL, SHEET, SALES_PKL, SRC, OUT, ASOF, STOCK_NAME, SALES_NAME = sys.argv[1:9]
+STOCK_PKL, SHEET, SALES_PKL, SRC, OUT, ASOF, STOCK_NAME, SALES_NAME, SALES_ASOF = sys.argv[1:10]
 dump = lambda v: json.dumps(v, separators=(',', ':'), ensure_ascii=False)
 def as_num(v):
     if isinstance(v, bool): return int(v)
@@ -172,10 +172,12 @@ w('sales-values.js', '/* =======================================================
   '   (the discount it actually sold at; RSP 0 = No Price). cons = 1 when the\n'
   '   line\'s Cons. Status is Yes. cost = Tot Sales Cost (COGS), rsp = Tot RSP,\n'
   '   net = Tot NET (after discount, before VAT), disc = Tot Discount Amount.\n'
-  '   SALES_LAST_MONTH: monthIdx of the latest month on file.\n'
+  '   SALES_LAST_MONTH: monthIdx of the latest month on file; SALES_AS_OF: the\n'
+  '   date the sales run to (that month may be partial).\n'
   '   CONS_ITEMS: ITEMS whose stock Cons. Status is Yes (stock side).\n'
   '   ============================================================ */\n'
   'const SALES_LAST_MONTH = ' + str(last_month) + ';\n'
+  "const SALES_AS_OF = '" + SALES_ASOF + "';\n"
   'const CONS_ITEMS = new Set(' + dump(cons_items) + ');\n'
   'const SALES_VALUES = ' + dump(sv) + ';\n')
 print('raw items', len(raw), '| kept', len(items), '| dropped', len(dropped), '| sales-only', len(sales_only),

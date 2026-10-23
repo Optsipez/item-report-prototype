@@ -84,7 +84,9 @@ function dashDate(iso){
 }
 const dashAsOf = () => new Date(DATA_AS_OF + 'T00:00:00');
 // Stock and sales/PO can come from different exports -- say both.
-const dashAsOfText = () => STOCK_AS_OF === DATA_AS_OF ? 'Data as of ' + dashDate(DATA_AS_OF) : 'Stock as of ' + dashDate(STOCK_AS_OF) + ' · sales & POs to ' + dashDate(DATA_AS_OF);
+const dashAsOfText = () => STOCK_AS_OF === DATA_AS_OF && SALES_AS_OF === DATA_AS_OF ? 'Data as of ' + dashDate(DATA_AS_OF)
+  : SALES_AS_OF === STOCK_AS_OF ? 'Stock & sales as of ' + dashDate(STOCK_AS_OF) + ' · POs to ' + dashDate(DATA_AS_OF)
+  : 'Stock as of ' + dashDate(STOCK_AS_OF) + ' · sales to ' + dashDate(SALES_AS_OF) + ' · POs to ' + dashDate(DATA_AS_OF);
 const dashLink = code => 'href="#item=' + encodeURIComponent(code) + '"';
 const dashPOLink = po => 'href="#po=' + encodeURIComponent(po) + '"';
 
@@ -988,7 +990,7 @@ function dashBandPeriodBar(B){
   const months = (sel, id) => '<select id="' + id + '">' + Array.from({ length: SALES_LAST_MONTH + 1 }, (_, i) => '<option value="' + i + '"' + (i === sel ? ' selected' : '') + '>' + dashMonthLabel(i) + '</option>').join('') + '</select>';
   return '<div class="band-period"><label>Sales period<select id="dashBandMode">' + opt('3', 'Last 3 months') + opt('6', 'Last 6 months') + opt('9', 'Last 9 months') + opt('12', 'Last 12 months') + opt('all', 'All on record') + opt('custom', 'Custom…') + '</select></label>' +
     (dashBandPeriod.mode === 'custom' ? '<label>From' + months(B.from, 'dashBandFrom') + '</label><label>To' + months(B.to, 'dashBandTo') + '</label>' : '') +
-    '<span class="band-period-note">' + dashEsc(dashMonthLabel(B.from) + ' – ' + dashMonthLabel(B.to)) + (B.to === SALES_LAST_MONTH ? ' (sales to ' + dashEsc(dashDate(DATA_AS_OF)) + ')' : '') + '</span></div>';
+    '<span class="band-period-note">' + dashEsc(dashMonthLabel(B.from) + ' – ' + dashMonthLabel(B.to)) + (B.to === SALES_LAST_MONTH ? ' (sales to ' + dashEsc(dashDate(SALES_AS_OF)) + ')' : '') + '</span></div>';
 }
 function dashBandTables(){
   const B = dashBanding(), T = B.total, per = dashMonthLabel(B.from) + ' – ' + dashMonthLabel(B.to);
@@ -1040,7 +1042,7 @@ function dashSalesByTable(){
   const list = Object.values(rows).sort((a, b) => b.cost - a.cost || a.k.localeCompare(b.k));
   list.forEach(r => { for(const f in T) T[f] += r[f]; });
   const seg = Object.entries(DASH_SALES_BY).map(([id, [l]]) => '<button type="button" data-by="' + id + '" class="' + (id === dashSalesBy ? 'on' : '') + '">By ' + l + '</button>').join('');
-  const note = month > SALES_LAST_MONTH ? '<p class="dash-note">No ' + dashEsc(monthName) + ' sales on file yet — sales data runs to ' + dashEsc(dashDate(DATA_AS_OF)) + '.</p>' : '';
+  const note = month > SALES_LAST_MONTH ? '<p class="dash-note">No ' + dashEsc(monthName) + ' sales on file yet — sales data runs to ' + dashEsc(dashDate(SALES_AS_OF)) + '.</p>' : '';
   const cells = r => '<td>' + dashInt(r.units) + '</td><td>' + dashAed(r.cost) + '</td><td class="band-split">' + dashInt(r.sUnits) + '</td><td>' + dashAed(r.net) + '</td>';
   return '<section class="dash-card wide tone-pos dash-bands"><h3>Sales by Category, by Department, by CPC <span>stock today · sales ' + dashEsc(monthName) + '</span></h3>' +
     '<div class="band-period"><div class="dash-seg" id="dashSalesBySeg">' + seg + '</div></div>' + note +
