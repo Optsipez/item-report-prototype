@@ -21,14 +21,14 @@ Excel's quirks are kept on purpose; for example, the projects/reserve bucket tak
 - **PO-Qty:** the total from the current `js/po-data.js`.
 - **Sales:** taken from the sales workbook for **every** item. Items the stock rules drop still sell, so they go to `SALES_ONLY_ITEMS` (`sales-only.js`): attributes plus monthly sales. Dashboard sales figures add them in; stock figures don't.
 
-It writes `data.js`, `item-attrs.js`, `branch-monthly.js`, `sales-values.js` and `sales-only.js`. `po-data.js` and `lead-times.js` are left alone.
+It writes `data.js`, `item-attrs.js`, `branch-monthly.js`, `sales-values.js`, `sales-only.js` and `lead-times.js` (from GRN). `po-data.js` is left alone. GRN: the header row is found automatically (the 22-Oct sheet has a stale header in row 1) and the quantity is "Posted Quantity" (or "Quantity" in older files). "Actual P.O Qty" equals Posted Quantity on every 2024+ row and is not used.
 
 ```sh
 python tools/dump.py "../2XL Data 22-Oct-26.xlsm" /tmp/x22.pkl     # newest workbook
 python tools/dump.py "../2XL Data 25-Sep-26.xlsm" /tmp/x25.pkl     # older one (has Sales 2024/2025)
 # one sales source: sheets can come from different workbooks (22-Oct's Sales 2024/2025 are empty)
-python tools/merge_pkl.py /tmp/sales.pkl "Sales 2024=/tmp/x25.pkl" "Sales 2025=/tmp/x25.pkl" "Sales 2026=/tmp/x22.pkl" "GRN Data=/tmp/x25.pkl" "PO Data=/tmp/x25.pkl"
-python tools/stock_import.py /tmp/x22.pkl "Raw - Stock Data" /tmp/sales.pkl js /tmp/out 2026-10-22 "2XL Data 22-Oct-26.xlsm" "22-Oct (Sales 2026) + 25-Sep (Sales 2024-25, GRN)" 2026-10-22
+python tools/merge_pkl.py /tmp/sales.pkl "Sales 2024=/tmp/x25.pkl" "Sales 2025=/tmp/x25.pkl" "Sales 2026=/tmp/x22.pkl" "GRN Data=/tmp/x22.pkl" "PO Data=/tmp/x25.pkl"
+python tools/stock_import.py /tmp/x22.pkl "Raw - Stock Data" /tmp/sales.pkl js /tmp/out 2026-10-22 "2XL Data 22-Oct-26.xlsm" "22-Oct (Sales 2026, GRN) + 25-Sep (Sales 2024-25)" 2026-10-22
 cp /tmp/out/*.js js/
 ```
 

@@ -10,9 +10,20 @@ def num(v):
     except: return 0.0
 def iso(v): return v.strftime('%Y-%m-%d') if isinstance(v, (datetime.datetime, datetime.date)) else None
 
+HEADER_KEYS = ('SKU', 'Item No', 'PO No', 'Item Code')
 def sheet(D, name):
-    rows = D[name]; hdr = [s(h) for h in rows[0]]
-    return {h: i for i, h in enumerate(hdr)}, rows[1:]
+    """(column index by header, data rows). The header is the LAST of the first
+    5 rows that names a key column -- the 22-Oct GRN sheet has a stale header
+    in row 1 (different column order) above the real one in row 3."""
+    rows = D[name]
+    h = max((i for i, r in enumerate(rows[:5]) if any(s(x) in HEADER_KEYS for x in r)), default=0)
+    ix = {}
+    for i, x in enumerate(s(v) for v in rows[h]):
+        if x and x not in ix: ix[x] = i
+    return ix, rows[h + 1:]
+def qty_col(ix):
+    """GRN received quantity: "Quantity" (to 25-Sep), "Posted Quantity" (22-Oct on)."""
+    return ix['Posted Quantity'] if 'Posted Quantity' in ix else ix['Quantity']
 
 def derive(D, item_codes, vendor_of, retail_stores):
     R = {}
@@ -28,13 +39,13 @@ def derive(D, item_codes, vendor_of, retail_stores):
             pm[c][yy][m] += q
             br[c][s(r[ix['Store No']])][yy][m] += q
     # ---- GRN ----
-    ix, rows = sheet(D, 'GRN Data')
+    ix, rows = sheet(D, 'GRN Data'); qc = qty_col(ix)
     g = collections.defaultdict(lambda: collections.defaultdict(lambda: [0.0]*12))
     lastg = {}; leads = collections.defaultdict(list)
     for r in rows:
         c = s(r[ix['SKU']]); d = r[ix['GRN DATE']]
         if not c or not isinstance(d, (datetime.datetime, datetime.date)): continue
-        q = num(r[ix['Quantity']])
+        q = num(r[qc])
         if c in item_codes: g[c][str(d.year)][d.month - 1] += q
         k = iso(d)
         if c not in lastg or k > lastg[c][0]: lastg[c] = [k, q]

@@ -15,7 +15,7 @@ usage: stock_import.py <stock.pkl> <stock sheet> <sales.pkl> <js dir> <out dir>
 import sys, os, json, pickle, re, datetime, collections
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stocklogic import evaluate, t, n
-from derive import derive, MON
+from derive import derive, MON, sheet, qty_col
 from salesval import sales_values
 
 STOCK_PKL, SHEET, SALES_PKL, SRC, OUT, ASOF, STOCK_NAME, SALES_NAME, SALES_ASOF = sys.argv[1:10]
@@ -40,10 +40,9 @@ for l in po_lines: po_qty[l[1]] += l[3]
 
 # ---- GRN quantity per item per day, for Lrcv Qty ----
 SA = pickle.load(open(SALES_PKL, 'rb'))
-g = SA['GRN Data']; gh = next(i for i, r in enumerate(g[:5]) if 'SKU' in [t(x) for x in r])
-gix = {t(h): i for i, h in enumerate(g[gh])}; qcol = gix.get('Posted Quantity', gix.get('Quantity'))
+gix, grows = sheet(SA, 'GRN Data'); qcol = qty_col(gix)
 grn_day = collections.defaultdict(float)
-for r in g[gh + 1:]:
+for r in grows:
     d = r[gix['GRN DATE']]
     if isinstance(d, (datetime.datetime, datetime.date)): grn_day[(t(r[gix['SKU']]), d.strftime('%d-%m-%Y'))] += n(r[qcol])
 
@@ -99,7 +98,7 @@ for y in ('2024', '2025', '2026'):
                              'PUDA Desc': t(r[six['PUDA Desc']]), 'Range Name': t(r[six['Range Name']]), 'Vendor Code': t(r[six['Vendor Code']]),
                              'Current Plan Code': t(r[six['Current Plan Code']])}
 only_codes = sales_codes - kept
-vend_all = {it['Item Code']: it['Vendor Code'] for it in items}
+vend_all = {t(r['Item Code']): t(r.get('Vendor Code')) for r in raw}   # lead times use every item's receipts
 retail = {'ALNML', 'BRSHA', 'DALMA', 'GALER', 'JUMRA', 'MARIN', 'PARKC', 'RAKMA', 'REGUS', 'ZAHIA'}
 R = derive(SA, kept | only_codes, vend_all, retail)
 for it in items:
@@ -180,5 +179,16 @@ w('sales-values.js', '/* =======================================================
   "const SALES_AS_OF = '" + SALES_ASOF + "';\n"
   'const CONS_ITEMS = new Set(' + dump(cons_items) + ');\n'
   'const SALES_VALUES = ' + dump(sv) + ';\n')
+lt = R['lead_times']
+w('lead-times.js', '/* ============================================================\n'
+  '   SUPPLIER LEAD TIMES -- from the GRN Data sheet of "' + SALES_NAME + '": for\n'
+  '   every receipt 7-400 days after its order date, days from order to GRN,\n'
+  '   median per vendor (vendor = each SKU\'s Vendor Code in the raw stock, all\n'
+  '   items, kept or not). vendors: { VendorCode: [median days, receipts measured] }.\n'
+  '   overall: median across every receipt, used when a vendor has too few\n'
+  '   (under MIN_LEAD_RECEIPTS) to trust. See dashboard.js.\n'
+  '   ============================================================ */\n'
+  'const LEAD_TIMES = { overall: ' + str(lt['overall']) + ', MIN_LEAD_RECEIPTS: 3, vendors: ' + dump(lt['vendors']) + ' };\n')
+print('lead-time vendors', len(lt['vendors']), 'overall', lt['overall'])
 print('raw items', len(raw), '| kept', len(items), '| dropped', len(dropped), '| sales-only', len(sales_only),
       '| Action-3', dict(outcomes.most_common()), '| sales last month', last_month)
