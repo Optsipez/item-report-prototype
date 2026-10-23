@@ -75,13 +75,15 @@ grn_days = collections.defaultdict(lambda: collections.defaultdict(float))
 for r in grows:
     d = r[gix['GRN DATE']]
     if isinstance(d, (datetime.datetime, datetime.date)): grn_days[t(r[gix['SKU']])][d.date() if isinstance(d, datetime.datetime) else d] += n(r[qcol])
-LRCV_FALLBACK = ('U-Last Purchase Date', 'U-Last Purchase Date Old', 'U-First Transfer Date', 'U-Last Transfer Date')
+# Not the transfer dates: a recent transfer would look like a fresh receipt and break the ageing.
+LRCV_FALLBACK = ('U-Last Purchase Date', 'U-Last Purchase Date Old')
 def last_receipt(code, r, cpc):
     """Lrcv Date, Lrcv Qty, source. 1) CPC N -> New Launch, 0. 2) GRN: the
     latest day (all that day's lines added up); if under 5 pieces, the latest
-    day with 5 or more; if no day has 5, the latest. 3) No GRN: the first of
-    IT's U-Last Purchase / Old / First Transfer / Last Transfer dates, qty =
-    the item's current SOH (filled in by the app, so None here). 4) 01-01-2015."""
+    day with 5 or more; if no day has 5, the latest. 3) No GRN: IT's U-Last
+    Purchase Date, else U-Last Purchase Date Old (never the transfer dates),
+    qty = the item's current SOH (filled in by the app, so None here).
+    4) 01-01-2015, qty = SOH."""
     if cpc == 'N': return 'New Launch', 0, 'New Launch'
     days = grn_days.get(code)
     if days:

@@ -49,8 +49,8 @@ The sales date becomes `SALES_AS_OF`. The app shows it separately from the stock
 **Lrcv Date / Qty** (replaces U-Lrcv). Each step applies only if the one before found nothing:
 1. **CPC N:** `New Launch`, qty 0.
 2. **GRN:** the latest day an item was received (all that day's lines added up). If that day is under 5 pieces, use the latest day with 5 or more. If no day has 5, use the latest day.
-3. **No GRN record:** the first of IT's U-Last Purchase Date, U-Last Purchase Date Old, U-First Transfer Date and U-Last Transfer Date. The qty is the item's current SOH, set by the app.
-4. **Nothing at all:** 01-01-2015.
+3. **No GRN record:** IT's U-Last Purchase Date, else U-Last Purchase Date Old. The transfer dates are never used, because a recent transfer would look like a fresh receipt and break the ageing. The qty is the item's current SOH, set by the app.
+4. **Nothing at all:** 01-01-2015, qty = SOH.
 
 `Lrcv Src` records the source. The app colours steps 3 and 4 (`lrcv-est`), since those dates aren't real GRN receipts.
 
