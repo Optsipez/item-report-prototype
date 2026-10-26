@@ -27,6 +27,15 @@ function lifestyleLabel(code){
    items the Stock SetUp logic keeps (Action-FINAL = Keep-Fnl) are in ITEMS,
    so nothing is filtered out here. */
 
+/* Range groups for the per-page All / KAF / WOS switch, by category code:
+   KAF = Kids, Accessory, Furniture; WOS = Wall Paper & Window Décor, Office
+   Furniture, Services. '' = All. An item with no category code is only in All. */
+const CAT_GROUPS = { KAF: ['K', 'A', 'F'], WOS: ['W', 'O', 'S'] };
+const CAT_DESC_CODE = { 'kids': 'K', 'accessory': 'A', 'furniture': 'F', 'wall paper & window décor': 'W', 'wall paper & window decor': 'W', 'office furniture': 'O', 'services': 'S' };
+function inCatGroup(code, g){ return !g || CAT_GROUPS[g].includes(String(code || '').trim().toUpperCase()); }
+const catGroupSeg = (id, g) => '<div class="dash-seg cat-seg" id="' + id + '" role="group" aria-label="Range group">' +
+  [['', 'All'], ['KAF', 'KAF'], ['WOS', 'WOS']].map(([v, l]) => '<button type="button" data-g="' + v + '" class="' + (v === (g || '') ? 'on' : '') + '" title="' + (v === 'KAF' ? 'Kids, Accessory, Furniture' : v === 'WOS' ? 'Wall Paper, Office Furniture, Services' : 'Every category') + '">' + l + '</button>').join('') + '</div>';
+
 /* Size Master / Fabric / Price Point come from js/item-attrs.js (Stock Data sheet);
    copy them onto each item so they behave like any other field. */
 ITEMS.forEach(it => {
@@ -872,15 +881,28 @@ function renderResults(){
     resultList.appendChild(row);
   });
 }
-searchInput.addEventListener('input', () => {
+let lookupCatGroup = '';   // Item Lookup's own All / KAF / WOS switch
+function runLookupSearch(){
   const q = searchInput.value.trim().toLowerCase();
-  filtered = ITEMS.filter(item =>
+  filtered = ITEMS.filter(item => inCatGroup(item['Catg Code'], lookupCatGroup) && (
     item['Item Code'].toLowerCase().includes(q) ||
     item['Description'].toLowerCase().includes(q) ||
     item['Vendor Code'].toLowerCase().includes(q)
-  );
+  ));
   renderResults();
-});
+}
+searchInput.addEventListener('input', runLookupSearch);
+(() => {
+  const box = document.getElementById('lookupCatSeg');
+  if(!box) return;
+  box.outerHTML = catGroupSeg('lookupCatSeg', lookupCatGroup);
+  document.getElementById('lookupCatSeg').addEventListener('click', e => {
+    const b = e.target.closest('button[data-g]'); if(!b) return;
+    lookupCatGroup = b.dataset.g;
+    document.querySelectorAll('#lookupCatSeg button').forEach(x => x.classList.toggle('on', x === b));
+    runLookupSearch();
+  });
+})();
 generateBtn.addEventListener('click', () => {
   /* Prefer an explicitly picked row, but only if it still matches the current
      search; otherwise just take the top result. */
@@ -3518,9 +3540,23 @@ function clearGridFocus(){
   renderFilterChips();
   renderGrid();
 }
+let gridCatGroup = '';   // All Products' own All / KAF / WOS switch
+(() => {
+  const box = document.getElementById('gridCatSeg');
+  if(!box) return;
+  box.outerHTML = catGroupSeg('gridCatSeg', gridCatGroup);
+  document.getElementById('gridCatSeg').addEventListener('click', e => {
+    const b = e.target.closest('button[data-g]'); if(!b) return;
+    gridCatGroup = b.dataset.g;
+    document.querySelectorAll('#gridCatSeg button').forEach(x => x.classList.toggle('on', x === b));
+    gridPage = 0;
+    renderGrid();
+  });
+})();
 function getFilteredItems(){
   return ITEMS.filter(item => {
     if(gridFocus && !gridFocus.codes.has(item['Item Code'])) return false;
+    if(!inCatGroup(item['Catg Code'], gridCatGroup)) return false;
     for(const key of Object.keys(activeFilters)){
       const selected = activeFilters[key];
       if(selected.size === 0) continue;

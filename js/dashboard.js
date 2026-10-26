@@ -95,7 +95,8 @@ const dashPOLink = po => 'href="#po=' + encodeURIComponent(po) + '"';
 // in app.js), so the dashboard can be scoped by anything All Products can
 // be filtered by. dept/cat/vendor came first; range/group/puda/plan match
 // it up to full parity.
-const DASH_SCOPE_DEFAULTS = { dept: '', cat: '', vendor: '', range: '', group: '', puda: '', plan: '' };
+// grp: the All / KAF / WOS range switch ('' = All), see CAT_GROUPS in app.js.
+const DASH_SCOPE_DEFAULTS = { grp: '', dept: '', cat: '', vendor: '', range: '', group: '', puda: '', plan: '' };
 function dashScopeKey(){ return 'dashScope:' + (CURRENT_EMPLOYEE_ID || 'anon'); }
 function dashLoadScope(){
   let s = null;
@@ -220,7 +221,8 @@ function dashItemInScope(it, scope){
   scope = scope || dashScope;
   const planVal = String(it['Current Plan Code'] || '').toUpperCase();
   const planSel = Array.isArray(scope.plan) ? scope.plan.map(p => String(p).toUpperCase()) : (scope.plan ? String(scope.plan).toUpperCase() : scope.plan);
-  return scopeFieldMatch(it['Department Desc'], scope.dept) &&
+  return inCatGroup(it['Catg Code'], scope.grp) &&
+    scopeFieldMatch(it['Department Desc'], scope.dept) &&
     scopeFieldMatch(it['Category'], scope.cat) &&
     (!scope.vendor || String(it['Vendor Code']).toUpperCase() === scope.vendor.toUpperCase()) &&
     dashTextMatch('range', it['Range Name'], scope.range) &&
@@ -229,6 +231,10 @@ function dashItemInScope(it, scope){
     scopeFieldMatch(planVal, planSel);
 }
 function dashLineInScope(l, scope = dashScope){   // a PO line: [po, item, desc, qty, eta, vendor, dept, cat]
+  if(scope.grp){
+    const it = DASH_ITEM_BY_CODE[l[1]];
+    if(!inCatGroup(it ? it['Catg Code'] : CAT_DESC_CODE[String(l[7]).trim().toLowerCase()], scope.grp)) return false;
+  }
   if(scope.range || scope.group || scope.puda || scope.plan){
     const it = DASH_ITEM_BY_CODE[l[1]];
     if(!it) return false;
@@ -893,6 +899,7 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
         uniq('plan', 'Current Plan Code').map(v => '<label class="dr-ms-opt' + (planSel.includes(v) ? ' dr-ms-checked' : '') + '"><input type="checkbox" value="' + dashEsc(v) + '"' + (planSel.includes(v) ? ' checked' : '') + '><span class="dr-ms-lbl">' + dashEsc(v) + '</span></label>').join('') +
       '</div>' : '') + '</label>';
   return '<div class="dash-scope">' + (opts.headless ? '' : '<div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' + reset + '</div>') +
+    '<div class="dash-grp-field"><span class="dash-grp-k">Range</span>' + catGroupSeg('dashGrpSeg', scope.grp) + '</div>' +
     '<label>Category<select id="dashCat">' + opt(uniq('cat', 'Category'), scope.cat) + '</select></label>' +
     '<label>Department<select id="dashDept">' + opt(uniq('dept', 'Department Desc'), scope.dept) + '</select></label>' +
     '<label class="dash-vendor-field">Vendor code<input id="dashVendor" list="' + lp + 'dashVendorList" class="' + (amb ? 'dash-vendor-ambiguous' : '') + '" value="' +
@@ -1099,7 +1106,7 @@ function renderDashboard(){
 
 
   const scopeParts = [
-    dashScope.dept, dashScope.cat, dashScope.vendor && 'Vendor ' + dashScope.vendor,
+    dashScope.grp, dashScope.dept, dashScope.cat, dashScope.vendor && 'Vendor ' + dashScope.vendor,
     dashScope.range, dashScope.group, dashScope.puda, dashScope.plan && 'Plan ' + dashScope.plan,
   ].filter(Boolean);
   const scopeLine = (scopeParts.length ? scopeParts.join(' · ') + ' · ' : 'All ') + dashInt(R.items) + ' items';
@@ -1243,7 +1250,7 @@ function dashWireScopeBar(root, rerender, slot){
     // 'ambiguous' and 'empty' both leave vendor === '' (don't guess which of several matches was meant)
     slot.setAmb(lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null);
     slot.set({
-      dept: $('dashDept').value, cat: $('dashCat').value, vendor,
+      grp: slot.get().grp || '', dept: $('dashDept').value, cat: $('dashCat').value, vendor,
       range: $('dashRange').value.trim(), group: $('dashGroup').value.trim(),
       puda: $('dashPuda').value.trim(),
       plan: $('dashPlan') ? $('dashPlan').value : slot.get().plan,
@@ -1251,6 +1258,11 @@ function dashWireScopeBar(root, rerender, slot){
     rerender();
   };
   ['dashDept', 'dashCat', 'dashPlan'].forEach(id => { if($(id)) $(id).addEventListener('change', change); });
+  root.querySelectorAll('#dashGrpSeg button').forEach(b => b.addEventListener('click', e => {
+    e.preventDefault();
+    slot.set({ ...slot.get(), grp: b.dataset.g });
+    rerender();
+  }));
   const planBtn = $('dashPlanBtn');
   if(planBtn){
     dashPlanRerender = rerender;

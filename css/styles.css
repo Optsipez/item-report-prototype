@@ -496,7 +496,16 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
    fields need to fit in one line: (1240 - padding - 6 gaps) / 7 ≈ 153px is
    the most room there is, so 150 is the widest basis that still lets every
    field land on one row instead of wrapping. */
-.dash-scope label{flex:1 1 150px;min-width:0;display:flex;flex-direction:column;gap:4px;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink-faint);}
+.dash-scope label{flex:1 1 128px;min-width:0;display:flex;flex-direction:column;gap:4px;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink-faint);}
+/* All / KAF / WOS range switch: sits first in the Show me bar (and in All
+   Products' toolbar and Item Lookup) -- same look as the field labels above it. */
+.dash-scope .dash-grp-field{flex:none;display:flex;flex-direction:column;gap:4px;}
+.dash-grp-k{font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink-faint);}
+.cat-seg button{padding:7px 12px;}
+.dash-scope .cat-seg button{padding:8px 12px;}
+#lookupCatSeg{margin:var(--sp-2) 0;}
+#lookupCatSeg button{flex:1;}
+#lookupCatSeg.cat-seg{display:flex;}
 .dash-scope select,.dash-scope input{
   width:100%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:8px 10px;font-size:var(--fs-base);font-family:inherit;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:500;
   border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--panel);
