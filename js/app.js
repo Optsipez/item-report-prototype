@@ -3199,11 +3199,11 @@ function tripEmptyState(){
   '</div>';
 }
 function renderTripTable(rows){
-  const cols = '<th class="trip-hide-col"></th><th class="branch-sno">No</th><th class="l">Range Name</th><th class="c">CPC</th><th class="l">PUDA Code</th><th class="l">PUDA Desc</th><th>Purchase Qty</th>' +
+  const cols = '<th class="trip-hide-col"></th><th class="branch-sno">No</th><th class="l">Range Name</th><th class="c">CPC</th><th class="l">PUDA Code</th><th class="l">PUDA Desc</th>' +
     '<th>2XL Barcode No</th><th class="c">Photo</th>' +
-    '<th class="l">Description</th>' +
+    '<th class="l">Description</th><th>Purchase Qty</th><th>Last Posting Date</th>' +
     '<th class="dr-soh">SOH</th><th>Sold (since Lrcv)</th>' +
-    '<th>Recovery %</th><th>Sold/Lrcv Qty %</th><th>Disct%</th><th>Sale Mrg</th><th>Last Posting Date</th>';
+    '<th>Recovery %</th><th>Sold/Lrcv Qty %</th><th>Disct%</th><th>Sale Mrg</th>';
   const body = rows.map((row, i) => {
     const { it, soh, sold, pctOfLrcv } = row;
     const code = it['Item Code'];
@@ -3220,17 +3220,17 @@ function renderTripTable(rows){
       '<td class="c">' + escHtml(it['Current Plan Code']) + '</td>' +
       '<td class="l">' + escHtml(it['PUDA Code']) + '</td>' +
       '<td class="l">' + escHtml(it['PUDA Desc']) + '</td>' +
-      '<td>' + fmtInt(it['PO-Qty']) + '</td>' +
       '<td>' + escHtml(code) + '</td>' +
       '<td class="c"><span class="trip-photo-ph" title="Not yet available"></span></td>' +
       '<td class="l">' + escHtml(it['Description']) + '</td>' +
+      '<td>' + fmtInt(it['PO-Qty']) + '</td>' +
+      '<td class="' + lrcvCls(it).trim() + '"' + lrcvTitle(it) + '>' + fmtLrcvDate(it['Lrcv Date']) + '</td>' +
       '<td class="dr-soh">' + fmtInt(soh) + '</td>' +
       '<td>' + (sold == null ? '—' : fmtInt(sold)) + '</td>' +
       '<td>' + recovery + '</td>' +
       '<td>' + (pctOfLrcv == null ? '—' : Math.round(pctOfLrcv) + '%') + '</td>' +
       '<td>' + fmtPct(it['Disct%']) + '</td>' +
       '<td>' + mrg + '</td>' +
-      '<td class="' + lrcvCls(it).trim() + '"' + lrcvTitle(it) + '>' + fmtLrcvDate(it['Lrcv Date']) + '</td>' +
       '</tr>';
   }).join('');
   return '<div class="dr-wrap trip-wrap"><table class="matrix dr-table"><thead><tr>' + cols + '</tr></thead><tbody>' + body + '</tbody></table></div>';
@@ -3354,7 +3354,9 @@ function tripExportRows(rows){
       String(it['Item Code']), it['Description'], r.soh, r.sold, r.pct == null ? null : Math.round(r.pct), r.pctOfLrcv == null ? null : Math.round(r.pctOfLrcv),
       disc == null ? null : round(disc * 100, 1), round(num(it['MRG Factor']), 2), it['Lrcv Date'] ? fmtLrcvDate(it['Lrcv Date']) : null];
   });
-  const keep = all.map((h, i) => i).filter(i => !(tripScope.vendor && all[i] === 'Vendor Code'));
+  // Same column order as the page: Purchase Qty and Last Posting Date right after Description.
+  const ORDER = [0, 1, 2, 3, 4, 5, 7, 8, 6, 15, 9, 10, 11, 12, 13, 14];
+  const keep = ORDER.filter(i => !(tripScope.vendor && all[i] === 'Vendor Code'));
   const pick = arr => keep.map(i => arr[i]);
   return { header: pick(all), types: pick(allTypes), widths: pick(allWidths), body: body.map(pick) };
 }
