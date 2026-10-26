@@ -500,9 +500,6 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 /* All / KAF / WOS range switch: sits first in the Show me bar (and in All
    Products' toolbar and Item Lookup) -- same look as the field labels above it. */
 .dash-scope .dash-grp-field{flex:none;display:flex;flex-direction:column;gap:4px;}
-/* Event / Lifestyle / Price Point wrap to a second row -- capped so they sit as
-   normal-width fields instead of stretching across the whole card. */
-.dash-scope label.dash-cap{max-width:220px;}
 .dash-grp-k{font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink-faint);}
 .cat-seg button{padding:7px 12px;}
 .dash-scope .cat-seg button{padding:8px 12px;}
