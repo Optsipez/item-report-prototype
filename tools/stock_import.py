@@ -143,7 +143,8 @@ for y in ('2024', '2025', '2026'):
             sales_attr[c] = {'Item Code': c, 'Description': t(r[six['Description']]), 'Catg Code': t(r[six['Category Code']]),
                              'Category': t(r[six['Category Desc']]), 'Department Desc': t(r[six['Department Desc']]), 'Group Desc': t(r[six['Group Desc']]),
                              'PUDA Desc': t(r[six['PUDA Desc']]), 'Range Name': t(r[six['Range Name']]), 'Vendor Code': t(r[six['Vendor Code']]),
-                             'Current Plan Code': t(r[six['Current Plan Code']])}
+                             'Current Plan Code': t(r[six['Current Plan Code']]),
+                             'Event': t(r[six['Event']]).upper(), 'Lifestyle': t(r[six['Lifestyle']]), 'Price Point': 'EMPTY'}
 only_codes = sales_codes - kept
 vend_all = {t(r['Item Code']): t(r.get('Vendor Code')) for r in raw}   # lead times use every item's receipts
 retail = {'ALNML', 'BRSHA', 'DALMA', 'GALER', 'JUMRA', 'MARIN', 'PARKC', 'RAKMA', 'REGUS', 'ZAHIA'}
@@ -163,7 +164,8 @@ for c in sorted(only_codes):
     r = dropped.get(c)
     a = ({'Item Code': c, 'Description': t(r.get('Description')), 'Catg Code': t(r.get('Category Code')), 'Category': t(r.get('Category Desc')),
           'Department Desc': t(r.get('Department Desc')), 'Group Desc': t(r.get('Group Desc')), 'PUDA Desc': t(r.get('PUDA Desc')),
-          'Range Name': t(r.get('Range Name')), 'Vendor Code': t(r.get('Vendor Code')), 'Current Plan Code': t(r.get('Current Plan Code'))}
+          'Range Name': t(r.get('Range Name')), 'Vendor Code': t(r.get('Vendor Code')), 'Current Plan Code': t(r.get('Current Plan Code')),
+          'Event': t(r.get('Event')).upper(), 'Lifestyle': t(r.get('Lifestyle')), 'Price Point': t(r.get('Price Point')) or 'EMPTY'}
          if r else sales_attr[c])
     a['years'] = ys
     sales_only.append(a)

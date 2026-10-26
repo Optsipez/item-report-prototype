@@ -42,7 +42,7 @@ ITEMS.forEach(it => {
   const a = (typeof ITEM_ATTRS !== 'undefined' && ITEM_ATTRS[it['Item Code']]) || [];
   it['Size Master'] = a[0] || '';
   it['Fabric'] = a[1] || '';
-  it['Price Point'] = a[2] || '';
+  it['Price Point'] = a[2] || 'EMPTY';   // shown and filtered as EMPTY when IT has none
 });
 
 /* ============================================================
@@ -3391,6 +3391,9 @@ function tripSentence(scope, name){
   if(where) s += ' in ' + where;
   if(scope.vendor) s += ' from ' + (name ? name + ' (' + scope.vendor + ')' : 'vendor ' + scope.vendor);
   if(scope.range) s += ', range ' + scope.range;
+  if(scope.event) s += ', event ' + scope.event;
+  if(scope.life) s += ', lifestyle ' + lifestyleLabel(scope.life);
+  if(scope.pp) s += ', price point ' + scope.pp;
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 async function tripPdf(rows, save = true){
@@ -3773,6 +3776,9 @@ const FILTER_FIELD_MAP = {
   'Group Desc': 'Group Desc',
   'PUDA Desc': 'PUDA Desc',
   'Current Plan Code': 'Current Plan Code',
+  'Event': 'Event',
+  'Lifestyle': 'Lifestyle',
+  'Price Point': 'Price Point',
 };
 // Some fields have a known master list of codes that's bigger than whatever
 // happens to be in the current sample data — show the full list and grey
@@ -3792,6 +3798,7 @@ const FILTER_VALUE_LABELS = {
     S: 'Services',
     W: 'Wall Paper & Window Décor',
   },
+  'Lifestyle': LIFESTYLE_LABELS,
 };
 // Filters that get a text box to search within their (often long) option list.
 const FILTER_SEARCHABLE = new Set(['Vendor Code', 'PUDA Desc', 'Group Desc', 'Range Name']);
@@ -3813,7 +3820,7 @@ const VENDOR_CODE_TO_NAME = (() => {
 })();
 function filterValueLabel(label, val){
   const map = FILTER_VALUE_LABELS[label];
-  return (map && map[val]) || val;
+  return (map && map[val]) || (val === '' ? '(blank)' : val);
 }
 
 // Some filters group by a normalised key rather than the raw field value.
@@ -3864,6 +3871,9 @@ const FILTER_ICONS = {
   'Group Desc': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="6" cy="7" r="4.2"/><circle cx="11" cy="7" r="3.4"/></svg>',
   'PUDA Desc': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="6" r="5"/><polygon points="4,9 12,9 8,15"/></svg>',
   'Current Plan Code': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect x="2" y="1" width="2" height="14"/><polygon points="4,2 14,2 11,6 14,10 4,10"/></svg>',
+  'Event': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect x="1" y="3" width="14" height="12" rx="1"/><rect x="4" y="1" width="2" height="4"/><rect x="10" y="1" width="2" height="4"/></svg>',
+  'Lifestyle': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><polygon points="8,1 10,6 15,6 11,9.5 12.5,15 8,11.5 3.5,15 5,9.5 1,6 6,6"/></svg>',
+  'Price Point': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><polygon points="1,8 8,1 15,1 15,8 8,15"/></svg>',
 };
 function filterIconUrl(label){
   const svg = FILTER_ICONS[label];

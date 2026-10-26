@@ -96,7 +96,7 @@ const dashPOLink = po => 'href="#po=' + encodeURIComponent(po) + '"';
 // be filtered by. dept/cat/vendor came first; range/group/puda/plan match
 // it up to full parity.
 // grp: the All / KAF / WOS range switch ('' = All), see CAT_GROUPS in app.js.
-const DASH_SCOPE_DEFAULTS = { grp: '', dept: '', cat: '', vendor: '', range: '', group: '', puda: '', plan: '' };
+const DASH_SCOPE_DEFAULTS = { grp: '', dept: '', cat: '', vendor: '', range: '', group: '', puda: '', plan: '', event: '', life: '', pp: '' };
 function dashScopeKey(){ return 'dashScope:' + (CURRENT_EMPLOYEE_ID || 'anon'); }
 function dashLoadScope(){
   let s = null;
@@ -228,20 +228,22 @@ function dashItemInScope(it, scope){
     dashTextMatch('range', it['Range Name'], scope.range) &&
     dashTextMatch('group', it['Group Desc'], scope.group) &&
     dashTextMatch('puda', it['PUDA Desc'], scope.puda) &&
-    scopeFieldMatch(planVal, planSel);
+    scopeFieldMatch(planVal, planSel) &&
+    scopeFieldMatch(it['Event'], scope.event) && scopeFieldMatch(it['Lifestyle'], scope.life) && scopeFieldMatch(it['Price Point'], scope.pp);
 }
 function dashLineInScope(l, scope = dashScope){   // a PO line: [po, item, desc, qty, eta, vendor, dept, cat]
   if(scope.grp){
     const it = DASH_ITEM_BY_CODE[l[1]];
     if(!inCatGroup(it ? it['Catg Code'] : CAT_DESC_CODE[String(l[7]).trim().toLowerCase()], scope.grp)) return false;
   }
-  if(scope.range || scope.group || scope.puda || scope.plan){
+  if(scope.range || scope.group || scope.puda || scope.plan || scope.event || scope.life || scope.pp){
     const it = DASH_ITEM_BY_CODE[l[1]];
     if(!it) return false;
     if(!dashTextMatch('range', it['Range Name'], scope.range)) return false;
     if(!dashTextMatch('group', it['Group Desc'], scope.group)) return false;
     if(!dashTextMatch('puda', it['PUDA Desc'], scope.puda)) return false;
     if(scope.plan && String(it['Current Plan Code']).toUpperCase() !== scope.plan.toUpperCase()) return false;
+    if(!scopeFieldMatch(it['Event'], scope.event) || !scopeFieldMatch(it['Lifestyle'], scope.life) || !scopeFieldMatch(it['Price Point'], scope.pp)) return false;
   }
   return (!scope.dept || l[6] === scope.dept) &&
     (!scope.cat || l[7] === scope.cat) &&
@@ -851,7 +853,7 @@ function renderPOData(){
 // dashboard puts it in its greeting row).
 // One removable chip per set Show me field (same chips as All Products).
 // opts.chips: extra chip HTML (PO Data's dates).
-const DASH_CHIP_LABELS = [['cat', 'Category'], ['dept', 'Department'], ['vendor', 'Vendor code'], ['range', 'Range Name'], ['group', 'Group Desc'], ['puda', 'PUDA Desc'], ['plan', 'Plan']];
+const DASH_CHIP_LABELS = [['cat', 'Category'], ['dept', 'Department'], ['vendor', 'Vendor code'], ['range', 'Range Name'], ['group', 'Group Desc'], ['puda', 'PUDA Desc'], ['plan', 'Plan'], ['event', 'Event'], ['life', 'Lifestyle'], ['pp', 'Price Point']];
 const dashChip = (attr, k, v) => '<button type="button" class="chip" ' + attr + ' title="Remove this filter"><span class="chip-k">' + k + '</span><span class="chip-v">' + dashEsc(v) + '</span><span class="chip-x">&times;</span></button>';
 // opts.multiPlan: Plan as tick boxes (several codes at once; scope.plan is
 // then an array) -- Trip Requirement. Only one such bar exists, so one open
@@ -862,7 +864,7 @@ document.addEventListener('click', e => {
 });
 function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
   // a multi-pick Plan gets one chip per code
-  const chips = DASH_CHIP_LABELS.flatMap(([k, l]) => [].concat(scope[k] || []).map(v => dashChip('data-k="' + k + '" data-v="' + dashEsc(v) + '"', l, v))).join('') + (opts.chips || '');
+  const chips = DASH_CHIP_LABELS.flatMap(([k, l]) => [].concat(scope[k] || []).map(v => dashChip('data-k="' + k + '" data-v="' + dashEsc(v) + '"', l, k === 'life' ? lifestyleLabel(v) : v))).join('') + (opts.chips || '');
 
   const reset = dashScopeIsSet(scope) || opts.anySet ? '<button type="button" class="dash-btn ghost filters-active-btn' + (opts.headless ? ' dash-scope-reset' : '') + '" id="dashReset">Show everything</button>' : '';
   // Cascading options: each field lists only the values found among the items
@@ -910,6 +912,9 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
     search('dashGroup', 'group', 'Group Desc') +
     search('dashPuda', 'puda', 'PUDA Desc') +
     planField +
+    '<label class="dash-cap">Event<select id="dashEvent">' + opt(uniq('event', 'Event'), scope.event) + '</select></label>' +
+    '<label class="dash-cap">Lifestyle<select id="dashLife"><option value="">All</option>' + uniq('life', 'Lifestyle').map(v => '<option value="' + dashEsc(v) + '"' + (v === scope.life ? ' selected' : '') + '>' + dashEsc(lifestyleLabel(v)) + '</option>').join('') + '</select></label>' +
+    '<label class="dash-cap">Price Point<select id="dashPP">' + opt(uniq('pp', 'Price Point'), scope.pp) + '</select></label>' +
     (opts.extra ? '<span class="dash-scope-break"></span>' + opts.extra : '') + (opts.headless && !opts.noReset ? reset : '') +
     (chips ? '<div class="filter-chips dash-chips">' + chips + '</div>' : '') +
     '</div>';
@@ -1108,6 +1113,7 @@ function renderDashboard(){
   const scopeParts = [
     dashScope.grp, dashScope.dept, dashScope.cat, dashScope.vendor && 'Vendor ' + dashScope.vendor,
     dashScope.range, dashScope.group, dashScope.puda, dashScope.plan && 'Plan ' + dashScope.plan,
+    dashScope.event, dashScope.life && lifestyleLabel(dashScope.life), dashScope.pp && 'Price point ' + dashScope.pp,
   ].filter(Boolean);
   const scopeLine = (scopeParts.length ? scopeParts.join(' · ') + ' · ' : 'All ') + dashInt(R.items) + ' items';
 
@@ -1254,10 +1260,11 @@ function dashWireScopeBar(root, rerender, slot){
       range: $('dashRange').value.trim(), group: $('dashGroup').value.trim(),
       puda: $('dashPuda').value.trim(),
       plan: $('dashPlan') ? $('dashPlan').value : slot.get().plan,
+      event: $('dashEvent').value, life: $('dashLife').value, pp: $('dashPP').value,
     });
     rerender();
   };
-  ['dashDept', 'dashCat', 'dashPlan'].forEach(id => { if($(id)) $(id).addEventListener('change', change); });
+  ['dashDept', 'dashCat', 'dashPlan', 'dashEvent', 'dashLife', 'dashPP'].forEach(id => { if($(id)) $(id).addEventListener('change', change); });
   root.querySelectorAll('#dashGrpSeg button').forEach(b => b.addEventListener('click', e => {
     e.preventDefault();
     slot.set({ ...slot.get(), grp: b.dataset.g });
