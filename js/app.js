@@ -1645,6 +1645,7 @@ const COLUMN_LAYOUT = [
   { type:'group', key:'attrs', title:'Attributes', short:'Attrs', cols:[
       { field:'Item Color Name', label:'Color' },
       { field:'Lifestyle', label:'Lifestyle', fmt:'lifestyle' },
+      { field:'Event', label:'Event' },
       { field:'Vendor Name', label:'Vendor Name' },
       { field:'Country Of Origin', label:'Origin' },
       { field:'Size Master', label:'Size Master' },

@@ -114,7 +114,8 @@ for r in raw:
         'Disct%': round((was - now) / was, 4) if was else 0, 'MRG Factor': round(now / lc, 4) if lc else 0,
         'PO-Qty': as_num(po_qty.get(code, 0)),
         'Item Code': code, 'Description': t(r.get('Description')), 'Item Color Name': t(r.get('Item Color Name')),
-        'Lifestyle': t(r.get('Lifestyle')), 'Vendor Name': t(r.get('Vendor Name')), 'Country Of Origin': t(r.get('Country Of Origin')),
+        'Lifestyle': t(r.get('Lifestyle')), 'Event': t(r.get('Event')).upper(),   # IT mixes 'Common'/'COMMON'
+        'Vendor Name': t(r.get('Vendor Name')), 'Country Of Origin': t(r.get('Country Of Origin')),
         'Currency Code': t(r.get('Currency Code')), 'First FOB': as_num(r.get('First FOB')), 'Previous FOB Cost': as_num(r.get('Previous FOB Cost')),
         'Latest FOB Cost': as_num(r.get('Latest FOB Cost')),
         'Lrcv Date': ld, 'Lrcv Qty': lq, 'Lrcv Src': lsrc,
