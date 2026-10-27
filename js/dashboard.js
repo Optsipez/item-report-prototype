@@ -900,7 +900,7 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
         (planSel.length ? '<button type="button" class="dr-ms-clear" id="dashPlanClear">Clear</button>' : '') +
         uniq('plan', 'Current Plan Code').map(v => '<label class="dr-ms-opt' + (planSel.includes(v) ? ' dr-ms-checked' : '') + '"><input type="checkbox" value="' + dashEsc(v) + '"' + (planSel.includes(v) ? ' checked' : '') + '><span class="dr-ms-lbl">' + dashEsc(v) + '</span></label>').join('') +
       '</div>' : '') + '</label>';
-  return '<div class="dash-scope">' + (opts.headless ? '' : '<div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' + reset + '</div>') +
+  return '<div class="dash-scope dash-scope-grid">' + (opts.headless ? '' : '<div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' + reset + '</div>') +
     // Row 1: the dropdowns; row 2: the search boxes -- both rows fill the width.
     '<div class="dash-grp-field"><span class="dash-grp-k">Range</span>' + catGroupSeg('dashGrpSeg', scope.grp) + '</div>' +
     '<label>Category<select id="dashCat">' + opt(uniq('cat', 'Category'), scope.cat) + '</select></label>' +
