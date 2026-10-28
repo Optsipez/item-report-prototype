@@ -510,6 +510,8 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
   width:100%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:8px 10px;font-size:var(--fs-base);font-family:inherit;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:500;
   border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--panel);
 }
+/* text boxes and dropdowns the same height, so labels line up across a row */
+.dash-scope select,.dash-scope input:not([type=checkbox]),.dash-scope .dr-ms-btn{box-sizing:border-box;height:36px;}
 .dash-scope select:focus,.dash-scope input:focus{outline:none;border-color:var(--primary);box-shadow:var(--ring);}
 /* A typed vendor NAME that matches more than one vendor -- see
    vendorNameLookup() in dashboard.js. Amber, not red: it's not invalid

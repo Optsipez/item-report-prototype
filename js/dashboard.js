@@ -901,22 +901,22 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
         uniq('plan', 'Current Plan Code').map(v => '<label class="dr-ms-opt' + (planSel.includes(v) ? ' dr-ms-checked' : '') + '"><input type="checkbox" value="' + dashEsc(v) + '"' + (planSel.includes(v) ? ' checked' : '') + '><span class="dr-ms-lbl">' + dashEsc(v) + '</span></label>').join('') +
       '</div>' : '') + '</label>';
   return '<div class="dash-scope dash-scope-grid">' + (opts.headless ? '' : '<div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' + reset + '</div>') +
-    // Range toggle spans both rows on the left; the 10 filters fill a 5 + 5 grid beside it.
+    // Range toggle spans both rows on the left; the 10 filters fill a 5 + 5 grid beside it:
+    // Category, Department, Group, Vendor, PUDA on top; Plan, Event, Lifestyle, Price Point, Range Name below.
     '<div class="dash-grp-field"><span class="dash-grp-k">Display Filter</span>' + catGroupSeg('dashGrpSeg', scope.grp) + '</div>' +
     '<label>Category<select id="dashCat">' + opt(uniq('cat', 'Category'), scope.cat) + '</select></label>' +
     '<label>Department<select id="dashDept">' + opt(uniq('dept', 'Department Desc'), scope.dept) + '</select></label>' +
-    planField +
-    '<label>Event<select id="dashEvent">' + opt(uniq('event', 'Event'), scope.event) + '</select></label>' +
-    '<label>Lifestyle<select id="dashLife"><option value="">All</option>' + uniq('life', 'Lifestyle').map(v => '<option value="' + dashEsc(v) + '"' + (v === scope.life ? ' selected' : '') + '>' + dashEsc(lifestyleLabel(v)) + '</option>').join('') + '</select></label>' +
-    '<label>Price Point<select id="dashPP">' + opt(uniq('pp', 'Price Point'), scope.pp) + '</select></label>' +
-    '<span class="dash-scope-break"></span>' +
+    search('dashGroup', 'group', 'Group Desc') +
     '<label class="dash-vendor-field">Vendor code<input id="dashVendor" list="' + lp + 'dashVendorList" class="' + (amb ? 'dash-vendor-ambiguous' : '') + '" value="' +
       dashEsc(amb ? amb.raw : scope.vendor) + '" title="' + dashEsc(dashVendorAmbiguousTip(amb)) + '" placeholder="All" autocomplete="off">' +
       dashVendorOptionsHtml(amb) + '</label>' +
     '<datalist id="' + lp + 'dashVendorList">' + uniq('vendor', 'Vendor Code').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>' +
-    search('dashRange', 'range', 'Range Name') +
-    search('dashGroup', 'group', 'Group Desc') +
     search('dashPuda', 'puda', 'PUDA Desc') +
+    planField +
+    '<label>Event<select id="dashEvent">' + opt(uniq('event', 'Event'), scope.event) + '</select></label>' +
+    '<label>Lifestyle<select id="dashLife"><option value="">All</option>' + uniq('life', 'Lifestyle').map(v => '<option value="' + dashEsc(v) + '"' + (v === scope.life ? ' selected' : '') + '>' + dashEsc(lifestyleLabel(v)) + '</option>').join('') + '</select></label>' +
+    '<label>Price Point<select id="dashPP">' + opt(uniq('pp', 'Price Point'), scope.pp) + '</select></label>' +
+    search('dashRange', 'range', 'Range Name') +
     (opts.extra ? '<span class="dash-scope-break"></span>' + opts.extra : '') + (opts.headless && !opts.noReset ? reset : '') +
     (chips ? '<div class="filter-chips dash-chips">' + chips + '</div>' : '') +
     '</div>';
