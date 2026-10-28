@@ -76,7 +76,9 @@ function restoreSession(){
 // later by trimming its `roles` array.
 const PRIMARY_VIEWS = [
   { label: 'Stock Dashboard',  desc: 'Sales, stock cover and what needs attention', hash: 'dashboard', roles: ['buyer', 'manager', 'ceo', 'admin'] },
-  { label: 'All Products',     desc: 'Every item with its stock, sales and pricing', hash: 'products',  roles: ['buyer', 'manager', 'ceo', 'admin'] },
+  // No hash yet: the box shows but clicking it does nothing until the page is built.
+  { label: 'Sales Dashboard',  desc: 'Coming soon',                                  hash: '',          roles: ['buyer', 'manager', 'ceo', 'admin'] },
+  { label: 'All Products',    desc: 'Every item with its stock, sales and pricing', hash: 'products',  roles: ['buyer', 'manager', 'ceo', 'admin'] },
   { label: 'Trip Requirement', desc: 'Plan the next order with a vendor',            hash: 'trip',      roles: ['buyer', 'manager', 'ceo', 'admin'] },
   { label: 'Item Lookup',      desc: 'Everything about a single item',               hash: 'lookup',    roles: ['buyer', 'manager', 'ceo', 'admin'] },
   { label: 'PO Data',          desc: 'Every open purchase order, by vendor',         hash: 'podata',    roles: ['buyer', 'manager', 'ceo', 'admin'] },
@@ -93,6 +95,7 @@ function renderPrimaryOverlay(){
   ).join('');
   fillPrimaryStats();
   grid.querySelectorAll('.primary-row').forEach(btn => btn.addEventListener('click', () => {
+    if(!btn.dataset.hash) return;
     hidePrimaryOverlay();
     // This overlay shows before the 38MB data.js and app.js have finished
     // downloading. Clicked that early, navigate() doesn't exist yet -- set
