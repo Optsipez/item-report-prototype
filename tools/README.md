@@ -59,6 +59,7 @@ The sales date becomes `SALES_AS_OF`. The app shows it separately from the stock
 - **Fnl ETD:** logistics' New ETD, else Revised Ship Date, else Ship Date.
 - **Fnl ETA:** logistics' New ETA, else Arrival Date.
 - **CPC:** the corrected stock CPC, else the PO's own.
+- **PO Cost:** Tot Order Cost AED (FOB Cost LCY × PO Qty), stored as the 10th field of each `PO_LINES` row. The SIM PIM Summary page uses it for PIM by value.
 
 Checked against all 4,185 lines of the 22-Oct workbook: identical, except 7 lines whose CPC is deliberately the corrected one (N → A). Cancelled POs stay listed, but don't count as open PO quantity. The PO date is the last (10th) argument.
 

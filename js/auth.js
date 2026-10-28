@@ -77,6 +77,7 @@ function restoreSession(){
 const PRIMARY_VIEWS = [
   { label: 'Stock Dashboard',  desc: 'Sales, stock cover and what needs attention', hash: 'dashboard', roles: ['buyer', 'manager', 'ceo', 'admin'] },
   // No hash yet: the box shows but clicking it does nothing until the page is built.
+  { label: 'SIM PIM Summary',  desc: 'Stock and orders in months of sales',          hash: 'simpim',    roles: ['buyer', 'manager', 'ceo', 'admin'] },
   { label: 'Sales Dashboard',  desc: 'Coming soon',                                  hash: '',          roles: ['buyer', 'manager', 'ceo', 'admin'] },
   { label: 'All Products',    desc: 'Every item with its stock, sales and pricing', hash: 'products',  roles: ['buyer', 'manager', 'ceo', 'admin'] },
   { label: 'Trip Requirement', desc: 'Plan the next order with a vendor',            hash: 'trip',      roles: ['buyer', 'manager', 'ceo', 'admin'] },
@@ -133,6 +134,7 @@ function fillPrimaryStats(){
       lookup: 'Search ' + n(ITEMS.length) + ' items',
       trip: n(vendors) + ' vendors',
       podata: n(pos) + ' open',
+      simpim: n(PO_LINES.length) + ' PO lines costed',
       foot: (typeof dashAsOfText === 'function' ? dashAsOfText() : 'Figures as of ' + DATA_AS_OF),
     };
   }

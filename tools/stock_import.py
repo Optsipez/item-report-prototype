@@ -59,7 +59,7 @@ if po_built:
         o = po_line(r, log, smap, cpc_of, ssort)
         q = n(r.get('PO Qty'))
         po_lines.append([po, t(r['Item Code']), ' '.join(t(r.get('Description')).split()), int(q) if q == int(q) else q, iso(o['fnl_eta']),
-                         t(r.get('Vendor Code')), t(r.get('Department Desc')), t(r.get('Category Desc')), o['cpc']])
+                         t(r.get('Vendor Code')), t(r.get('Department Desc')), t(r.get('Category Desc')), o['cpc'], round(o['cost_aed'], 2)])
         if iso(r.get('PO Creation Date')): po_created[po].add(iso(r.get('PO Creation Date')))
         if po not in po_ship:
             po_ship[po] = [iso(o['fnl_etd']), None, o['status'], t(r.get('Territorry')), t(r.get('Container Size')), t(r.get('Port Origin')), t(r.get('Port Of Discharge')).upper()]
@@ -239,7 +239,8 @@ if po_built:
       '   "' + SALES_NAME + '", worked out by tools/pologic.py (the PO Data\n'
       '   sheet\'s formulas). One row per PO line:\n'
       '   [PO No, Item Code, Description, PO Qty, Fnl ETA, Vendor Code, Department,\n'
-      '    Category, CPC]\n'
+      '    Category, CPC, PO Cost]\n'
+      '   PO Cost = Tot Order Cost AED (FOB Cost LCY x PO Qty), in AED.\n'
       '   Fnl ETA = logistics\' New ETA, else the Arrival Date. CPC = the item\'s\n'
       '   corrected stock CPC (2XL CPC correction), else the PO\'s own.\n'
       '   DATA_AS_OF is the PO export date -- a PO whose Fnl ETA is before it and\n'

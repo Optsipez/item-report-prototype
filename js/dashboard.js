@@ -1038,35 +1038,122 @@ function dashBandTables(){
     '</tbody></table></div></section>';
   return { html: main + aging, B };
 }
-/* ---------- Sales by Category / Department / CPC ----------
-   For the items in the Show me scope: stock on hand today (units, at L-Cost)
-   and sales in the current calendar month (REPORT_MONTH -- today's month,
-   so until that month's data is imported its sales read 0). Consignment is
-   included: it only stays out of margins, and this has none. */
-let dashSalesBy = 'cat';
-const DASH_SALES_BY = { cat: ['Category', it => it['Category']], dept: ['Department', it => it['Department Desc']], cpc: ['CPC', it => dashPlan(it)] };
-function dashSalesByTable(){
-  const [label, keyOf] = DASH_SALES_BY[dashSalesBy];
-  const month = (REPORT_MONTH.year - 2024) * 12 + REPORT_MONTH.month, monthName = MONTHS[REPORT_MONTH.month] + " '" + String(REPORT_MONTH.year).slice(-2);
-  const rows = {}, T = { units: 0, cost: 0, sUnits: 0, net: 0 };
-  ITEMS.concat(SALES_ONLY_ITEMS).forEach(it => {
-    if(!dashItemInScope(it)) return;
-    const k = keyOf(it) || '(none)', r = rows[k] || (rows[k] = { k, units: 0, cost: 0, sUnits: 0, net: 0 });
-    const soh = it._salesOnly ? 0 : Math.max(0, Number(it['SOH']) || 0);
-    r.units += soh; r.cost += soh * (Number(it['L-Cost (Aed)']) || 0);
-    (SALES_VALUES[it['Item Code']] || []).forEach(s => { if(s[0] === month){ r.sUnits += s[3]; r.net += s[6]; } });
+/* ---------- SIM PIM Summary (its own page, #simpim) ----------
+   For the items in this page's own Show me scope, one row per value of the
+   next filter not yet picked (bar order: Category, Department, Group,
+   Vendor, PUDA, Plan, Range, Event, Lifestyle, Price Point; all picked ->
+   items). Clicking a row picks it and drills one level down.
+     Stock    SOH units, and at L-Cost
+     On order open PO qty and PO Cost (Tot Order Cost AED from the PO file;
+              cancelled POs left out)
+     Avg      units and COGS sold per month over the last 3/6/9/12 complete
+              months (a month still in progress would drag the average down)
+     SIM      stock / avg (Qty: units, Value: cost / COGS), in months
+     PIM      on order / avg, the same two ways
+   Items dropped from the stock list (SALES_ONLY_ITEMS) still count in sales. */
+let simScope = null, simVendorAmbiguous = null, simMonths = 3, simHeaderCollapsed = false;
+const simScopeKey = () => 'simScope:' + (CURRENT_EMPLOYEE_ID || 'anon');
+const SIM_SLOT = {
+  get: () => simScope, set: s => { simScope = s; try { localStorage.setItem(simScopeKey(), JSON.stringify(s)); } catch(e){} },
+  getAmb: () => simVendorAmbiguous, setAmb: a => { simVendorAmbiguous = a; },
+};
+const SIM_LEVELS = [
+  ['cat', 'Category', it => it['Category']], ['dept', 'Department', it => it['Department Desc']], ['group', 'Group Desc', it => it['Group Desc']],
+  ['vendor', 'Vendor', it => it['Vendor Code']], ['puda', 'PUDA Desc', it => it['PUDA Desc']], ['plan', 'Plan', it => dashPlan(it)],
+  ['range', 'Range Name', it => it['Range Name']], ['event', 'Event', it => it['Event']], ['life', 'Lifestyle', it => it['Lifestyle']], ['pp', 'Price Point', it => it['Price Point']],
+];
+let simPoByItem = null;   // item code -> { qty, cost } on open POs
+function simPO(){
+  if(simPoByItem) return simPoByItem;
+  simPoByItem = {};
+  PO_LINES.forEach(l => {
+    if(poCancelled(l[0])) return;
+    const r = simPoByItem[l[1]] || (simPoByItem[l[1]] = { qty: 0, cost: 0 });
+    r.qty += l[3]; r.cost += l[9] || 0;
   });
-  const list = Object.values(rows).sort((a, b) => b.cost - a.cost || a.k.localeCompare(b.k));
+  return simPoByItem;
+}
+const dashMonthEnd = i => new Date(Date.UTC(2024 + Math.floor(i / 12), i % 12 + 1, 0)).toISOString().slice(0, 10);
+function simMonthRange(){
+  const done = SALES_AS_OF >= dashMonthEnd(SALES_LAST_MONTH) ? SALES_LAST_MONTH : SALES_LAST_MONTH - 1;
+  return [Math.max(0, done - simMonths + 1), done];
+}
+function simCompute(){
+  const level = SIM_LEVELS.find(([k]) => !(simScope[k] || '').length);
+  const [from, to] = simMonthRange(), po = simPO();
+  const keyOf = level ? level[2] : it => it['Item Code'];
+  const rows = {}, T = { units: 0, cost: 0, poQty: 0, poCost: 0, sUnits: 0, cogs: 0 };
+  ITEMS.concat(SALES_ONLY_ITEMS).forEach(it => {
+    if(!dashItemInScope(it, simScope)) return;
+    const k = keyOf(it) || '', r = rows[k] || (rows[k] = { k, it, units: 0, cost: 0, poQty: 0, poCost: 0, sUnits: 0, cogs: 0 });
+    if(!it._salesOnly){
+      const soh = Math.max(0, Number(it['SOH']) || 0), p = po[it['Item Code']];
+      r.units += soh; r.cost += soh * (Number(it['L-Cost (Aed)']) || 0);
+      if(p){ r.poQty += p.qty; r.poCost += p.cost; }
+    }
+    (SALES_VALUES[it['Item Code']] || []).forEach(s => { if(s[0] >= from && s[0] <= to){ r.sUnits += s[3]; r.cogs += s[4]; } });
+  });
+  const list = Object.values(rows).filter(r => r.units || r.poQty || r.sUnits).sort((a, b) => b.cost - a.cost || String(a.k).localeCompare(String(b.k)));
   list.forEach(r => { for(const f in T) T[f] += r[f]; });
-  const seg = Object.entries(DASH_SALES_BY).map(([id, [l]]) => '<button type="button" data-by="' + id + '" class="' + (id === dashSalesBy ? 'on' : '') + '">By ' + l + '</button>').join('');
-  const note = month > SALES_LAST_MONTH ? '<p class="dash-note">No ' + dashEsc(monthName) + ' sales on file yet — sales data runs to ' + dashEsc(dashDate(SALES_AS_OF)) + '.</p>' : '';
-  const cells = r => '<td>' + dashInt(r.units) + '</td><td>' + dashAed(r.cost) + '</td><td class="band-split">' + dashInt(r.sUnits) + '</td><td>' + dashAed(r.net) + '</td>';
-  return '<section class="dash-card wide tone-pos dash-bands"><h3>Sales by Category, by Department, by CPC <span>stock today · sales ' + dashEsc(monthName) + '</span></h3>' +
-    '<div class="band-period"><div class="dash-seg" id="dashSalesBySeg">' + seg + '</div></div>' + note +
-    '<div class="band-wrap"><table class="dash-table band-table"><thead><tr class="band-grp"><th></th><th colspan="2">Stock on hand (today)</th><th colspan="2" class="band-split">Sales · ' + dashEsc(monthName) + '</th></tr>' +
-    '<tr><th class="l">' + label + '</th><th>Units</th><th>At cost</th><th class="band-split">Units sold</th><th>Net sale</th></tr></thead><tbody>' +
-    list.map(r => '<tr><td class="l"><b>' + dashEsc(r.k) + '</b></td>' + cells(r) + '</tr>').join('') +
-    '<tr class="band-total"><td class="l"><b>Total</b></td>' + cells(T) + '</tr></tbody></table></div></section>';
+  return { level, list, T, from, to, n: to - from + 1 };
+}
+function renderSimPim(){
+  const root = document.getElementById('simRoot');
+  if(!root) return;
+  if(!simScope){
+    let s = null;
+    try { s = JSON.parse(localStorage.getItem(simScopeKey()) || 'null'); } catch(e){}
+    simScope = { ...DASH_SCOPE_DEFAULTS, ...(s || {}) };
+  }
+  const C = simCompute(), T = C.T, n = C.n;
+  const per = dashMonthLabel(C.from) + (C.from === C.to ? '' : ' – ' + dashMonthLabel(C.to));
+  const months = v => v == null || !isFinite(v) ? '—' : v.toFixed(1);
+  // more than a year of stock reads red, under 2 months amber
+  const tone = v => v == null || !isFinite(v) ? '' : v > 12 ? ' bad' : v < 2 ? ' warn' : '';
+  const bar = (p, cls) => '<td class="dash-band-share' + (cls === 'stock' ? ' band-split' : '') + '">' + (p == null ? '—' : '<span class="dash-band-bar ' + cls + '"><i style="width:' + Math.max(0, Math.min(100, p)).toFixed(1) + '%"></i></span><span class="dash-band-pct">' + p.toFixed(1) + '%</span>') + '</td>';
+  const cells = r => {
+    const aU = r.sUnits / n, aC = r.cogs / n;
+    const sq = aU > 0 ? r.units / aU : null, sv = aC > 0 ? r.cost / aC : null, pq = aU > 0 ? r.poQty / aU : null, pv = aC > 0 ? r.poCost / aC : null;
+    return '<td>' + dashInt(r.units) + '</td><td>' + dashAed(r.cost) + '</td>' +
+      '<td class="band-split">' + dashInt(r.poQty) + '</td><td>' + dashAed(r.poCost) + '</td>' +
+      '<td class="band-split">' + dashInt(aU) + '</td><td>' + dashAed(aC) + '</td>' +
+      '<td class="band-split sim-m' + tone(sq) + '">' + months(sq) + '</td><td class="sim-m' + tone(sv) + '">' + months(sv) + '</td>' +
+      '<td class="band-split sim-m">' + months(pq) + '</td><td class="sim-m">' + months(pv) + '</td>' +
+      bar(dashPct(r.cost, T.cost), 'stock') + bar(dashPct(r.cogs, T.cogs), 'sold');
+  };
+  const L = C.level, label = L ? L[1] : 'Item';
+  const next = L ? (SIM_LEVELS[SIM_LEVELS.indexOf(L) + 1] || [, 'items'])[1] : '';
+  const rowName = r => !L ? '<b class="mono">' + dashEsc(r.k) + '</b> ' + dashEsc(r.it['Description'] || '') :
+    '<b>' + dashEsc(L[0] === 'life' ? lifestyleLabel(r.k) : L[0] === 'vendor' && canSeeVendorName() && VENDOR_CODE_TO_NAME[r.k] ? r.k + ' — ' + VENDOR_CODE_TO_NAME[r.k] : r.k || '(blank)') + '</b>';
+  const body = C.list.map(r => '<tr' + (L && r.k ? ' class="dash-pick" data-v="' + dashEsc(r.k) + '" title="Show the ' + dashEsc(next) + ' inside this"' : '') + '><td class="l">' + rowName(r) + '</td>' + cells(r) + '</tr>').join('');
+  const seg = [3, 6, 9, 12].map(m => '<button type="button" data-m="' + m + '" class="' + (m === simMonths ? 'on' : '') + '">' + m + ' months</button>').join('');
+  root.innerHTML =
+    '<div class="dash-sticky">' +
+    '<div class="dash-hero">' +
+      '<div class="dash-hero-line">' +
+        '<span class="dash-date">SIM PIM Summary</span>' +
+        '<h1 class="dash-greet">Stock &amp; orders in months of sales</h1>' +
+        '<p class="dash-sub">Pick a filter, or click a row, to drill down. <span class="dash-asof">' + dashEsc(dashAsOfText()) + '.</span></p>' +
+      '</div>' +
+      '<div class="dash-links"><button type="button" class="dash-btn ghost" id="simHeaderToggle">' + (simHeaderCollapsed ? 'Expand &#9662;' : 'Collapse &#9652;') + '</button></div>' +
+    '</div>' +
+    (simHeaderCollapsed ? '' : dashScopeBar(simScope, simVendorAmbiguous, { headless: true, listPrefix: 'sim' })) +
+    '</div>' +
+    '<section class="dash-card wide tone-pos dash-bands"><h3>By ' + dashEsc(label) + ' <span>SIM = stock ÷ avg monthly sales · PIM = on order ÷ avg monthly sales, in months</span></h3>' +
+    '<div class="band-period"><div class="dash-seg" id="simMonthsSeg">' + seg + '</div><span class="band-period-note">Average over ' + dashEsc(per) + ' (complete months)</span></div>' +
+    (C.list.length ? '<div class="band-wrap"><table class="dash-table band-table sim-table"><thead><tr class="band-grp"><th></th><th colspan="2">Stock</th><th colspan="2" class="band-split">On order</th><th colspan="2" class="band-split">Avg sales / month</th><th colspan="2" class="band-split">SIM (months)</th><th colspan="2" class="band-split">PIM (months)</th><th colspan="2" class="band-split">Contribution</th></tr>' +
+      '<tr><th class="l">' + dashEsc(label) + '</th><th>Qty</th><th>Cost</th><th class="band-split">Qty</th><th>PO Cost</th><th class="band-split">Qty</th><th>COGS</th><th class="band-split">Qty</th><th>Value</th><th class="band-split">Qty</th><th>Value</th><th class="band-split">% of stock</th><th>% of sales</th></tr></thead><tbody>' +
+      body + '<tr class="band-total"><td class="l"><b>Total</b></td>' + cells(T) + '</tr></tbody></table></div>'
+      : '<p class="dash-empty">Nothing matches these filters.</p>') +
+    '</section>';
+  if(!simHeaderCollapsed) dashWireScopeBar(root, renderSimPim, SIM_SLOT);
+  root.querySelector('#simHeaderToggle').addEventListener('click', () => { simHeaderCollapsed = !simHeaderCollapsed; renderSimPim(); });
+  root.querySelectorAll('#simMonthsSeg button').forEach(b => b.addEventListener('click', () => { simMonths = Number(b.dataset.m); renderSimPim(); }));
+  if(L) root.querySelectorAll('.sim-table tr.dash-pick').forEach(tr => tr.addEventListener('click', () => {
+    SIM_SLOT.set({ ...simScope, [L[0]]: tr.dataset.v });
+    renderSimPim();
+    window.scrollTo({ top: 0 });
+  }));
 }
 function dashWireBands(root, B, scopeSuffix){
   const $ = id => root.querySelector('#' + id);
@@ -1156,7 +1243,7 @@ function renderDashboard(){
           R.expired.map(p => '<tr class="dash-pick dash-po" data-po="' + dashEsc(p.po) + '" title="Show the items on this PO"><td class="l po"><b class="mono">' + dashEsc(p.po) + '</b></td><td class="l">' + dashEsc(vcodeName(p.vendor)) + '</td><td>' + dashEsc(dashDate(p.created)) + '</td><td class="bad">' + p.age + ' d</td><td>' + dashInt(p.units) + '</td></tr>').join('') + '</tbody></table></div>' +
             '<button type="button" class="dash-btn ghost dash-more" data-list="expired">See all ' + dashInt(R.expired.length) + ' POs (' + dashInt(dashPOCodes(R.expired).size) + ' items) &rarr;</button>'
           : '<p class="dash-empty">No pending POs created in the last 15 days.</p>') + '</section>' +
-      bandT.html + dashSalesByTable() +
+      bandT.html +
     '</div>';
 
   // wiring
@@ -1171,7 +1258,6 @@ function renderDashboard(){
     dashTab = tr.dataset.goto || 'late';
     renderDashboard();
   }));
-  root.querySelectorAll('#dashSalesBySeg button').forEach(b => b.addEventListener('click', () => { dashSalesBy = b.dataset.by; renderDashboard(); }));
   dashWireBands(root, bandT.B, scopeParts.length ? ' – ' + scopeParts.join(' · ') : '');
   root.querySelectorAll('.dash-more').forEach(b => b.addEventListener('click', () => {
     const suffix = scopeParts.length ? ' – ' + scopeParts.join(' · ') : '';
