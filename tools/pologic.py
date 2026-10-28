@@ -8,24 +8,32 @@ def t(v): return '' if v is None else str(v).strip()
 def isdate(v): return isinstance(v, (datetime.datetime, datetime.date))
 def iso(v): return v.strftime('%Y-%m-%d') if isdate(v) else None
 
-def status_map(setup_rows):
-    """SetUp D:G -- logistics status ("Rems", col D) -> Re-Status (col G):
-    Under Proces / Short Ship / Next Booking -> Pending, the rest unchanged."""
-    m = {}
-    for r in setup_rows[2:]:
-        k, v = t(r[3]) if len(r) > 3 else '', t(r[6]) if len(r) > 6 else ''
-        if not k: break
-        m[k] = v or k
-    return m
+# The SetUp sheet's status table (D:H, rows 3-12 of the 22-Oct workbook), built
+# in so live data needs only the raw sheets. Logistics status ("Rems", col D)
+# -> (Re-Status col G, sort number col H). Change it here if SetUp changes.
+SETUP_STATUS = {
+    'GRN Pending':  ('GRN Pending', 0.1),
+    'At Port':      ('At Port', 0.2),
+    'Released':     ('Released', 0.3),
+    'In Transit':   ('In Transit', 0.4),
+    'Pending':      ('Pending', 0.5),
+    'Under Proces': ('Pending', 0.6),
+    'Hold':         ('Hold', 0.7),
+    'Short Ship':   ('Pending', 0.8),
+    'Cancelled':    ('Cancelled', 0.9),
+    'Next Booking': ('Pending', 0.91),
+}
 
-def status_sort(setup_rows):
+def status_map():
+    """SetUp D:G -- logistics status -> Re-Status:
+    Under Proces / Short Ship / Next Booking -> Pending, the rest unchanged."""
+    return {k: v[0] for k, v in SETUP_STATUS.items()}
+
+def status_sort():
     """SetUp G:H -- Re-Status -> its sort number (GRN Pending 0.1, At Port 0.2 ...).
     First entry per status wins, as VLOOKUP does."""
     m = {}
-    for r in setup_rows[2:]:
-        k = t(r[6]) if len(r) > 6 else ''
-        if not k: break
-        m.setdefault(k, r[7] if len(r) > 7 else None)
+    for g, h in SETUP_STATUS.values(): m.setdefault(g, h)
     return m
 
 def logistics(rows):

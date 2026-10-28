@@ -39,13 +39,16 @@ evals = {t(r['Item Code']): evaluate(r) for r in raw}
 SA = pickle.load(open(SALES_PKL, 'rb'))
 
 # ---- POs ----
-# With a Logistics Status sheet: PO lines rebuilt from the raw PO columns via
-# pologic.py (logistics status, Fnl ETD/ETA, corrected CPC). Otherwise the
-# current js/po-data.js is kept as it is.
-po_built = 'Logistics Status' in SA and 'SetUp' in SA
+# With a PO Data sheet: PO lines rebuilt from the raw PO columns via
+# pologic.py (logistics status, Fnl ETD/ETA, corrected CPC; the SetUp status
+# table is built into pologic). Without a Logistics Status sheet every line is
+# "Pending" on IT's own dates. No PO Data sheet: js/po-data.js is kept as it is.
+po_built = 'PO Data' in SA
 if po_built:
-    smap, log = status_map(SA['SetUp']), logistics(SA['Logistics Status'])
-    ssort = status_sort(SA['SetUp'])
+    if 'Logistics Status' not in SA:
+        print('WARNING: no "Logistics Status" sheet -- every PO line is Pending, dates from IT\'s Revised Ship / Ship / Arrival Date')
+    smap, ssort = status_map(), status_sort()
+    log = logistics(SA['Logistics Status']) if 'Logistics Status' in SA else {}
     cpc_of = {c: E['cpc'] for c, E in evals.items()}
     pix, prows = sheet(SA, 'PO Data')
     po_lines, po_created, po_ship = [], collections.defaultdict(set), {}
@@ -62,6 +65,7 @@ if po_built:
             po_ship[po] = [iso(o['fnl_etd']), None, o['status'], t(r.get('Territorry')), t(r.get('Container Size')), t(r.get('Port Origin')), t(r.get('Port Of Discharge')).upper()]
     po_created = {k: sorted(v)[0] for k, v in po_created.items()}
 else:
+    print('WARNING: no "PO Data" sheet -- keeping the current js/po-data.js')
     po_txt = open(os.path.join(SRC, 'po-data.js'), encoding='utf8').read()
     po_lines = json.loads(re.search(r'const PO_LINES = (\[.*?\]);\n', po_txt, re.S).group(1))
     po_ship = json.loads(re.search(r'const PO_SHIP = (\{.*?\});\n', po_txt, re.S).group(1))
