@@ -75,7 +75,7 @@ function restoreSession(){
 // set of boxed destinations under a greeting. Every role gets every view for now; restrict one
 // later by trimming its `roles` array.
 const PRIMARY_VIEWS = [
-  { label: 'Dashboard',        desc: 'Sales, stock cover and what needs attention', hash: 'dashboard', roles: ['buyer', 'manager', 'ceo', 'admin'] },
+  { label: 'Stock Dashboard',  desc: 'Sales, stock cover and what needs attention', hash: 'dashboard', roles: ['buyer', 'manager', 'ceo', 'admin'] },
   { label: 'All Products',     desc: 'Every item with its stock, sales and pricing', hash: 'products',  roles: ['buyer', 'manager', 'ceo', 'admin'] },
   { label: 'Trip Requirement', desc: 'Plan the next order with a vendor',            hash: 'trip',      roles: ['buyer', 'manager', 'ceo', 'admin'] },
   { label: 'Item Lookup',      desc: 'Everything about a single item',               hash: 'lookup',    roles: ['buyer', 'manager', 'ceo', 'admin'] },
