@@ -17,7 +17,7 @@ import sys, os, json, pickle, re, datetime, collections
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stocklogic import evaluate, t, n
 from derive import derive, MON, sheet, qty_col
-from pologic import status_map, logistics, po_line, iso
+from pologic import status_map, status_sort, logistics, po_line, iso
 from salesval import sales_values
 
 STOCK_PKL, SHEET, SALES_PKL, SRC, OUT, ASOF, STOCK_NAME, SALES_NAME, SALES_ASOF = sys.argv[1:10]
@@ -45,6 +45,7 @@ SA = pickle.load(open(SALES_PKL, 'rb'))
 po_built = 'Logistics Status' in SA and 'SetUp' in SA
 if po_built:
     smap, log = status_map(SA['SetUp']), logistics(SA['Logistics Status'])
+    ssort = status_sort(SA['SetUp'])
     cpc_of = {c: E['cpc'] for c, E in evals.items()}
     pix, prows = sheet(SA, 'PO Data')
     po_lines, po_created, po_ship = [], collections.defaultdict(set), {}
@@ -52,7 +53,7 @@ if po_built:
         r = {h: row[i] for h, i in pix.items()}
         po = t(r.get('PO No'))
         if not po: continue
-        o = po_line(r, log, smap, cpc_of)
+        o = po_line(r, log, smap, cpc_of, ssort)
         q = n(r.get('PO Qty'))
         po_lines.append([po, t(r['Item Code']), ' '.join(t(r.get('Description')).split()), int(q) if q == int(q) else q, iso(o['fnl_eta']),
                          t(r.get('Vendor Code')), t(r.get('Department Desc')), t(r.get('Category Desc')), o['cpc']])

@@ -18,6 +18,16 @@ def status_map(setup_rows):
         m[k] = v or k
     return m
 
+def status_sort(setup_rows):
+    """SetUp G:H -- Re-Status -> its sort number (GRN Pending 0.1, At Port 0.2 ...).
+    First entry per status wins, as VLOOKUP does."""
+    m = {}
+    for r in setup_rows[2:]:
+        k = t(r[6]) if len(r) > 6 else ''
+        if not k: break
+        m.setdefault(k, r[7] if len(r) > 7 else None)
+    return m
+
 def logistics(rows):
     """Logistics Status sheet (header in row 2): A PO No, B Sataus, C New ETD,
     D New ETA, H Correction. Cleaned like its K:N formulas: PO No minus
@@ -33,8 +43,23 @@ def logistics(rows):
         if po not in out: out[po] = (t(r[1]), r[2] if isdate(r[2]) else None, r[3] if isdate(r[3]) else None)
     return out
 
-def po_line(r, log, smap, cpc_of):
-    """One PO line -> Log STS, Status-Logstic, Fnl ETD, Fnl ETA, CPC-PO, Tot Order Cost AED.
+def po_month(status, fnl_eta, sort):
+    """S-Yr, S-Mon, Mon-Year (PO Data H:J): open ("Pending") lines bucket by
+    Fnl ETA month, every other status is its own bucket.
+      S-Yr     IF(B="Pending",YEAR(D),2000)
+      Mon-Year IF(B="Pending",TEXT(D,"Mmm-Yy"),B)
+      S-Mon    IFERROR(VLOOKUP(J,SetUp G:H,2),VLOOKUP(J,SetUp R:Y,8))
+    SetUp R:Y numbers months from Jan-95 = 1, so a month is (year-1995)*12+month.
+    A Pending line with no Fnl ETA gets Excel's day 0: 1900 / Jan-00 / 61."""
+    if status != 'Pending':
+        return 2000, sort.get(status), status
+    if not isdate(fnl_eta):
+        return 1900, 61, 'Jan-00'
+    return fnl_eta.year, (fnl_eta.year - 1995) * 12 + fnl_eta.month, fnl_eta.strftime('%b-%y')
+
+def po_line(r, log, smap, cpc_of, sort=None):
+    """One PO line -> Log STS, Status-Logstic, Fnl ETD, Fnl ETA, CPC-PO, Tot Order Cost AED,
+    and (with sort = status_sort(...)) S-Yr / S-Mon / Mon-Year.
     r: dict header -> value from the PO Data sheet."""
     po = t(r['PO No']); L = log.get(po)
     log_sts = L[0] if L else 'Pending'                                        # Log STS: IFERROR(VLOOKUP(...),"Pending")
@@ -48,4 +73,6 @@ def po_line(r, log, smap, cpc_of):
     cpc = cpc_of.get(code) or t(r.get('Current Plan Code'))                    # CPC-PO: the stock sheet's (corrected) CPC, else the PO's own
     fob_aed = r.get('FOB Cost LCY'); qty = r.get('PO Qty')
     cost = (fob_aed or 0) * (qty or 0) if isinstance(fob_aed, (int, float)) and isinstance(qty, (int, float)) else 0   # Tot Order Cost AED: AG*AK
-    return {'log_sts': log_sts, 'status': status, 'fnl_etd': fnl_etd, 'fnl_eta': fnl_eta, 'cpc': cpc, 'cost_aed': cost}
+    s_yr, s_mon, mon_year = po_month(status, fnl_eta, sort or {})
+    return {'log_sts': log_sts, 'status': status, 'fnl_etd': fnl_etd, 'fnl_eta': fnl_eta, 'cpc': cpc, 'cost_aed': cost,
+            's_yr': s_yr, 's_mon': s_mon, 'mon_year': mon_year}

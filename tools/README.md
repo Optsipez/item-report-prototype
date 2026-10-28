@@ -54,7 +54,7 @@ The sales date becomes `SALES_AS_OF`. The app shows it separately from the stock
 
 `Lrcv Src` records the source. The app colours steps 3 and 4 (`lrcv-est`), since those dates aren't real GRN receipts.
 
-**POs** (`pologic.py`, the PO Data sheet's formulas) are rebuilt when the sales cache also has **PO Data, Logistics Status and SetUp**. Otherwise `js/po-data.js` is kept as it is.
+**POs** (`pologic.py`, the PO Data sheet's formulas) are rebuilt when the sales cache also has **PO Data, Logistics Status and SetUp**. Otherwise `js/po-data.js` is kept as it is. It also works out S-Yr / S-Mon / Mon-Year (PO Data H:J, the month buckets for a PO month-on-month report); the app does not use them yet.
 - **Status:** the Logistics Status entry (PO numbers cleaned of split-shipment suffixes like PO-20453-2), mapped through SetUp D:G (Under Proces / Short Ship / Next Booking → Pending; no entry → Pending).
 - **Fnl ETD:** logistics' New ETD, else Revised Ship Date, else Ship Date.
 - **Fnl ETA:** logistics' New ETA, else Arrival Date.
