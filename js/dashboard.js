@@ -1127,13 +1127,13 @@ function renderDashboard(){
       '<div class="dash-hero-line">' +
         '<span class="dash-date">' + dashEsc(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + '</span>' +
         '<h1 class="dash-greet">' + DASH_GREETINGS[dashGreetingIdx](dashEsc(dashName())) + '</h1>' +
-        '<p class="dash-sub">' + dashSubtitle() + ' <span class="dash-asof">' + dashEsc(dashAsOfText()) + '.</span></p>' +
+        '<p class="dash-sub">' + dashSubtitle() + ' <span class="dash-asof">' + dashEsc(dashAsOfText()) + '.</span>' + (dashHeaderCollapsed ? '' : ' <span class="dash-note">These filters apply to the whole dashboard.</span>') + '</p>' +
       '</div>' +
       '<div class="dash-links">' + (!dashHeaderCollapsed && (dashScopeIsSet() || dashBandPeriod.mode !== '3') ? '<button type="button" class="dash-btn ghost filters-active-btn" id="dashReset">Show everything</button>' : '') + '<a class="dash-btn' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#products">All Products &rarr;</a><a class="dash-btn ghost' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#lookup">Item Lookup &rarr;</a>' +
         '<button type="button" class="dash-btn ghost" id="dashHeaderToggle" title="' + (dashHeaderCollapsed ? 'Show the Show me bar and Needs attention tiles' : 'Hide the Show me bar and Needs attention tiles, keep just this line') + '">' + (dashHeaderCollapsed ? 'Expand &#9662;' : 'Collapse &#9652;') + '</button>' +
       '</div></div>' +
     (dashHeaderCollapsed ? '' : dashScopeBar(dashScope, dashVendorAmbiguous, { headless: true, noReset: true }) +
-      '<h2 class="dash-h">Needs attention <span>' + dashEsc(scopeLine) + '</span></h2>' + actions.tilesHtml) +
+      '<h2 class="dash-h">Needs attention <span>' + dashEsc(scopeLine) + '</span> <span class="dash-note">Click the boxes below to switch between the 4 tables.</span></h2>' + actions.tilesHtml) +
     '</div>' +
     actions.detailHtml +
     '<h2 class="dash-h">How it’s trading <span>last 3 complete months (' + dashEsc(winLabel) + ') vs the 3 before</span></h2>' +
