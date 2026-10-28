@@ -3201,7 +3201,7 @@ function tripEmptyState(){
 function renderTripTable(rows){
   const cols = '<th class="trip-hide-col"></th><th class="branch-sno">No</th><th class="l">Range Name</th><th class="c">CPC</th><th class="l">PUDA Code</th><th class="l">PUDA Desc</th>' +
     '<th>2XL Barcode No</th><th class="c">Photo</th>' +
-    '<th class="l">Description</th><th>Purchase Qty</th><th>Last Posting Date</th>' +
+    '<th class="l">Description</th><th class="trip-po">Last Posting Date</th><th class="trip-po">Purchase Qty</th>' +
     '<th class="dr-soh">SOH</th><th>Sold (since Lrcv)</th>' +
     '<th>Recovery %</th><th>Sold/Lrcv Qty %</th><th>Disct%</th><th>Sale Mrg</th>';
   const body = rows.map((row, i) => {
@@ -3223,8 +3223,8 @@ function renderTripTable(rows){
       '<td>' + escHtml(code) + '</td>' +
       '<td class="c"><span class="trip-photo-ph" title="Not yet available"></span></td>' +
       '<td class="l">' + escHtml(it['Description']) + '</td>' +
-      '<td>' + fmtInt(it['PO-Qty']) + '</td>' +
-      '<td class="' + lrcvCls(it).trim() + '"' + lrcvTitle(it) + '>' + fmtLrcvDate(it['Lrcv Date']) + '</td>' +
+      '<td class="trip-po' + lrcvCls(it) + '"' + lrcvTitle(it) + '>' + fmtLrcvDate(it['Lrcv Date']) + '</td>' +
+      '<td class="trip-po">' + fmtInt(it['PO-Qty']) + '</td>' +
       '<td class="dr-soh">' + fmtInt(soh) + '</td>' +
       '<td>' + (sold == null ? '—' : fmtInt(sold)) + '</td>' +
       '<td>' + recovery + '</td>' +
@@ -3239,7 +3239,7 @@ function renderTripTable(rows){
    is blocked. One sheet: a navy title band (title + subtitle), then a styled
    table -- slate header row (frozen, with filter arrows, repeated on every
    printed page), thin gridlines, zebra rows. Prints landscape, fit to width.
-   `types` sets each column's look: text | center | int | pct | pct1 | x | soh
+   `types` sets each column's look: text | center | int | pct | pct1 | x | soh | po | poc
    (number columns keep real numbers, only formatted). The zip is "stored"
    (uncompressed), which Excel opens fine. ponytail: one sheet, no images or
    dates; swap for a library if exports ever need more. */
@@ -3271,10 +3271,12 @@ function downloadXlsx(filename, sheetName, { title, subtitle, header, rows, widt
   const sSub = style({ sz: 10, color: 'FFCBD5E1', fill: NAVY });
   const sBrass = style({ fill: 'FFA3781D' });
   const sHead = style({ b: true, color: 'FFFFFFFF', fill: 'FF1E293B', border: true, h: 'center', wrap: true });
+  // soh: teal; po / poc (Trip's Last Posting Date + Purchase Qty): violet, int / centred
   const bodyStyle = (type, zebra) => {
-    const fill = type === 'soh' ? 'FFF0FDFA' : zebra ? 'FFF8FAFC' : null;
-    return style({ border: true, fill, b: type === 'soh', color: type === 'soh' ? 'FF0D9488' : undefined,
-      fmt: FMT[type === 'soh' ? 'int' : type], h: type === 'text' ? 'left' : type === 'center' ? 'center' : 'right' });
+    const po = type === 'po' || type === 'poc';
+    const fill = type === 'soh' ? 'FFF0FDFA' : po ? 'FFEDE9FE' : zebra ? 'FFF8FAFC' : null;
+    return style({ border: true, fill, b: type === 'soh' || po, color: type === 'soh' ? 'FF0D9488' : po ? 'FF5B21B6' : undefined,
+      fmt: FMT[type === 'soh' || type === 'po' ? 'int' : type], h: type === 'text' ? 'left' : type === 'center' || type === 'poc' ? 'center' : 'right' });
   };
 
   const cell = (v, ref, s) => {
@@ -3344,7 +3346,7 @@ function downloadXlsx(filename, sheetName, { title, subtitle, header, rows, widt
 function tripExportRows(rows){
   const all = ['No', 'Vendor Code', 'Range Name', 'CPC', 'PUDA Code', 'PUDA Desc', 'Purchase Qty', '2XL Barcode No', 'Description',
     'SOH', 'Sold (since Lrcv)', 'Recovery %', 'Sold/Lrcv Qty %', 'Disct%', 'Sale Mrg', 'Last Posting Date'];
-  const allTypes = ['center', 'text', 'text', 'center', 'text', 'text', 'int', 'center', 'text', 'soh', 'int', 'pct', 'pct', 'pct1', 'x', 'center'];
+  const allTypes = ['center', 'text', 'text', 'center', 'text', 'text', 'po', 'center', 'text', 'soh', 'int', 'pct', 'pct', 'pct1', 'x', 'poc'];
   const allWidths = [6, 12, 16, 6, 11, 34, 10, 12, 42, 8, 11, 10, 11, 8, 8, 12];
   const num = v => typeof v === 'number' && isFinite(v) ? v : (v === '' || v == null || isNaN(Number(v)) ? null : Number(v));
   const round = (v, d) => v == null ? null : Math.round(v * 10 ** d) / 10 ** d;
@@ -3354,8 +3356,8 @@ function tripExportRows(rows){
       String(it['Item Code']), it['Description'], r.soh, r.sold, r.pct == null ? null : Math.round(r.pct), r.pctOfLrcv == null ? null : Math.round(r.pctOfLrcv),
       disc == null ? null : round(disc * 100, 1), round(num(it['MRG Factor']), 2), it['Lrcv Date'] ? fmtLrcvDate(it['Lrcv Date']) : null];
   });
-  // Same column order as the page: Purchase Qty and Last Posting Date right after Description.
-  const ORDER = [0, 1, 2, 3, 4, 5, 7, 8, 6, 15, 9, 10, 11, 12, 13, 14];
+  // Same column order as the page: Last Posting Date and Purchase Qty right after Description.
+  const ORDER = [0, 1, 2, 3, 4, 5, 7, 8, 15, 6, 9, 10, 11, 12, 13, 14];
   const keep = ORDER.filter(i => !(tripScope.vendor && all[i] === 'Vendor Code'));
   const pick = arr => keep.map(i => arr[i]);
   return { header: pick(all), types: pick(allTypes), widths: pick(allWidths), body: body.map(pick) };
@@ -3441,7 +3443,7 @@ async function tripPdf(rows, save = true){
   const widths = { 'No': 7, 'Vendor Code': 13, 'Range Name': 18, 'CPC': 9, 'PUDA Code': 13, 'PUDA Desc': 42, 'Purchase Qty': 15, '2XL Barcode No': 15,
     'SOH': 11, 'Sold (since Lrcv)': 14, 'Recovery %': 22, 'Sold/Lrcv Qty %': 14, 'Disct%': 11, 'Sale Mrg': 11, 'Last Posting Date': 16 };
   const left = new Set(['Vendor Code', 'Range Name', 'PUDA Code', 'PUDA Desc', 'Description']), center = new Set(['CPC', 'No']);
-  const iRec = header.indexOf('Recovery %'), iSoh = header.indexOf('SOH');
+  const iRec = header.indexOf('Recovery %'), iSoh = header.indexOf('SOH'), iPo = [header.indexOf('Last Posting Date'), header.indexOf('Purchase Qty')];
   doc.autoTable({
     head: [header], body: body.map(r => r.map(fmt)),
     startY: 32, margin: { top: 12, left: M, right: M, bottom: 12 },
@@ -3454,6 +3456,7 @@ async function tripPdf(rows, save = true){
       if(d.section !== 'body') return;
       if(d.column.index === iSoh){ d.cell.styles.fillColor = [240, 253, 250]; d.cell.styles.textColor = TEAL; d.cell.styles.fontStyle = 'bold'; }
       if(d.column.index === iRec) d.cell.styles.fontStyle = 'bold';
+      if(iPo.includes(d.column.index)){ d.cell.styles.fillColor = [237, 233, 254]; d.cell.styles.textColor = [91, 33, 182]; d.cell.styles.fontStyle = 'bold'; }
     },
     // Recovery %: a small sell-through bar to the left of the number, like the page
     didDrawCell: d => {
