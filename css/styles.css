@@ -2114,7 +2114,9 @@ table.year-matrix tr.year-row td{animation:popIn .22s cubic-bezier(.16,1,.3,1) b
    second row's search boxes are exactly as wide as the dropdowns above them
    and line up under them. Full-width extras (PO Data's dates, the chips)
    span the whole row; the inline "Show everything" sits in the last column. */
-.dash-scope.dash-scope-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));column-gap:var(--sp-4);row-gap:var(--sp-3);align-items:end;}
+/* Range toggle owns column 1 across both filter rows; the 10 filters sit 5 + 5 beside it */
+.dash-scope-grid > .dash-grp-field{grid-row:span 2;align-self:start;}
+.dash-scope.dash-scope-grid{display:grid;grid-template-columns:auto repeat(5,minmax(0,1fr));column-gap:var(--sp-4);row-gap:var(--sp-3);align-items:end;}
 .dash-scope-grid > .dash-scope-break{display:none;}
 .dash-scope-grid > .dash-scope-head,.dash-scope-grid > .dash-chips,.dash-scope-grid > .po-dates{grid-column:1/-1;}
 .dash-scope-grid:has(> .dash-scope-reset) > .po-dates{grid-column:1/-2;}
