@@ -33,7 +33,7 @@ function lifestyleLabel(code){
 const CAT_GROUPS = { KAF: ['K', 'A', 'F'], WOS: ['W', 'O', 'S'] };
 const CAT_DESC_CODE = { 'kids': 'K', 'accessory': 'A', 'furniture': 'F', 'wall paper & window décor': 'W', 'wall paper & window decor': 'W', 'office furniture': 'O', 'services': 'S' };
 function inCatGroup(code, g){ return !g || CAT_GROUPS[g].includes(String(code || '').trim().toUpperCase()); }
-const catGroupSeg = (id, g) => '<div class="dash-seg cat-seg" id="' + id + '" role="group" aria-label="Range group">' +
+const catGroupSeg = (id, g) => '<div class="dash-seg cat-seg" id="' + id + '" role="group" aria-label="Display filter">' +
   [['', 'All'], ['KAF', 'KAF'], ['WOS', 'WOS']].map(([v, l]) => '<button type="button" data-g="' + v + '" class="' + (v === (g || '') ? 'on' : '') + '" title="' + (v === 'KAF' ? 'Kids, Accessory, Furniture' : v === 'WOS' ? 'Wall Paper, Office Furniture, Services' : 'Every category') + '">' + l + '</button>').join('') + '</div>';
 
 /* Size Master / Fabric / Price Point come from js/item-attrs.js (Stock Data sheet);

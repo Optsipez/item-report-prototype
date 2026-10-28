@@ -902,7 +902,7 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
       '</div>' : '') + '</label>';
   return '<div class="dash-scope dash-scope-grid">' + (opts.headless ? '' : '<div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' + reset + '</div>') +
     // Range toggle spans both rows on the left; the 10 filters fill a 5 + 5 grid beside it.
-    '<div class="dash-grp-field"><span class="dash-grp-k">Range</span>' + catGroupSeg('dashGrpSeg', scope.grp) + '</div>' +
+    '<div class="dash-grp-field"><span class="dash-grp-k">Display Filter</span>' + catGroupSeg('dashGrpSeg', scope.grp) + '</div>' +
     '<label>Category<select id="dashCat">' + opt(uniq('cat', 'Category'), scope.cat) + '</select></label>' +
     '<label>Department<select id="dashDept">' + opt(uniq('dept', 'Department Desc'), scope.dept) + '</select></label>' +
     planField +
