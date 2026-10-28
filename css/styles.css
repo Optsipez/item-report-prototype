@@ -503,7 +503,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .dash-grp-k{font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink-faint);}
 .cat-seg button{padding:7px 12px;}
 .dash-scope .cat-seg button{padding:8px 12px;}
-#lookupCatSeg{margin:var(--sp-2) 0;}
+#lookupCatSeg{margin:0 0 var(--sp-4);flex-shrink:0;}
 #lookupCatSeg button{flex:1;}
 #lookupCatSeg.cat-seg{display:flex;}
 .dash-scope select,.dash-scope input{
@@ -1485,6 +1485,7 @@ table.grid tbody tr.row-item td.wk-cell:hover{
   padding-left:var(--sp-6);padding-top:var(--sp-6);padding-bottom:var(--sp-2);
 }
 .grid-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:var(--sp-1) var(--sp-3);}
+.grid-title > .cat-seg{align-self:center;}
 .grid-toolbar h1{font-size:var(--fs-xl);margin:0;font-weight:600;letter-spacing:-.015em;}
 .grid-toolbar .sub{font-size:var(--fs-base);color:var(--ink-soft);}
 .grid-toolbar .toolbar-row{display:flex;align-items:center;flex-wrap:wrap;gap:var(--sp-2) var(--sp-4);margin-top:var(--sp-3);}

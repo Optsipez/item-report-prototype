@@ -40,12 +40,12 @@
 
     <!-- Item Lookup filters -->
     <div id="railLookup" class="rail-panel">
+      <div id="lookupCatSeg"></div>
       <h2>Item Lookup</h2>
       <div class="lookup-box">
         <input id="searchInput" type="text" placeholder="Item code or description…" autocomplete="off">
         <button id="generateBtn">Generate</button>
       </div>
-      <div id="lookupCatSeg"></div>
       <div id="resultList" class="result-list"></div>
       <div class="legend">
         <h2>Glossary</h2>
@@ -198,6 +198,7 @@
     <div id="viewAll" class="view">
       <div class="grid-toolbar">
         <div class="grid-title">
+          <div id="gridCatSeg"></div>
           <h1>All Products</h1>
           <label class="grid-item-search" title="Find an item and filter the grid to it">
             <input type="text" id="gridItemSearch" list="gridItemSearchList" placeholder="Item code or description…" autocomplete="off">
@@ -214,9 +215,8 @@
         </div>
         <div class="toolbar-row">
           <div class="grid-actions">
-            <button id="collapseAllBtn">Collapse all sections</button>
-            <button id="expandAllBtn">Expand all sections</button>
-            <div id="gridCatSeg"></div>
+            <button id="collapseAllBtn">Collapse</button>
+            <button id="expandAllBtn">Expand</button>
             <button id="omanToggleBtn" type="button" class="oman-toggle"></button>
             <label class="stats-window-field" title="Recalculate AVG, YTD Sold (renamed to match), and Total Received Qty over a shorter trailing window instead of the full history — the window is always that many months back PLUS the current month.">
               <span class="dsf-label">Window</span>
