@@ -862,6 +862,32 @@ let dashPlanOpen = false, dashPlanRerender = null;
 document.addEventListener('click', e => {
   if(dashPlanOpen && !e.target.closest('.dr-ms-field')){ dashPlanOpen = false; if(dashPlanRerender) dashPlanRerender(); }
 });
+// Typed filters (Vendor code, Group, PUDA, Range Name): clicking one empties
+// it so the full suggestion list shows, with "All" on top -- picking All
+// clears the filter, leaving without picking puts the old value back. Capture
+// phase, so this runs before each field's own blur/input/Enter handlers.
+// allFilterQuiet: set around code's own refocus after a re-render, which
+// must keep the value.
+let allFilterQuiet = false;
+const isAllFilter = el => el && el.matches && el.matches('input[list][placeholder="All"]');
+document.addEventListener('focus', e => {
+  const el = e.target;
+  if(allFilterQuiet || !isAllFilter(el)) return;
+  if(el.list && !el.list.querySelector('option[value="All"]')) el.list.insertAdjacentHTML('afterbegin', '<option value="All">');
+  el.dataset.prev = el.value; el.dataset.touched = '';
+  el.value = '';
+  try { el.showPicker(); } catch(_){}
+}, true);
+document.addEventListener('input', e => {
+  const el = e.target;
+  if(!isAllFilter(el)) return;
+  el.dataset.touched = '1';
+  // Vendor code only commits on blur, so leave the field to apply All at once
+  if(el.value === 'All'){ el.value = ''; setTimeout(() => el.blur()); }
+}, true);
+const restoreAllFilter = el => { if(el.value === '' && !el.dataset.touched) el.value = el.dataset.prev || ''; };
+document.addEventListener('blur', e => { if(isAllFilter(e.target)) restoreAllFilter(e.target); }, true);
+document.addEventListener('keydown', e => { if(e.key === 'Enter' && isAllFilter(e.target)) restoreAllFilter(e.target); }, true);
 function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
   // a multi-pick Plan gets one chip per code
   const chips = DASH_CHIP_LABELS.flatMap(([k, l]) => [].concat(scope[k] || []).map(v => dashChip('data-k="' + k + '" data-v="' + dashEsc(v) + '"', l, k === 'life' ? lifestyleLabel(v) : v))).join('') + (opts.chips || '');
@@ -897,7 +923,7 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
       '<button type="button" id="dashPlanBtn" class="dr-ms-btn' + (planSel.length ? ' dr-ms-active' : '') + '">' +
         dashEsc(!planSel.length ? 'All' : planSel.length === 1 ? planSel[0] : planSel.length + ' selected') + '<span class="dr-ms-caret">▾</span></button>' +
       (dashPlanOpen ? '<div class="dr-ms-panel" id="dashPlanPanel">' +
-        (planSel.length ? '<button type="button" class="dr-ms-clear" id="dashPlanClear">Clear</button>' : '') +
+        '<button type="button" class="dr-ms-clear" id="dashPlanClear">All</button>' +
         uniq('plan', 'Current Plan Code').map(v => '<label class="dr-ms-opt' + (planSel.includes(v) ? ' dr-ms-checked' : '') + '"><input type="checkbox" value="' + dashEsc(v) + '"' + (planSel.includes(v) ? ' checked' : '') + '><span class="dr-ms-lbl">' + dashEsc(v) + '</span></label>').join('') +
       '</div>' : '') + '</label>';
   return '<div class="dash-scope dash-scope-grid">' + (opts.headless ? '' : '<div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' + reset + '</div>') +
@@ -1418,7 +1444,7 @@ function dashWireScopeBar(root, rerender, slot){
         const pos = vendorInput.selectionStart;
         change();
         const el = $('dashVendor');
-        if(el){ el.focus(); try { el.setSelectionRange(pos, pos); } catch(e){} }
+        if(el){ allFilterQuiet = true; el.focus(); allFilterQuiet = false; try { el.setSelectionRange(pos, pos); } catch(e){} }
       }
     });
   })();

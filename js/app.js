@@ -2660,7 +2660,7 @@ function escHtml(s){
 function refocusCaret(id, pos){
   const el = document.getElementById(id);
   if(!el) return;
-  el.focus();
+  allFilterQuiet = true; el.focus(); allFilterQuiet = false;   // a refocus, not a fresh click -- keep the value (dashboard.js)
   try { el.setSelectionRange(pos, pos); } catch(e){}
 }
 // Every {year, m} the range spans, oldest first -- month-level, so a range
