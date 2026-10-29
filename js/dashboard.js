@@ -325,8 +325,8 @@ function dashCompute(){
       // by-zero. avg > 0 is its own separate gate: without it, an item
       // with no sales history, no stock and nothing on order (soh=po=
       // avg=0) would read as "0 months of cover" and wrongly qualify.
-      // 'recovery': Recovery% (sold since the last receipt ÷ (sold since +
-      // SOH), same formula as Trip Requirement/13-mo Trend) over
+      // 'recovery': Recovery% (recoveryPct() in app.js, same figure as
+      // Trip Requirement: 0% if SOH >= Lrcv Qty, else sold since ÷ Lrcv Qty) over
       // dashReorderRecoveryPct (30 by default) -- selling fast enough to
       // be running down its cushion, regardless of cover. Both figures are
       // always computed so switching modes doesn't need a recompute pass.
@@ -334,7 +334,7 @@ function dashCompute(){
       const sm = soh / Math.max(avg, 1);
       const pm = po / Math.max(avg, 1);
       const soldSinceLrcv = tripSoldSinceReceipt(it);
-      const recovery = soldSinceLrcv == null ? null : sellThroughPct(soldSinceLrcv, soh);
+      const recovery = recoveryPct(soldSinceLrcv, sohValue(it), Number(it['Lrcv Qty']) || 0);
       const qualifies = dashReorderMode === 'recovery'
         ? (recovery != null && recovery > dashReorderRecoveryPct)
         : (avg > 0 && sm + pm < dashReorderMonths);
@@ -455,7 +455,7 @@ function dashActions(R){
   const tabs = [
     { id: 'reorder', title: 'Reorder now', n: R.reorder.length, sub: R.reorderVendors.length + ' vendors \u00b7 AED ' + dashCompact(R.reorderAtRisk) + '/mo sales at risk', tone: 'warn',
       note: dashReorderMode === 'recovery'
-        ? 'Selling items (Plan Codes A, K, C and P only) with Recovery % (sold since the last receipt ÷ (sold since + SOH)) over ' + dashReorderRecoveryPct + '% (adjustable below; 30 is the default). Ranked by Recovery%, highest first. Buyers order per vendor; click a vendor to open its items in All Products.'
+        ? 'Selling items (Plan Codes A, K, C and P only) with Recovery % (0% if SOH ≥ Lrcv Qty, else sold since the last receipt ÷ Lrcv Qty) over ' + dashReorderRecoveryPct + '% (adjustable below; 30 is the default). Ranked by Recovery%, highest first. Buyers order per vendor; click a vendor to open its items in All Products.'
         : 'Selling items (Plan Codes A, K, C and P only) whose combined cover — stock (SM) plus what’s already on order (PM), both in months at the item’s own best-average sales pace — is under ' + dashReorderMonths + ' months (adjustable below; 5 is the default). Ranked by combined cover, least first. Buyers order per vendor; click a vendor to open its items in All Products.',
       table: '<table class="dash-table"><thead><tr><th class="l item">Item</th><th>CPC</th><th class="l vend">Vendor</th><th>' + (dashReorderMode === 'recovery' ? 'Recovery%' : 'Cover') + '</th><th>Sales at risk / mo</th></tr></thead><tbody>' +
           R.reorder.map(x => '<tr>' + dashItemCell(x.it) + dashPlanCell(x.it) + '<td class="l muted">' + dashEsc(vname(x.it['Vendor Code'])) + '</td><td>' + (dashReorderMode === 'recovery' ? (x.recovery == null ? '—' : Math.round(x.recovery) + '%') : (x.sm + x.pm).toFixed(1) + ' mo') + '</td><td><b>AED ' + dashCompact(x.atRisk) + '</b></td></tr>').join('') + '</tbody></table>',
@@ -489,7 +489,7 @@ function dashActions(R){
           '<button type="button" data-mode="recovery" class="' + (dashReorderMode === 'recovery' ? 'on' : '') + '">Recovery%</button>' +
         '</div>' +
         (dashReorderMode === 'recovery'
-          ? '<label class="page-jump" title="Items qualify when Recovery% is over this. Default is 30.">Over<input type="number" id="dashReorderRecoveryInput" min="0" max="100" step="1" value="' + dashReorderRecoveryPct + '">%</label>'
+          ? '<label class="page-jump" title="Items qualify when Recovery% is over this. Default is 30.">Over<input type="number" id="dashReorderRecoveryInput" min="0" step="1" value="' + dashReorderRecoveryPct + '">%</label>'
           : '<label class="page-jump" title="Items qualify when combined SM+PM cover is under this many months. Default is 5.">Under<input type="number" id="dashReorderMonthsInput" min="0.5" step="0.5" value="' + dashReorderMonths + '">months</label>') : '') +
       (cur.n ? '<button type="button" class="dash-btn" id="dashOpenAll">Open ' + (cur.id === 'late' ? 'their ' + dashInt(cur.codes.length) + ' items' : 'all ' + dashInt(cur.n)) + ' in All Products &rarr;</button>' : '') +
       (cur.n && cur.vendors ? '<button type="button" class="dash-btn ghost" id="dashOpenVendors" title="Every item from the vendors on this list, not just the flagged ones">All items from these ' + dashInt(cur.vendors.length) + ' vendors &rarr;</button>' : '') + '</div>' +

@@ -116,12 +116,15 @@ function sellThroughText(pct){
 // The bar markup itself, shared by the grid's 13-mo Trend cell and the
 // date-range popup's Trend column below — same visual, different totals in.
 function miniVBar(sohTotal, soldTotal, title, emptyTitle){
-  const pct = sellThroughPct(soldTotal, sohTotal);
+  return pctBar(sellThroughPct(soldTotal, sohTotal), title, emptyTitle);
+}
+// Same bar from a ready-made %, filled up to 100 (Recovery % can run past it)
+function pctBar(pct, title, emptyTitle){
   if(pct == null) return '<span class="spark-empty" title="' + (emptyTitle || 'No stock or sales activity') + '">—</span>';
   return '<span class="mini-vbar" title="' + title + '">' +
     '<span class="mini-vbar-pct">' + sellThroughText(pct) + '</span>' +
     '<span class="mini-vbar-track">' +
-      '<span class="mini-vbar-seg mini-vbar-seg-sale" style="width:' + pct.toFixed(1) + '%"></span>' +
+      '<span class="mini-vbar-seg mini-vbar-seg-sale" style="width:' + Math.min(pct, 100).toFixed(1) + '%"></span>' +
     '</span>' +
     '</span>';
 }
@@ -3116,8 +3119,7 @@ function closeDateRangeModal(){
    replacing a manually rebuilt Excel sheet.
    Vendor Item No., Photo and CPC are placeholders (columns exist,
    values don't -- no such data is ingested yet); Remarks is left out
-   entirely, undecided. Recovery % reuses sellThroughPct()/miniVBar(),
-   the exact Sold÷(Sold+SOH) formula the 13-mo Trend column uses.
+   entirely, undecided. Recovery % is recoveryPct() below.
    ============================================================ */
 // Filter state for the shared Show me bar, in memory only. Nothing is listed
 // until at least one field is set.
@@ -3146,23 +3148,31 @@ function tripSoldSinceReceipt(item){
   const to = new Date(REPORT_MONTH.year, REPORT_MONTH.month, 1);
   return rangeSum(item, monthsBetween(d, to), 'sales');
 }
+// Recovery % (manager's rule, 29-Oct-26): if SOH >= Lrcv Qty the last
+// receipt hasn't started paying back, so 0%; otherwise Sold since Lrcv ÷
+// Lrcv Qty -- can pass 100% when older stock sold too. null without a Lrcv
+// Date or Lrcv Qty. Also drives the Stock Dashboard's Recovery% lens.
+function recoveryPct(sold, soh, lrcvQty){
+  if(sold == null || !(lrcvQty > 0)) return null;
+  return soh >= lrcvQty ? 0 : (sold / lrcvQty) * 100;
+}
 function tripRows(scope){
   return ITEMS.filter(it => dashItemInScope(it, scope)).map(it => {
     const soh = sohValue(it);
     const sold = tripSoldSinceReceipt(it);
-    const pct = sold == null ? null : sellThroughPct(sold, soh);
+    const pct = recoveryPct(sold, soh, Number(it['Lrcv Qty']) || 0);
     return { it, soh, sold, pct };
   });
 }
 // Headline numbers for the selection, shown as a KPI strip above the
-// table -- avgPct only counts items with a real Lrcv Date (sold != null),
-// same "no data" exclusion sellThroughPct() itself uses.
+// table -- avgPct only counts items that have a Recovery % (Lrcv Date and Qty).
 function tripSummary(rows){
   const items = rows.length;
   const totalSoh = rows.reduce((a, r) => a + r.soh, 0);
   const known = rows.filter(r => r.sold != null);
   const totalSold = known.reduce((a, r) => a + r.sold, 0);
-  const avgPct = known.length ? known.reduce((a, r) => a + r.pct, 0) / known.length : null;
+  const withPct = rows.filter(r => r.pct != null);
+  const avgPct = withPct.length ? withPct.reduce((a, r) => a + r.pct, 0) / withPct.length : null;
   return { items, totalSoh, totalSold, knownCount: known.length, avgPct };
 }
 function renderTripSummary(rows){
@@ -3180,7 +3190,7 @@ function renderTripSummary(rows){
       kpi('Items', fmtInt(S.items), 'matching these filters') +
       kpi('Total SOH', fmtInt(S.totalSoh), 'units on hand now') +
       kpi('Sold since restock', fmtInt(S.totalSold), noLrcv ? noLrcv + ' item' + (noLrcv === 1 ? '' : 's') + ' with no Lrcv Date' : 'across all ' + S.items + ' items') +
-      kpi('Avg Recovery %', S.avgPct == null ? '—' : Math.round(S.avgPct) + '%', 'average sell-through since last receipt') +
+      kpi('Avg Recovery %', S.avgPct == null ? '—' : Math.round(S.avgPct) + '%', 'average of Sold ÷ Lrcv Qty (0% where SOH ≥ Lrcv Qty)') +
     '</div>';
 }
 // Reuses Item Lookup's own "nothing picked yet" illustration (see
@@ -3208,13 +3218,14 @@ function renderTripTable(rows){
     '<th class="dr-soh">SOH</th><th>Sold (since Lrcv)</th>' +
     '<th>Recovery %</th><th>Disct%</th><th>Sale Mrg</th>';
   const body = rows.map((row, i) => {
-    const { it, soh, sold } = row;
+    const { it, soh, sold, pct } = row;
     const code = it['Item Code'];
     const hidden = tripHidden.has(code);
-    const recTitle = sold == null ? 'No Lrcv Date on record' : 'SOH ' + soh.toLocaleString('en-US') + '  ·  Sold ' + sold.toLocaleString('en-US') + ' since last received';
-    const recovery = sold == null
-      ? '<span class="spark-empty" title="' + recTitle + '">—</span>'
-      : miniVBar(soh, sold, recTitle, recTitle);
+    const lrcvQty = Number(it['Lrcv Qty']) || 0;
+    const recTitle = pct == null ? 'No Lrcv Date or Lrcv Qty on record'
+      : soh >= lrcvQty ? 'SOH ' + soh.toLocaleString('en-US') + ' ≥ Lrcv Qty ' + lrcvQty.toLocaleString('en-US') + ', so 0%'
+      : 'Sold ' + sold.toLocaleString('en-US') + ' since last received ÷ Lrcv Qty ' + lrcvQty.toLocaleString('en-US');
+    const recovery = pctBar(pct, recTitle, recTitle);
     const mrg = typeof it['MRG Factor'] === 'number' ? it['MRG Factor'].toFixed(2) + 'x' : '—';
     return '<tr class="' + (hidden ? 'trip-row-hidden' : '') + '">' +
       '<td class="trip-hide-col"><input type="checkbox" class="trip-hide-cb" data-code="' + escHtml(code) + '"' + (hidden ? ' checked' : '') + ' title="Hide this line from the printed list"></td>' +
