@@ -1493,6 +1493,9 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .grid-toolbar h1{font-size:var(--fs-xl);margin:0;font-weight:600;letter-spacing:-.015em;}
 .grid-toolbar .sub{font-size:var(--fs-base);color:var(--ink-soft);}
 .grid-toolbar .toolbar-row{display:flex;align-items:center;flex-wrap:wrap;gap:var(--sp-2) var(--sp-4);margin-top:var(--sp-3);}
+/* All Products top bar split into boxes: sort/display/collapse · search/Oman · window/dates */
+.grid-toolbar .grid-boxes{margin:0 var(--sp-6) var(--sp-3) 0;gap:var(--sp-2) var(--sp-3);}
+.tool-box{padding:6px 8px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-xs);}
 .grid-toolbar .rowcount{font-size:var(--fs-base);color:var(--ink-faint);font-variant-numeric:tabular-nums;}
 /* Visible Prev/Next, next to the H1 — a clickable counterpart to the
    Left/Right arrow-key shortcut, so that shortcut has something on screen
