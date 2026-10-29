@@ -2140,3 +2140,10 @@ table.year-matrix tr.year-row td{animation:popIn .22s cubic-bezier(.16,1,.3,1) b
 .sim-table td.sim-m.bad{color:#dc2626;}
 .sim-table td.sim-m.warn{color:var(--warn);}
 .sim-table tr.dash-pick{cursor:pointer;}
+/* Trip Requirement Mrg Rem: UCS red, PSM amber, ASM blue, GSM green, CNA grey */
+.mrg-rem{font-weight:700;}
+.mrg-ucs{color:#dc2626;}
+.mrg-psm{color:#b45309;}
+.mrg-asm{color:#2563eb;}
+.mrg-gsm{color:#15803d;}
+.mrg-cna{color:var(--ink-faint);}

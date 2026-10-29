@@ -3156,12 +3156,30 @@ function recoveryPct(sold, soh, lrcvQty){
   if(sold == null || !(lrcvQty > 0)) return null;
   return soh >= lrcvQty ? 0 : (sold / lrcvQty) * 100;
 }
+// Sale margin for one calendar year: net sales ÷ COGS (sales sheets via
+// SALES_VALUES, month 0 = Jan 2024). null when that year has no costed sales.
+function yearSaleMargin(code, year){
+  const m0 = (year - 2024) * 12;
+  let net = 0, cogs = 0;
+  (SALES_VALUES[code] || []).forEach(r => { if(r[0] >= m0 && r[0] < m0 + 12){ net += r[6]; cogs += r[4]; } });
+  return cogs > 0 ? net / cogs : null;
+}
+// Mrg Rem from the current year's margin only (manager's bands, 29-Oct-26);
+// CNA = current year not available (no sales yet this year).
+function mrgRem(m){
+  if(m == null) return 'CNA';
+  return m < 1 ? 'UCS' : m < 1.85 ? 'PSM' : m < 1.95 ? 'ASM' : 'GSM';
+}
+// "3.0,x" -- this year, last year; x = no sales that year
+const mrgHistory = (cur, prev) => [cur, prev].map(m => m == null ? 'x' : m.toFixed(1)).join(',');
 function tripRows(scope){
   return ITEMS.filter(it => dashItemInScope(it, scope)).map(it => {
     const soh = sohValue(it);
     const sold = tripSoldSinceReceipt(it);
     const pct = recoveryPct(sold, soh, Number(it['Lrcv Qty']) || 0);
-    return { it, soh, sold, pct };
+    const code = it['Item Code'];
+    const mrgCur = yearSaleMargin(code, REPORT_MONTH.year), mrgPrev = yearSaleMargin(code, REPORT_MONTH.year - 1);
+    return { it, soh, sold, pct, mrgCur, mrgPrev };
   });
 }
 // Headline numbers for the selection, shown as a KPI strip above the
@@ -3216,9 +3234,9 @@ function renderTripTable(rows){
     '<th>2XL Barcode No</th><th class="c">Photo</th>' +
     '<th class="l">Description</th><th class="trip-po">Last Posting Date</th><th class="trip-po">Purchase Qty</th>' +
     '<th class="dr-soh">SOH</th><th>Sold (since Lrcv)</th>' +
-    '<th>Recovery %</th><th>Disct%</th><th>Sale Mrg</th>';
+    '<th>Recovery %</th><th>Disct%</th><th title="Net sales ÷ COGS: ' + REPORT_MONTH.year + ',' + (REPORT_MONTH.year - 1) + ' (x = no sales that year)">Sale Mrg</th><th class="c">Mrg Rem</th>';
   const body = rows.map((row, i) => {
-    const { it, soh, sold, pct } = row;
+    const { it, soh, sold, pct, mrgCur, mrgPrev } = row;
     const code = it['Item Code'];
     const hidden = tripHidden.has(code);
     const lrcvQty = Number(it['Lrcv Qty']) || 0;
@@ -3226,7 +3244,7 @@ function renderTripTable(rows){
       : soh >= lrcvQty ? 'SOH ' + soh.toLocaleString('en-US') + ' ≥ Lrcv Qty ' + lrcvQty.toLocaleString('en-US') + ', so 0%'
       : 'Sold ' + sold.toLocaleString('en-US') + ' since last received ÷ Lrcv Qty ' + lrcvQty.toLocaleString('en-US');
     const recovery = pctBar(pct, recTitle, recTitle);
-    const mrg = typeof it['MRG Factor'] === 'number' ? it['MRG Factor'].toFixed(2) + 'x' : '—';
+    const rem = mrgRem(mrgCur);
     return '<tr class="' + (hidden ? 'trip-row-hidden' : '') + '">' +
       '<td class="trip-hide-col"><input type="checkbox" class="trip-hide-cb" data-code="' + escHtml(code) + '"' + (hidden ? ' checked' : '') + ' title="Hide this line from the printed list"></td>' +
       '<td class="branch-sno">' + (i + 1) + '</td>' +
@@ -3243,7 +3261,8 @@ function renderTripTable(rows){
       '<td>' + (sold == null ? '—' : fmtInt(sold)) + '</td>' +
       '<td>' + recovery + '</td>' +
       '<td>' + fmtPct(it['Disct%']) + '</td>' +
-      '<td>' + mrg + '</td>' +
+      '<td class="c">' + mrgHistory(mrgCur, mrgPrev) + '</td>' +
+      '<td class="c mrg-rem mrg-' + rem.toLowerCase() + '">' + rem + '</td>' +
       '</tr>';
   }).join('');
   return '<div class="dr-wrap trip-wrap"><table class="matrix dr-table"><thead><tr>' + cols + '</tr></thead><tbody>' + body + '</tbody></table></div>';
@@ -3358,19 +3377,19 @@ function downloadXlsx(filename, sheetName, { title, subtitle, header, rows, widt
 // so the column would just repeat). Hidden lines are left out by the caller.
 function tripExportRows(rows){
   const all = ['No', 'Vendor Code', 'Range Name', 'CPC', 'PUDA Code', 'PUDA Desc', 'Purchase Qty', '2XL Barcode No', 'Description',
-    'SOH', 'Sold (since Lrcv)', 'Recovery %', 'Disct%', 'Sale Mrg', 'Last Posting Date'];
-  const allTypes = ['center', 'text', 'text', 'center', 'text', 'text', 'po', 'center', 'text', 'soh', 'int', 'pct', 'pct1', 'x', 'poc'];
-  const allWidths = [6, 12, 16, 6, 11, 34, 10, 12, 42, 8, 11, 10, 8, 8, 12];
+    'SOH', 'Sold (since Lrcv)', 'Recovery %', 'Disct%', 'Sale Mrg', 'Last Posting Date', 'Mrg Rem'];
+  const allTypes = ['center', 'text', 'text', 'center', 'text', 'text', 'po', 'center', 'text', 'soh', 'int', 'pct', 'pct1', 'center', 'poc', 'center'];
+  const allWidths = [6, 12, 16, 6, 11, 34, 10, 12, 42, 8, 11, 10, 8, 9, 12, 8];
   const num = v => typeof v === 'number' && isFinite(v) ? v : (v === '' || v == null || isNaN(Number(v)) ? null : Number(v));
   const round = (v, d) => v == null ? null : Math.round(v * 10 ** d) / 10 ** d;
   let body = rows.map((r, i) => {
     const it = r.it, disc = num(it['Disct%']);
     return [i + 1, it['Vendor Code'], it['Range Name'], it['Current Plan Code'], it['PUDA Code'], it['PUDA Desc'], num(it['PO-Qty']) || 0,
       String(it['Item Code']), it['Description'], r.soh, r.sold, r.pct == null ? null : Math.round(r.pct),
-      disc == null ? null : round(disc * 100, 1), round(num(it['MRG Factor']), 2), it['Lrcv Date'] ? fmtLrcvDate(it['Lrcv Date']) : null];
+      disc == null ? null : round(disc * 100, 1), mrgHistory(r.mrgCur, r.mrgPrev), it['Lrcv Date'] ? fmtLrcvDate(it['Lrcv Date']) : null, mrgRem(r.mrgCur)];
   });
   // Same column order as the page: Last Posting Date and Purchase Qty right after Description.
-  const ORDER = [0, 1, 2, 3, 4, 5, 7, 8, 14, 6, 9, 10, 11, 12, 13];
+  const ORDER = [0, 1, 2, 3, 4, 5, 7, 8, 14, 6, 9, 10, 11, 12, 13, 15];
   const keep = ORDER.filter(i => !(tripScope.vendor && all[i] === 'Vendor Code'));
   const pick = arr => keep.map(i => arr[i]);
   return { header: pick(all), types: pick(allTypes), widths: pick(allWidths), body: body.map(pick) };
@@ -3449,13 +3468,12 @@ async function tripPdf(rows, save = true){
     const h = header[i];
     if(h === 'Recovery %') return v + '%';
     if(h === 'Disct%') return v.toFixed(1) + '%';
-    if(h === 'Sale Mrg') return v.toFixed(2) + 'x';
     if(typeof v === 'number' && h !== 'No') return fmtInt(v);
     return String(v);
   };
   const widths = { 'No': 7, 'Vendor Code': 13, 'Range Name': 18, 'CPC': 9, 'PUDA Code': 13, 'PUDA Desc': 42, 'Purchase Qty': 15, '2XL Barcode No': 15,
-    'SOH': 11, 'Sold (since Lrcv)': 14, 'Recovery %': 22, 'Disct%': 11, 'Sale Mrg': 11, 'Last Posting Date': 16 };
-  const left = new Set(['Vendor Code', 'Range Name', 'PUDA Code', 'PUDA Desc', 'Description']), center = new Set(['CPC', 'No']);
+    'SOH': 11, 'Sold (since Lrcv)': 14, 'Recovery %': 22, 'Disct%': 11, 'Sale Mrg': 13, 'Mrg Rem': 12, 'Last Posting Date': 16 };
+  const left = new Set(['Vendor Code', 'Range Name', 'PUDA Code', 'PUDA Desc', 'Description']), center = new Set(['CPC', 'No', 'Sale Mrg', 'Mrg Rem']);
   const iRec = header.indexOf('Recovery %'), iSoh = header.indexOf('SOH'), iPo = [header.indexOf('Last Posting Date'), header.indexOf('Purchase Qty')];
   doc.autoTable({
     head: [header], body: body.map(r => r.map(fmt)),
