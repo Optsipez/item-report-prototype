@@ -1117,7 +1117,8 @@ function simCompute(){
       r.units += soh; r.cost += soh * (Number(it['L-Cost (Aed)']) || 0);
       if(p){ r.poQty += p.qty; r.poCost += p.cost; }
     }
-    (SALES_VALUES[it['Item Code']] || []).forEach(s => { if(s[0] >= from && s[0] <= to){ r.sUnits += s[3]; r.cogs += s[4]; } });
+    // Plan U lines count as 0 average sales (their stock and POs still count)
+    if(dashPlan(it) !== 'U') (SALES_VALUES[it['Item Code']] || []).forEach(s => { if(s[0] >= from && s[0] <= to){ r.sUnits += s[3]; r.cogs += s[4]; } });
   });
   const list = Object.values(rows).filter(r => r.units || r.poQty || r.sUnits).sort((a, b) => b.cost - a.cost || String(a.k).localeCompare(String(b.k)));
   list.forEach(r => { for(const f in T) T[f] += r[f]; });
@@ -1166,7 +1167,7 @@ function renderSimPim(){
     (simHeaderCollapsed ? '' : dashScopeBar(simScope, simVendorAmbiguous, { headless: true, listPrefix: 'sim' })) +
     '</div>' +
     '<section class="dash-card wide tone-pos dash-bands"><h3>By ' + dashEsc(label) + ' <span>SIM = stock ÷ avg monthly sales · PIM = on order ÷ avg monthly sales, in months</span></h3>' +
-    '<div class="band-period"><div class="dash-seg" id="simMonthsSeg">' + seg + '</div><span class="band-period-note">Average over ' + dashEsc(per) + ' (complete months)</span></div>' +
+    '<div class="band-period"><div class="dash-seg" id="simMonthsSeg">' + seg + '</div><span class="band-period-note">Average over ' + dashEsc(per) + ' (complete months) · Plan U lines count as 0 average</span></div>' +
     (C.list.length ? '<div class="band-wrap"><table class="dash-table band-table sim-table"><thead><tr class="band-grp"><th></th><th colspan="2">Stock</th><th colspan="2" class="band-split">On order</th><th colspan="2" class="band-split">Avg sales / month</th><th colspan="2" class="band-split">SIM (months)</th><th colspan="2" class="band-split">PIM (months)</th><th colspan="2" class="band-split">Contribution</th></tr>' +
       '<tr><th class="l">' + dashEsc(label) + '</th><th>Qty</th><th>Cost</th><th class="band-split">Qty</th><th>PO Cost</th><th class="band-split">Qty</th><th>COGS</th><th class="band-split">Qty</th><th>Value</th><th class="band-split">Qty</th><th>Value</th><th class="band-split">% of stock</th><th>% of sales</th></tr></thead><tbody>' +
       body + '<tr class="band-total"><td class="l"><b>Total</b></td>' + cells(T) + '</tr></tbody></table></div>'
