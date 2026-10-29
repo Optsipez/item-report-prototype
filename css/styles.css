@@ -1494,7 +1494,10 @@ table.grid tbody tr.row-item td.wk-cell:hover{
 .grid-toolbar .sub{font-size:var(--fs-base);color:var(--ink-soft);}
 .grid-toolbar .toolbar-row{display:flex;align-items:center;flex-wrap:wrap;gap:var(--sp-2) var(--sp-4);margin-top:var(--sp-3);}
 /* All Products top bar split into boxes: sort/display/collapse · search/Oman · window/dates */
-.grid-toolbar .grid-boxes{margin:0 var(--sp-6) var(--sp-3) 0;gap:var(--sp-2) var(--sp-3);}
+.grid-toolbar .grid-boxes{margin:0 var(--sp-3) var(--sp-3) 0;gap:var(--sp-2) var(--sp-3);}
+/* Title + pager ride in the same wrap row so the bar stays at two lines */
+.grid-boxes .grid-title{flex-wrap:nowrap;align-items:center;gap:var(--sp-2);}
+.grid-boxes .date-field .date-text{width:72px;}
 .tool-box{padding:6px 8px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-xs);}
 .grid-toolbar .rowcount{font-size:var(--fs-base);color:var(--ink-faint);font-variant-numeric:tabular-nums;}
 /* Visible Prev/Next, next to the H1 — a clickable counterpart to the
