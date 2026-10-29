@@ -3151,14 +3151,7 @@ function tripRows(scope){
     const soh = sohValue(it);
     const sold = tripSoldSinceReceipt(it);
     const pct = sold == null ? null : sellThroughPct(sold, soh);
-    // How much of the LAST receipt specifically has sold since -- a
-    // narrower read than Recovery % (which weighs against everything still
-    // on hand now, not just that one shipment). Can run over 100% if stock
-    // from before that receipt sold too. '' Lrcv Qty, same as '' Lrcv Date,
-    // means null (no receipt to compare against), not a real zero.
-    const lrcvQty = Number(it['Lrcv Qty']) || 0;
-    const pctOfLrcv = sold != null && lrcvQty > 0 ? (sold / lrcvQty) * 100 : null;
-    return { it, soh, sold, pct, pctOfLrcv };
+    return { it, soh, sold, pct };
   });
 }
 // Headline numbers for the selection, shown as a KPI strip above the
@@ -3213,9 +3206,9 @@ function renderTripTable(rows){
     '<th>2XL Barcode No</th><th class="c">Photo</th>' +
     '<th class="l">Description</th><th class="trip-po">Last Posting Date</th><th class="trip-po">Purchase Qty</th>' +
     '<th class="dr-soh">SOH</th><th>Sold (since Lrcv)</th>' +
-    '<th>Recovery %</th><th>Sold/Lrcv Qty %</th><th>Disct%</th><th>Sale Mrg</th>';
+    '<th>Recovery %</th><th>Disct%</th><th>Sale Mrg</th>';
   const body = rows.map((row, i) => {
-    const { it, soh, sold, pctOfLrcv } = row;
+    const { it, soh, sold } = row;
     const code = it['Item Code'];
     const hidden = tripHidden.has(code);
     const recTitle = sold == null ? 'No Lrcv Date on record' : 'SOH ' + soh.toLocaleString('en-US') + '  ·  Sold ' + sold.toLocaleString('en-US') + ' since last received';
@@ -3238,7 +3231,6 @@ function renderTripTable(rows){
       '<td class="dr-soh">' + fmtInt(soh) + '</td>' +
       '<td>' + (sold == null ? '—' : fmtInt(sold)) + '</td>' +
       '<td>' + recovery + '</td>' +
-      '<td>' + (pctOfLrcv == null ? '—' : Math.round(pctOfLrcv) + '%') + '</td>' +
       '<td>' + fmtPct(it['Disct%']) + '</td>' +
       '<td>' + mrg + '</td>' +
       '</tr>';
@@ -3355,19 +3347,19 @@ function downloadXlsx(filename, sheetName, { title, subtitle, header, rows, widt
 // so the column would just repeat). Hidden lines are left out by the caller.
 function tripExportRows(rows){
   const all = ['No', 'Vendor Code', 'Range Name', 'CPC', 'PUDA Code', 'PUDA Desc', 'Purchase Qty', '2XL Barcode No', 'Description',
-    'SOH', 'Sold (since Lrcv)', 'Recovery %', 'Sold/Lrcv Qty %', 'Disct%', 'Sale Mrg', 'Last Posting Date'];
-  const allTypes = ['center', 'text', 'text', 'center', 'text', 'text', 'po', 'center', 'text', 'soh', 'int', 'pct', 'pct', 'pct1', 'x', 'poc'];
-  const allWidths = [6, 12, 16, 6, 11, 34, 10, 12, 42, 8, 11, 10, 11, 8, 8, 12];
+    'SOH', 'Sold (since Lrcv)', 'Recovery %', 'Disct%', 'Sale Mrg', 'Last Posting Date'];
+  const allTypes = ['center', 'text', 'text', 'center', 'text', 'text', 'po', 'center', 'text', 'soh', 'int', 'pct', 'pct1', 'x', 'poc'];
+  const allWidths = [6, 12, 16, 6, 11, 34, 10, 12, 42, 8, 11, 10, 8, 8, 12];
   const num = v => typeof v === 'number' && isFinite(v) ? v : (v === '' || v == null || isNaN(Number(v)) ? null : Number(v));
   const round = (v, d) => v == null ? null : Math.round(v * 10 ** d) / 10 ** d;
   let body = rows.map((r, i) => {
     const it = r.it, disc = num(it['Disct%']);
     return [i + 1, it['Vendor Code'], it['Range Name'], it['Current Plan Code'], it['PUDA Code'], it['PUDA Desc'], num(it['PO-Qty']) || 0,
-      String(it['Item Code']), it['Description'], r.soh, r.sold, r.pct == null ? null : Math.round(r.pct), r.pctOfLrcv == null ? null : Math.round(r.pctOfLrcv),
+      String(it['Item Code']), it['Description'], r.soh, r.sold, r.pct == null ? null : Math.round(r.pct),
       disc == null ? null : round(disc * 100, 1), round(num(it['MRG Factor']), 2), it['Lrcv Date'] ? fmtLrcvDate(it['Lrcv Date']) : null];
   });
   // Same column order as the page: Last Posting Date and Purchase Qty right after Description.
-  const ORDER = [0, 1, 2, 3, 4, 5, 7, 8, 15, 6, 9, 10, 11, 12, 13, 14];
+  const ORDER = [0, 1, 2, 3, 4, 5, 7, 8, 14, 6, 9, 10, 11, 12, 13];
   const keep = ORDER.filter(i => !(tripScope.vendor && all[i] === 'Vendor Code'));
   const pick = arr => keep.map(i => arr[i]);
   return { header: pick(all), types: pick(allTypes), widths: pick(allWidths), body: body.map(pick) };
@@ -3444,14 +3436,14 @@ async function tripPdf(rows, save = true){
   const fmt = (v, i) => {
     if(v == null || v === '') return '—';
     const h = header[i];
-    if(h === 'Recovery %' || h === 'Sold/Lrcv Qty %') return v + '%';
+    if(h === 'Recovery %') return v + '%';
     if(h === 'Disct%') return v.toFixed(1) + '%';
     if(h === 'Sale Mrg') return v.toFixed(2) + 'x';
     if(typeof v === 'number' && h !== 'No') return fmtInt(v);
     return String(v);
   };
   const widths = { 'No': 7, 'Vendor Code': 13, 'Range Name': 18, 'CPC': 9, 'PUDA Code': 13, 'PUDA Desc': 42, 'Purchase Qty': 15, '2XL Barcode No': 15,
-    'SOH': 11, 'Sold (since Lrcv)': 14, 'Recovery %': 22, 'Sold/Lrcv Qty %': 14, 'Disct%': 11, 'Sale Mrg': 11, 'Last Posting Date': 16 };
+    'SOH': 11, 'Sold (since Lrcv)': 14, 'Recovery %': 22, 'Disct%': 11, 'Sale Mrg': 11, 'Last Posting Date': 16 };
   const left = new Set(['Vendor Code', 'Range Name', 'PUDA Code', 'PUDA Desc', 'Description']), center = new Set(['CPC', 'No']);
   const iRec = header.indexOf('Recovery %'), iSoh = header.indexOf('SOH'), iPo = [header.indexOf('Last Posting Date'), header.indexOf('Purchase Qty')];
   doc.autoTable({
