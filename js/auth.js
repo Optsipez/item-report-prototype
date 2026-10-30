@@ -84,6 +84,29 @@ const PRIMARY_VIEWS = [
   { label: 'Item Lookup',      desc: 'Everything about a single item',               hash: 'lookup',    roles: ['buyer', 'manager', 'ceo', 'admin'] },
   { label: 'PO Data',          desc: 'Every open purchase order, by vendor',         hash: 'podata',    roles: ['buyer', 'manager', 'ceo', 'admin'] },
 ];
+// Home-screen greeting: a random line from a pool that changes with the time
+// of day and the day of the week (UAE weekend = Sat/Sun), never the same
+// line twice in a row.
+function pickGreeting(){
+  const n = String(CURRENT_EMPLOYEE_NAME || '').trim().split(/\s+/)[0] || 'there';
+  const now = new Date(), h = now.getHours(), day = now.getDay();
+  const pool = ['Welcome back, ' + n + '.', 'Hi ' + n + ', good to see you.', n + ', here’s where things stand.', 'Good to have you back, ' + n + '.', 'Ready when you are, ' + n + '.'];
+  if(h < 5 || h >= 22) pool.push('Working late, ' + n + '?', 'Burning the midnight oil, ' + n + '?', 'Still at it, ' + n + '? Here’s the latest.');
+  else if(h < 12) pool.push('Good morning, ' + n + '.', 'Morning, ' + n + '. Coffee first?', 'Rise and shine, ' + n + '.', 'Morning, ' + n + '. Let’s get started.');
+  else if(h < 17) pool.push('Good afternoon, ' + n + '.', 'Afternoon, ' + n + '. Let’s keep it moving.', 'Hope lunch was good, ' + n + '.');
+  else pool.push('Good evening, ' + n + '.', 'Evening, ' + n + '. Wrapping up the day?', 'One last look for today, ' + n + '?');
+  if(day === 1) pool.push('Fresh week ahead, ' + n + '.', 'Happy Monday, ' + n + '.');
+  if(day === 3) pool.push('Halfway through the week, ' + n + '.');
+  if(day === 4) pool.push('Almost the weekend, ' + n + '.');
+  if(day === 5) pool.push('Happy Friday, ' + n + '.', 'Friday already, ' + n + '.');
+  if(day === 0 || day === 6) pool.push('Weekend shift, ' + n + '? Thanks for checking in.', 'Happy weekend, ' + n + '.');
+  let last = null;
+  try { last = sessionStorage.getItem('lastGreeting'); } catch(e){}
+  const fresh = pool.filter(g => g !== last);
+  const g = fresh[Math.floor(Math.random() * fresh.length)];
+  try { sessionStorage.setItem('lastGreeting', g); } catch(e){}
+  return g;
+}
 function renderPrimaryOverlay(){
   const grid = document.getElementById('primaryGrid');
   if(!grid) return;
@@ -104,13 +127,8 @@ function renderPrimaryOverlay(){
     if(typeof navigate === 'function') navigate(btn.dataset.hash);
     else location.hash = btn.dataset.hash;
   }));
-  // A rotating greeting, picked fresh each time the home screen shows
   const greet = document.getElementById('primaryGreeting');
-  const h = new Date().getHours();
-  const part = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
-  const n = String(CURRENT_EMPLOYEE_NAME || '').trim().split(/\s+/)[0] || 'there';
-  const GREETINGS = ['Hi ' + n + ', good to see you.', 'Welcome back, ' + n + '.', 'Good ' + part + ', ' + n + '.', n + ', here’s where things stand.'];
-  if(greet) greet.textContent = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+  if(greet) greet.textContent = pickGreeting();
   const date = document.getElementById('primaryDate');
   if(date) date.textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const user = document.getElementById('primaryUser');
