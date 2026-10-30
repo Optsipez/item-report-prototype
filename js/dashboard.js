@@ -1217,15 +1217,15 @@ function renderDashboard(){
   root.innerHTML =
     '<div class="dash-sticky">' +
     '<div class="dash-hero">' +
-      '<div class="dash-hero-line">' +
-        '<span class="dash-date">' + dashEsc(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + '</span>' +
-        '<h1 class="dash-greet">Stock Dashboard</h1>' +
-        '<p class="dash-sub">' + dashSubtitle() + ' <span class="dash-asof">' + dashEsc(dashAsOfText()) + '.</span>' + (dashHeaderCollapsed ? '' : ' <span class="dash-note">These filters apply to the whole dashboard.</span>') + '</p>' +
+      '<div class="dash-title-block">' +
+        '<h1 class="dash-title">Stock Dashboard</h1>' +
+        '<p class="dash-meta">' + dashEsc(dashSubtitle().replace(/\.$/, '')) + '<span class="dash-meta-dot">·</span><span class="dash-asof">' + dashEsc(dashAsOfText()) + '</span></p>' +
       '</div>' +
-      '<div class="dash-links">' + (!dashHeaderCollapsed && (dashScopeIsSet() || dashBandPeriod.mode !== '3') ? '<button type="button" class="dash-btn ghost filters-active-btn" id="dashReset">Show everything</button>' : '') + '<a class="dash-btn' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#products">All Products &rarr;</a><a class="dash-btn ghost' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#lookup">Item Lookup &rarr;</a>' +
+      // only Show everything turns orange; the two links stay calm (they still carry the filters)
+      '<div class="dash-links">' + (!dashHeaderCollapsed && (dashScopeIsSet() || dashBandPeriod.mode !== '3') ? '<button type="button" class="dash-btn ghost filters-active-btn" id="dashReset">Show everything</button>' : '') + '<a class="dash-btn ghost" href="#products">All Products &rarr;</a><a class="dash-btn ghost" href="#lookup">Item Lookup &rarr;</a>' +
         '<button type="button" class="dash-btn ghost" id="dashHeaderToggle" title="' + (dashHeaderCollapsed ? 'Show the Show me bar and Needs attention tiles' : 'Hide the Show me bar and Needs attention tiles, keep just this line') + '">' + (dashHeaderCollapsed ? 'Expand &#9662;' : 'Collapse &#9652;') + '</button>' +
       '</div></div>' +
-    (dashHeaderCollapsed ? '' : dashScopeBar(dashScope, dashVendorAmbiguous, { headless: true, noReset: true }) +
+    (dashHeaderCollapsed ? '' : '<p class="dash-scope-note dash-note">These filters apply to the whole dashboard.</p>' + dashScopeBar(dashScope, dashVendorAmbiguous, { headless: true, noReset: true }) +
       '<h2 class="dash-h">Needs attention <span>' + dashEsc(scopeLine) + '</span> <span class="dash-note">Click the boxes below to switch between the 4 tables.</span></h2>' + actions.tilesHtml) +
     '</div>' +
     actions.detailHtml +
