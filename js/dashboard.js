@@ -2,7 +2,6 @@
    DASHBOARD — the landing page after login. Built for the purchasing team:
    it answers "what do I need to do today?" before "how are we doing?".
 
-   - A rotating personal greeting.
    - A scope picker (Department / Category / Vendor Code), remembered per
      employee, so each buyer sees their own slice instead of the whole company.
    - Four action lists, each with a count and a button that opens exactly
@@ -24,16 +23,8 @@
    in po-data.js), not today's clock. Vendor names are only shown to roles
    allowed to see them (canSeeVendorName).
    ============================================================ */
-const DASH_GREETINGS = [
-  n => 'Hi ' + n + ', good to see you.',
-  n => 'Welcome back, ' + n + '.',
-  n => 'Good ' + dashPartOfDay() + ', ' + n + '.',
-  n => n + ', here’s where things stand.',
-];
-let dashGreetingIdx = Math.floor(Math.random() * DASH_GREETINGS.length);
-// A fresh pick each time someone signs in (called from auth.js's enterApp).
-function reshuffleDashGreeting(){
-  dashGreetingIdx = Math.floor(Math.random() * DASH_GREETINGS.length);
+// Called on each sign-in from auth.js's enterApp.
+function resetDashForUser(){
   dashScope = null; dashTab = null; dashHeaderCollapsed = false;      // the next person gets their own remembered scope
   poDataScope = null; poDataVendorAmbiguous = null;
 }
@@ -51,20 +42,8 @@ let dashReorderMode = 'cover';     // 'cover' (SM+PM) | 'recovery' (Recovery%) -
 let dashReorderMonths = 5;         // Cover mode's cutoff (SM+PM < this), editable in the UI
 let dashReorderRecoveryPct = 30;   // Recovery mode's cutoff (Recovery% > this), editable in the UI
 
-function dashPartOfDay(){
-  const h = new Date().getHours();
-  return h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
-}
 function dashEsc(s){
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-function dashName(){
-  const first = String(CURRENT_EMPLOYEE_NAME || '').trim().split(/\s+/)[0];
-  if(first) return first;
-  if(CURRENT_ROLE === 'manager') return 'Manager';
-  if(CURRENT_ROLE === 'ceo') return 'CEO';
-  if(CURRENT_ROLE === 'admin') return 'Admin';
-  return CURRENT_EMPLOYEE_ID ? 'Buyer ' + CURRENT_EMPLOYEE_ID : 'there';
 }
 function dashSubtitle(){
   if(CURRENT_ROLE === 'ceo' || CURRENT_ROLE === 'admin') return 'The whole business at a glance.';
@@ -1240,7 +1219,7 @@ function renderDashboard(){
     '<div class="dash-hero">' +
       '<div class="dash-hero-line">' +
         '<span class="dash-date">' + dashEsc(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + '</span>' +
-        '<h1 class="dash-greet">' + DASH_GREETINGS[dashGreetingIdx](dashEsc(dashName())) + '</h1>' +
+        '<h1 class="dash-greet">Stock Dashboard</h1>' +
         '<p class="dash-sub">' + dashSubtitle() + ' <span class="dash-asof">' + dashEsc(dashAsOfText()) + '.</span>' + (dashHeaderCollapsed ? '' : ' <span class="dash-note">These filters apply to the whole dashboard.</span>') + '</p>' +
       '</div>' +
       '<div class="dash-links">' + (!dashHeaderCollapsed && (dashScopeIsSet() || dashBandPeriod.mode !== '3') ? '<button type="button" class="dash-btn ghost filters-active-btn" id="dashReset">Show everything</button>' : '') + '<a class="dash-btn' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#products">All Products &rarr;</a><a class="dash-btn ghost' + (dashScopeIsSet() ? ' filters-active-btn' : '') + '" href="#lookup">Item Lookup &rarr;</a>' +

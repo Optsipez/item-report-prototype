@@ -104,10 +104,13 @@ function renderPrimaryOverlay(){
     if(typeof navigate === 'function') navigate(btn.dataset.hash);
     else location.hash = btn.dataset.hash;
   }));
+  // A rotating greeting, picked fresh each time the home screen shows
   const greet = document.getElementById('primaryGreeting');
   const h = new Date().getHours();
-  const part = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-  if(greet) greet.textContent = part + (CURRENT_EMPLOYEE_NAME ? ', ' + CURRENT_EMPLOYEE_NAME : '') + '.';
+  const part = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+  const n = String(CURRENT_EMPLOYEE_NAME || '').trim().split(/\s+/)[0] || 'there';
+  const GREETINGS = ['Hi ' + n + ', good to see you.', 'Welcome back, ' + n + '.', 'Good ' + part + ', ' + n + '.', n + ', here’s where things stand.'];
+  if(greet) greet.textContent = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
   const date = document.getElementById('primaryDate');
   if(date) date.textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const user = document.getElementById('primaryUser');
@@ -207,7 +210,7 @@ function enterApp(emp){
   // a Buyer's hidden Vendor Name column actually takes effect.
   // Only the view that is actually showing needs redrawing (the dashboard
   // is the default landing page; the grid is only built when opened).
-  if(typeof reshuffleDashGreeting === 'function') reshuffleDashGreeting();
+  if(typeof resetDashForUser === 'function') resetDashForUser();
   if(typeof renderDashboard === 'function' && document.getElementById('viewDash').classList.contains('active')) renderDashboard();
   if(typeof renderGrid === 'function' && document.getElementById('viewAll').classList.contains('active')) renderGrid();
   // The Item Lookup report may already be showing (e.g. a #item= link).
