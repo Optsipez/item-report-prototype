@@ -1267,7 +1267,7 @@ function salesWideHead(was, now){
 const SALES_OPT_CUT = { soh: [5, 15], po: [4, 4], wh: [2, 5], sr: [0, 3] };
 const SALES_STOCK_FIELDS = ['avgQ', 'avgC', 'sC', 'pC', 'wC', 'rC', 'sQ', 'pQ', 'wQ', 'rQ', 'oS', 'oP', 'oW', 'oR'];
 let salesTab = 'summary', salesAvgMonths = 3;
-let salesStockScope = { group: '', puda: '', plan: '', range: '', life: '' };
+let salesStockScope = { group: '', puda: '', plan: '', range: '', life: '', event: '' };
 function salesStockCompute(scope){
   const P = salesPeriod(), avgFrom = P.done - salesAvgMonths + 1, po = simPO();
   const blank = () => { const R = salesTriple(); SALES_STOCK_FIELDS.forEach(f => { R[f] = 0; }); return R; };
@@ -1331,15 +1331,15 @@ function salesStockHtml(){
   const seg = [3, 6, 9, 12].map(m => '<button type="button" data-m="' + m + '" class="' + (m === salesAvgMonths ? 'on' : '') + '">' + m + 'M</button>').join('');
   const P = salesPeriod(), S = salesStockCompute({}), F = salesStockCompute(sc);
   const avgPer = dashMonthLabel(P.done - salesAvgMonths + 1) + ' – ' + dashMonthLabel(P.done);
-  const picked = [sc.group, sc.puda, sc.plan && 'CPC ' + sc.plan, sc.range, sc.life && lifestyleLabel(sc.life)].filter(Boolean).join(' · ') || 'nothing picked yet, so this matches the table above';
+  const picked = [sc.group, sc.puda, sc.plan && 'CPC ' + sc.plan, sc.range, sc.life && lifestyleLabel(sc.life), sc.event].filter(Boolean).join(' · ') || 'nothing picked yet, so this matches the table above';
   return '<div class="band-period"><div class="dash-seg" id="salesAvgSeg">' + seg + '</div><span class="band-period-note">Average over ' + dashEsc(avgPer) + ' (complete months) · Margin leaves consignment sales out, all values keep them in</span></div>' +
     '<section class="dash-card wide tone-pos dash-bands"><h3>Sales &amp; Stock <span>category and department</span></h3>' + salesStockTable(S) + '</section>' +
     '<section class="dash-card wide tone-pos dash-bands"><h3>Sales &amp; Stock, filtered <span>' + dashEsc(picked) + '</span></h3><div class="band-period sales-filters">' +
-      text('group', 'Group Desc', 'Group') + text('puda', 'PUDA Desc', 'PUDA') + pick('plan', dashPlan, 'CPC') + text('range', 'Range Name', 'Range') + pick('life', it => it['Lifestyle'], 'Lifestyle', lifestyleLabel) + '</div>' + salesStockTable(F) + '</section>';
+      text('group', 'Group Desc', 'Group') + text('puda', 'PUDA Desc', 'PUDA') + pick('plan', dashPlan, 'CPC') + text('range', 'Range Name', 'Range') + pick('life', it => it['Lifestyle'], 'Lifestyle', lifestyleLabel) + pick('event', it => it['Event'], 'Event') + '</div>' + salesStockTable(F) + '</section>';
 }
 
 /* ---------- Stores month on month: every category, all stores then each one ---------- */
-const SALES_STORE_NAMES = [['GALER', 'GALER'], ['BRSHA', 'BARSHA'], ['DALMA', 'DALMA'], ['REGUS', 'REGUS'], ['ZAHIA', 'ZAHIA'], ['JUMRA', 'JUMRA'], ['MARIN', 'MARIN'], ['ALNML', 'ALNML'], ['RAKMA', 'RAKMA'], ['PARKC', 'PARKC'], ['CLRNC', 'CLRNC'], ['BKOF1', 'BACK OFC'], ['WEBSTR', 'U-ONLINE'], ['OMNWEB', 'MUSCAT'], ['MOMAN', 'M-ONLINE']];
+const SALES_STORE_NAMES = [['GALER', 'GALER'], ['BRSHA', 'BARSHA'], ['DALMA', 'DALMA'], ['REGUS', 'REGUS'], ['ZAHIA', 'ZAHIA'], ['JUMRA', 'JUMRA'], ['MARIN', 'MARIN'], ['ALNML', 'ALNML'], ['RAKMA', 'RAKMA'], ['PARKC', 'PARKC'], ['CLRNC', 'CLRNC'], ['BKOF1', 'BACK OFC'], ['WEBSTR', 'U-ONLINE'], ['MOMAN', 'MUSCAT'], ['OMNWEB', 'M-ONLINE']];
 function salesStoresHtml(){
   const P = salesPeriod();
   const blank = name => ({ name, months: MONTHS.map(m => Object.assign(salesTriple(), { name: m })), T: salesTriple() });
