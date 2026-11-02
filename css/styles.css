@@ -2165,5 +2165,7 @@ table.year-matrix tr.year-row td{animation:popIn .22s cubic-bezier(.16,1,.3,1) b
 .sales-foot{display:block;margin:var(--sp-2) 0 0;}
 /* full screen width for the wide summary; Department stays put when it still has to scroll */
 #salesRoot.dash{max-width:none;}
+.sales-filters input{padding:6px 10px;font:inherit;font-size:var(--fs-sm);text-transform:none;letter-spacing:0;color:var(--ink);border:1px solid var(--line-strong);border-radius:var(--r-sm);width:190px;}
+.sales-filters input:focus{outline:none;border-color:var(--primary);box-shadow:var(--ring);}
 .sales-table th:first-child,.sales-table td:first-child{position:sticky;left:0;z-index:1;background:var(--panel);}
 .sales-table tr.band-total td:first-child{background:var(--sunken);}

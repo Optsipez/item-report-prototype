@@ -220,9 +220,10 @@ w('sales-dept.js', '/* =========================================================
   '   SALES BY DEPARTMENT x STORE x MONTH -- Sales Dashboard. From the Sales\n'
   '   sheets of "' + SALES_NAME + '", every line.\n'
   '   SALES_DEPTS: [catg code, category, dept code, department].\n'
-  '   SALES_DEPT_ROWS: [dept index, store index, monthIdx, cost, rsp, net];\n'
+  '   SALES_DEPT_ROWS: [dept index, store index, monthIdx, cost, rsp, net, consignment cost, consignment net];\n'
   '   monthIdx = (year - 2024) * 12 + month. cost = Tot Sales Cost (COGS),\n'
-  '   rsp = Tot RSP, net = Tot NET. Built by tools/stock_import.py.\n'
+  '   rsp = Tot RSP, net = Tot NET. The consignment pair (Cons. Status = Yes, already\n'
+  '   inside cost and net) is left off when zero. Built by tools/stock_import.py.\n'
   '   ============================================================ */\n'
   'const SALES_DEPTS = ' + dump(sd) + ';\nconst SALES_STORES = ' + dump(ss) + ';\nconst SALES_DEPT_ROWS = ' + dump(sr) + ';\n')
 w('sales-values.js', '/* ============================================================\n'

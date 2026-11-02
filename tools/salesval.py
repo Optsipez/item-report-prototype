@@ -33,7 +33,7 @@ def sales_values(D, item_codes):
 
 def dept_store_months(D):
     """Sales per department x store x month, every line on the Sales sheets: the Sales Dashboard's data."""
-    depts, stores, agg = {}, {}, collections.defaultdict(lambda: [0.0, 0.0, 0.0])   # cost, rsp, net
+    depts, stores, agg = {}, {}, collections.defaultdict(lambda: [0.0, 0.0, 0.0, 0.0, 0.0])   # cost, rsp, net, consignment cost, consignment net
     for y in ('2024', '2025', '2026'):
         ix, rows = sheet(D, 'Sales ' + y)
         for r in rows:
@@ -42,4 +42,5 @@ def dept_store_months(D):
             ym = (int(s(r[ix['Year Name']])) - 2024) * 12 + MON.index(s(r[ix['Month Name']]))
             a = agg[(d, st, ym)]
             a[0] += num(r[ix['Tot Sales Cost']]); a[1] += num(r[ix['Tot RSP']]); a[2] += num(r[ix['Tot NET']])
-    return list(depts), list(stores), [[*k, *(round(v, 2) for v in a)] for k, a in agg.items()]
+            if s(r[ix['Cons. Status']]).lower() == 'yes': a[3] += num(r[ix['Tot Sales Cost']]); a[4] += num(r[ix['Tot NET']])
+    return list(depts), list(stores), [[*k, *(round(v, 2) for v in (a if a[3] or a[4] else a[:3]))] for k, a in agg.items()]
