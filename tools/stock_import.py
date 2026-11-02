@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stocklogic import evaluate, t, n
 from derive import derive, MON, sheet, qty_col
 from pologic import status_map, status_sort, logistics, po_line, iso
-from salesval import sales_values
+from salesval import sales_values, dept_store_months
 
 STOCK_PKL, SHEET, SALES_PKL, SRC, OUT, ASOF, STOCK_NAME, SALES_NAME, SALES_ASOF = sys.argv[1:10]
 PO_ASOF = sys.argv[10] if len(sys.argv) > 10 else None   # needed when the sales cache has PO Data + Logistics Status + SetUp
@@ -215,6 +215,16 @@ w('sales-only.js', '/* =========================================================
   '   Built by tools/stock_import.py.\n'
   '   ============================================================ */\n'
   'const SALES_ONLY_ITEMS = ' + dump(sales_only) + ';\n')
+sd, ss, sr = dept_store_months(SA)
+w('sales-dept.js', '/* ============================================================\n'
+  '   SALES BY DEPARTMENT x STORE x MONTH -- Sales Dashboard. From the Sales\n'
+  '   sheets of "' + SALES_NAME + '", every line.\n'
+  '   SALES_DEPTS: [catg code, category, dept code, department].\n'
+  '   SALES_DEPT_ROWS: [dept index, store index, monthIdx, cost, rsp, net];\n'
+  '   monthIdx = (year - 2024) * 12 + month. cost = Tot Sales Cost (COGS),\n'
+  '   rsp = Tot RSP, net = Tot NET. Built by tools/stock_import.py.\n'
+  '   ============================================================ */\n'
+  'const SALES_DEPTS = ' + dump(sd) + ';\nconst SALES_STORES = ' + dump(ss) + ';\nconst SALES_DEPT_ROWS = ' + dump(sr) + ';\n')
 w('sales-values.js', '/* ============================================================\n'
   '   SALES VALUES -- from the Sales sheets of "' + SALES_NAME + '", for every\n'
   '   item that sold (ITEMS and SALES_ONLY_ITEMS). Per item, one row per\n'

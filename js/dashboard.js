@@ -1161,6 +1161,95 @@ function renderSimPim(){
     window.scrollTo({ top: 0 });
   }));
 }
+/* ---------- Sales Dashboard: department sales, K+A+F without Mattress ----------
+   From sales-dept.js. Summary: Jan to the chosen complete month, this year vs
+   last, like for like (only stores with sales in every one of those months in
+   both years), then last full year on all stores. Below it, monthly COGS for
+   both years on all stores.
+     Margin %  = (Net - Cost) / Net
+     Cont %    = share of the category (Net in the summary, COGS in the monthly tables)
+     Rank      = by Net, within the category
+     L4L Growth = this year's Net / last year's Net - 1, same months and stores
+     YTD Growth = last full year's Net / the year before's Net - 1 */
+const SALES_CATS = ['F', 'A', 'K'];
+let salesToMonth = null;   // 0-11, null = latest complete month
+function salesCompute(){
+  const done = SALES_AS_OF >= dashMonthEnd(SALES_LAST_MONTH) ? SALES_LAST_MONTH : SALES_LAST_MONTH - 1;
+  const cy = 2024 + Math.floor(done / 12), y0 = (cy - 2024) * 12, lastTo = done % 12;
+  const to = salesToMonth == null ? lastTo : Math.min(salesToMonth, lastTo);
+  const traded = new Set();
+  SALES_DEPT_ROWS.forEach(r => { if(r[5]) traded.add(r[1] + '|' + r[2]); });
+  const inL4L = SALES_STORES.map((_, s) => {
+    for(let m = 0; m <= to; m++) if(!traded.has(s + '|' + (y0 + m)) || !traded.has(s + '|' + (y0 - 12 + m))) return false;
+    return true;
+  });
+  const blank = () => ({ cost: 0, rsp: 0, net: 0 });
+  const rows = SALES_DEPTS.map((d, i) => ({ i, cat: d[0], catName: d[1], code: d[2], name: d[3], cur: blank(), prev: blank(), fy: blank(), fyBefore: blank(), mCur: Array(12).fill(0), mPrev: Array(12).fill(0) }));
+  const add = (b, r) => { b.cost += r[3]; b.rsp += r[4]; b.net += r[5]; };
+  SALES_DEPT_ROWS.forEach(r => {
+    const R = rows[r[0]], m = r[2];
+    if(inL4L[r[1]] && m >= y0 && m <= y0 + to) add(R.cur, r);
+    if(inL4L[r[1]] && m >= y0 - 12 && m <= y0 - 12 + to) add(R.prev, r);
+    if(m >= y0 - 12 && m < y0) { add(R.fy, r); R.mPrev[m - y0 + 12] += r[3]; }
+    if(m >= y0 - 24 && m < y0 - 12) add(R.fyBefore, r);
+    if(m >= y0 && m < y0 + 12) R.mCur[m - y0] += r[3];
+  });
+  const sumBlocks = list => {
+    const T = { cur: blank(), prev: blank(), fy: blank(), fyBefore: blank(), mCur: Array(12).fill(0), mPrev: Array(12).fill(0) };
+    list.forEach(R => {
+      ['cur', 'prev', 'fy', 'fyBefore'].forEach(k => { for(const f in T[k]) T[k][f] += R[k][f]; });
+      R.mCur.forEach((v, m) => { T.mCur[m] += v; T.mPrev[m] += R.mPrev[m]; });
+    });
+    return T;
+  };
+  const cats = SALES_CATS.map(c => {
+    const list = rows.filter(R => R.cat === c && R.name !== 'Mattress').sort((a, b) => a.code.localeCompare(b.code));
+    return { code: c, name: list.length ? list[0].catName : c, list, T: sumBlocks(list) };
+  }).filter(c => c.list.length);
+  return { cy, to, lastTo, cats, T: sumBlocks(cats.flatMap(c => c.list)), stores: SALES_STORES.filter((_, s) => inL4L[s]), left: SALES_STORES.filter((_, s) => !inL4L[s]).sort() };
+}
+function renderSales(){
+  const root = document.getElementById('salesRoot');
+  if(!root) return;
+  const C = salesCompute(), per = MONTHS[0] + (C.to ? '–' + MONTHS[C.to] : '');
+  const pct = (a, b, d) => b ? (a / b * 100).toFixed(d) + '%' : '—';
+  const growth = (cur, prev) => {
+    if(!(prev > 0)) return '<td class="sales-g">—</td>';
+    const g = (cur / prev - 1) * 100;
+    return '<td class="sales-g' + (g < 0 ? ' neg' : '') + '">' + (g > 0 ? '+' : '') + g.toFixed(1) + '%</td>';
+  };
+  const money = v => Math.round(v) ? dashInt(v) : '–';
+  const block = (b, base, rank) => '<td class="band-split">' + money(b.cost) + '</td><td>' + money(b.rsp) + '</td><td><b>' + money(b.net) + '</b></td><td>' + pct(b.net - b.cost, b.net, 1) + '</td><td>' + pct(b.net, base, 0) + '</td><td>' + (rank || '') + '</td>';
+  const ranks = (list, k) => { const by = [...list].sort((a, b) => b[k].net - a[k].net); return R => by.indexOf(R) + 1; };
+  const rowCells = (R, base, rk) => growth(R.cur.net, R.prev.net) + block(R.cur, base.cur.net, rk && rk.cur(R)) + block(R.prev, base.prev.net, rk && rk.prev(R)) + block(R.fy, base.fy.net, rk && rk.fy(R)) + growth(R.fy.net, R.fyBefore.net);
+  const summary = C.cats.map(c => {
+    const rk = { cur: ranks(c.list, 'cur'), prev: ranks(c.list, 'prev'), fy: ranks(c.list, 'fy') };
+    return c.list.map(R => '<tr><td class="l">' + dashEsc(R.name) + '</td>' + rowCells(R, c.T, rk) + '</tr>').join('') +
+      '<tr class="band-total"><td class="l"><b>' + dashEsc(c.name) + ' Total</b></td>' + rowCells(c.T, c.T) + '</tr>';
+  }).join('') + '<tr class="band-total"><td class="l"><b>K+A+F Total</b></td>' + rowCells(C.T, C.T) + '</tr>';
+  const blockHead = '<th class="band-split">Sales Cost</th><th>RSP Sales</th><th>Net Sales</th><th>Margin %</th><th>Cont %</th><th>Rank</th>';
+  const partial = C.cy === 2024 + Math.floor(SALES_LAST_MONTH / 12) && SALES_LAST_MONTH % 12 > C.lastTo ? SALES_LAST_MONTH % 12 : -1;
+  const monthly = (year, key, mark) => {
+    const yearSum = o => o[key].reduce((a, v) => a + v, 0);
+    const cells = (o, base) => '<td>' + pct(yearSum(o), base, 0) + '</td>' + o[key].map(v => '<td>' + money(v) + '</td>').join('');
+    return '<section class="dash-card wide tone-pos dash-bands"><h3>Sales COGS <span>Jan to Dec ' + year + ', all stores</span></h3><div class="band-wrap"><table class="dash-table band-table sales-table"><thead><tr><th class="l">Department</th><th>Cont Yr</th>' +
+      MONTHS.map((m, i) => '<th>' + m + (i === mark ? '*' : '') + '</th>').join('') + '</tr></thead><tbody>' +
+      C.cats.map(c => c.list.map(R => '<tr><td class="l">' + dashEsc(R.name) + '</td>' + cells(R, yearSum(c.T)) + '</tr>').join('') +
+        '<tr class="band-total"><td class="l"><b>' + dashEsc(c.name) + ' Total</b></td>' + cells(c.T, yearSum(c.T)) + '</tr>').join('') +
+      '<tr class="band-total"><td class="l"><b>K+A+F Total</b></td>' + cells(C.T, yearSum(C.T)) + '</tr></tbody></table></div>' +
+      (mark >= 0 ? '<p class="band-period-note sales-foot">* ' + MONTHS[mark] + ' runs to ' + dashEsc(dashDate(SALES_AS_OF)) + '.</p>' : '') + '</section>';
+  };
+  root.innerHTML =
+    '<div class="dash-hero"><div class="dash-title-block"><h1 class="dash-title">Sales Dashboard</h1>' +
+      '<p class="dash-meta">Furniture, Accessories and Kids, without Mattress<span class="dash-meta-dot">·</span><span class="dash-asof">' + dashEsc(dashAsOfText()) + '</span></p></div></div>' +
+    '<section class="dash-card wide tone-pos dash-bands"><h3>Sales summary <span>' + dashEsc(per) + ' ' + C.cy + ' vs ' + (C.cy - 1) + ', then full year ' + (C.cy - 1) + '</span></h3>' +
+    '<div class="band-period"><label class="page-jump">January to <select id="salesTo">' + MONTHS.slice(0, C.lastTo + 1).map((m, i) => '<option value="' + i + '"' + (i === C.to ? ' selected' : '') + '>' + m + '</option>').join('') + '</select></label>' +
+    '<span class="band-period-note">Like for like: ' + C.stores.length + ' of ' + SALES_STORES.length + ' stores with sales in every one of these months in both years' + (C.left.length ? ' · left out: ' + dashEsc(C.left.join(', ')) : '') + '</span></div>' +
+    '<div class="band-wrap"><table class="dash-table band-table sales-table"><thead><tr class="band-grp"><th></th><th></th><th colspan="6" class="band-split">' + dashEsc(per) + ' ' + C.cy + ' (like for like)</th><th colspan="6" class="band-split">' + dashEsc(per) + ' ' + (C.cy - 1) + ' (like for like)</th><th colspan="7" class="band-split">Jan–Dec ' + (C.cy - 1) + ' (all stores)</th></tr>' +
+      '<tr><th class="l">Department</th><th>L4L Growth</th>' + blockHead + blockHead + blockHead + '<th>YTD Growth</th></tr></thead><tbody>' + summary + '</tbody></table></div></section>' +
+    monthly(C.cy, 'mCur', partial) + monthly(C.cy - 1, 'mPrev', -1);
+  root.querySelector('#salesTo').addEventListener('change', e => { salesToMonth = Number(e.target.value); renderSales(); });
+}
 function dashWireBands(root, B, scopeSuffix){
   const $ = id => root.querySelector('#' + id);
   const mode = $('dashBandMode');

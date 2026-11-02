@@ -30,3 +30,16 @@ def sales_values(D, item_codes):
     for (c, ym, b, cons), a in agg.items():
         out[c].append([ym, b, cons] + [round(v, 2) for v in a])
     return out, last_month
+
+def dept_store_months(D):
+    """Sales per department x store x month, every line on the Sales sheets: the Sales Dashboard's data."""
+    depts, stores, agg = {}, {}, collections.defaultdict(lambda: [0.0, 0.0, 0.0])   # cost, rsp, net
+    for y in ('2024', '2025', '2026'):
+        ix, rows = sheet(D, 'Sales ' + y)
+        for r in rows:
+            dk = (s(r[ix['Category Code']]), s(r[ix['Category Desc']]), s(r[ix['Department Code']]), s(r[ix['Department Desc']]))
+            d, st = depts.setdefault(dk, len(depts)), stores.setdefault(s(r[ix['Store No']]), len(stores))
+            ym = (int(s(r[ix['Year Name']])) - 2024) * 12 + MON.index(s(r[ix['Month Name']]))
+            a = agg[(d, st, ym)]
+            a[0] += num(r[ix['Tot Sales Cost']]); a[1] += num(r[ix['Tot RSP']]); a[2] += num(r[ix['Tot NET']])
+    return list(depts), list(stores), [[*k, *(round(v, 2) for v in a)] for k, a in agg.items()]

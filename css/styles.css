@@ -2158,3 +2158,12 @@ table.year-matrix tr.year-row td{animation:popIn .22s cubic-bezier(.16,1,.3,1) b
 .dash-meta .dash-asof{font-size:inherit;}
 .dash-meta-dot{margin:0 8px;color:var(--ink-faint);}
 .dash-note.dash-scope-note{margin:0 0 6px 2px;font-size:var(--fs-xs);}
+/* Sales Dashboard */
+.sales-table td{font-variant-numeric:tabular-nums;}
+.sales-table td.sales-g{font-weight:600;color:var(--pos,#15803d);}
+.sales-table td.sales-g.neg{color:#dc2626;}
+.sales-foot{display:block;margin:var(--sp-2) 0 0;}
+/* full screen width for the wide summary; Department stays put when it still has to scroll */
+#salesRoot.dash{max-width:none;}
+.sales-table th:first-child,.sales-table td:first-child{position:sticky;left:0;z-index:1;background:var(--panel);}
+.sales-table tr.band-total td:first-child{background:var(--sunken);}

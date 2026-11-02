@@ -21,7 +21,7 @@ Excel's quirks are kept on purpose; for example, the projects/reserve bucket tak
 - **PO-Qty:** the total from the current `js/po-data.js`.
 - **Sales:** taken from the sales workbook for **every** item. Items the stock rules drop still sell, so they go to `SALES_ONLY_ITEMS` (`sales-only.js`): attributes plus monthly sales. Dashboard sales figures add them in; stock figures don't.
 
-It writes `data.js`, `item-attrs.js`, `branch-monthly.js`, `sales-values.js`, `sales-only.js` and `lead-times.js` (from GRN). `po-data.js` is left alone. GRN: the header row is found automatically (the 22-Oct sheet has a stale header in row 1) and the quantity is "Posted Quantity" (or "Quantity" in older files). "Actual P.O Qty" equals Posted Quantity on every 2024+ row and is not used.
+It writes `data.js`, `item-attrs.js`, `branch-monthly.js`, `sales-values.js`, `sales-dept.js` (Sales Dashboard), `sales-only.js` and `lead-times.js` (from GRN). `po-data.js` is left alone. GRN: the header row is found automatically (the 22-Oct sheet has a stale header in row 1) and the quantity is "Posted Quantity" (or "Quantity" in older files). "Actual P.O Qty" equals Posted Quantity on every 2024+ row and is not used.
 
 ```sh
 python tools/dump.py "../2XL Data 22-Oct-26.xlsm" /tmp/x22.pkl     # newest workbook
