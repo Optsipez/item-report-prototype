@@ -1372,16 +1372,17 @@ function salesStockTable(S){
     '<td class="band-split">' + num(R.sQ) + '</td><td>' + num(R.pQ) + '</td><td>' + num(R.wQ) + '</td><td>' + num(R.rQ) + '</td><td class="band-split">' + num(R.oS) + '</td><td>' + num(R.oP) + '</td><td>' + num(R.oW) + '</td><td>' + num(R.oR) + '</td>';
   const row = (label, R, base, rk, sr) => '<tr><td class="l">' + dashEsc(label) + '</td>' + cells(R, base, rk, sr) + '</tr>';
   const total = (label, R, base) => '<tr class="band-total"><td class="l"><b>' + dashEsc(label) + '</b></td>' + cells(R, base) + '</tr>';
-  const kafT = S.kaf.map(g => g.T), rk = salesRankBy(kafT), sr = stockRanks(kafT);
+  const kaf = S.kaf.filter(g => g.list.length), other = S.other.filter(g => g.list.length), kafT = kaf.map(g => g.T), rk = salesRankBy(kafT), sr = stockRanks(kafT);
+  if(!kaf.length && !other.length) return '<p class="band-period-note">No items match these filters.</p>';
   const section = g => { const r = salesRankBy(g.list), s = stockRanks(g.list);
     return salesSection(g.name + ' departments', 42) + g.list.map(R => row((R.code ? Number(R.code) + ' ' : '') + R.name, R, g.T, r, s)).join('') + total(g.name + ' Total', g.T, g.T); };
   const H = salesWideHead('Sales Was', 'Sales Now');
   return '<div class="band-wrap"><table class="dash-table band-table sales-table sales-stock"><thead><tr class="band-grp"><th></th><th colspan="7" class="band-split">SIM / PIM · ' + salesAvgMonths + '-month average</th>' + H.grp + '<th colspan="6" class="band-split">Stock Cost</th><th colspan="4" class="band-split">Stock Qty</th><th colspan="4" class="band-split">Stock Options</th></tr>' +
     '<tr><th class="l">Department</th><th class="band-split">Avg Sold Qty</th><th>SIM Qty</th><th>PIM Qty</th><th>SIM COGS</th><th>PIM COGS</th><th>Avg Cont %</th><th>Avg COGS</th>' + H.cols +
     '<th class="band-split">Stock Rank</th><th>Stock Cont %</th><th>SOH Cost</th><th>PO Cost</th><th>W-H Cost</th><th>S-R Cost</th><th class="band-split">SOH</th><th>PO</th><th>W-H</th><th>S-R</th><th class="band-split">SOH</th><th>PO</th><th>W-H</th><th>S-R</th></tr></thead><tbody>' +
-    salesSection('Categories', 42) + S.kaf.map((g, i) => row(g.name, kafT[i], S.K, rk, sr)).join('') + total('K+A+F Total', S.K, S.K) +
-    salesSection('Other categories', 42) + S.other.filter(g => g.list.length).map(g => row(g.name, g.T, S.G)).join('') + total('Grand Total', S.G, S.G).replace('band-total', 'band-total sales-grand') +
-    S.kaf.concat(S.other.filter(g => g.g !== 'M')).filter(g => g.list.length).map(section).join('') +
+    (kaf.length ? salesSection('Categories', 42) + kaf.map((g, i) => row(g.name, kafT[i], S.K, rk, sr)).join('') + total('K+A+F Total', S.K, S.K) : '') +
+    (other.length ? salesSection('Other categories', 42) + other.map(g => row(g.name, g.T, S.G)).join('') + total('Grand Total', S.G, S.G).replace('band-total', 'band-total sales-grand') : '') +
+    kaf.concat(other.filter(g => g.g !== 'M')).map(section).join('') +
     '</tbody></table></div>';
 }
 function salesStockHtml(){
@@ -1391,21 +1392,24 @@ function salesStockHtml(){
   const uniq = (k, get) => [...new Set(left(k).map(get).filter(Boolean))].sort();
   const text = (k, field, label) => '<label>' + label + '<input id="salesF_' + k + '" data-k="' + k + '" list="salesL_' + k + '" value="' + dashEsc(sc[k]) + '" placeholder="All" autocomplete="off"><datalist id="salesL_' + k + '">' + uniq(k, it => it[field]).map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist></label>';
   const pick = (k, get, label, show) => '<label>' + label + '<select data-k="' + k + '"><option value="">All</option>' + uniq(k, get).map(v => '<option value="' + dashEsc(v) + '"' + (v === sc[k] ? ' selected' : '') + '>' + dashEsc(show ? show(v) : v) + '</option>').join('') + '</select></label>';
-  const P = salesPeriod(), S = salesStockCompute({}), F = salesStockCompute(sc), K = S.K;
-  const picked = [sc.cat, sc.dept, sc.group, sc.puda, sc.plan && 'CPC ' + sc.plan, sc.range, sc.life && lifestyleLabel(sc.life), sc.event].filter(Boolean).join(' · ') || 'nothing picked yet, so this matches the table above';
-  const anySet = Object.values(sc).some(Boolean), kn = K.cur.net - K.cur.cNet, depts = S.kaf.flatMap(g => g.list).sort((a, b) => b.cur.net - a.cur.net);
+  const P = salesPeriod(), S = salesStockCompute(sc);
+  // with a filter on Mattress or W, O, S there is no K+A+F, so the tiles and charts follow what is left
+  const kafDepts = S.kaf.flatMap(g => g.list), K = kafDepts.length ? S.K : S.G, scopeName = kafDepts.length ? 'K+A+F' : 'Selected';
+  const picked = [sc.cat, sc.dept, sc.group, sc.puda, sc.plan && 'CPC ' + sc.plan, sc.range, sc.life && lifestyleLabel(sc.life), sc.event].filter(Boolean).join(' · ');
+  const anySet = Object.values(sc).some(Boolean), kn = K.cur.net - K.cur.cNet, share = (a, b) => b ? a / b * 100 : 0;
+  const depts = (kafDepts.length ? kafDepts : S.other.flatMap(g => g.list)).sort((a, b) => b.cur.net - a.cur.net);
   return salesReportHead('Sales & Stock Report', 'K+A+F by category and department, with Mattress, Wall Paper, Office and Services below · ' + salesPerLabel(P) + ' against last year') +
-    '<div class="dash-kpis">' + salesKpi('K+A+F Net Sales', dashCompact(K.cur.net), salesPerLabel(P), '', 'AED ' + dashInt(K.cur.net)) + salesGrowthKpi('L-4-L Growth', K.cur.net, K.prev.net, 'on the same months last year') +
+    '<section class="dash-card wide sales-filter-card"><div class="band-period sales-filters">' +
+      pick('cat', it => it['Category'], 'Category') + pick('dept', it => it['Department Desc'], 'Department') + text('group', 'Group Desc', 'Group') + text('puda', 'PUDA Desc', 'PUDA') + pick('plan', dashPlan, 'CPC') + text('range', 'Range Name', 'Range') + pick('life', it => it['Lifestyle'], 'Lifestyle', lifestyleLabel) + pick('event', it => it['Event'], 'Event') + (anySet ? '<button type="button" class="dash-btn ghost" id="salesClear">Show everything</button>' : '') + '</div></section>' +
+    '<div class="dash-kpis">' + salesKpi(scopeName + ' Net Sales', dashCompact(K.cur.net), salesPerLabel(P), '', 'AED ' + dashInt(K.cur.net)) + salesGrowthKpi('L-4-L Growth', K.cur.net, K.prev.net, 'on the same months last year') +
       salesKpi('Stock at cost', dashCompact(K.sC), 'SIM ' + (K.avgC > 0 ? (K.sC / K.avgC).toFixed(1) : 'x') + ' months of COGS', '', 'AED ' + dashInt(K.sC)) + salesKpi('Open POs at cost', dashCompact(K.pC), 'PIM ' + (K.avgC > 0 ? (K.pC / K.avgC).toFixed(1) : 'x') + ' months of COGS', '', 'AED ' + dashInt(K.pC)) + '</div>' +
     '<div class="dash-grid sales-charts">' +
-      salesChartCard('Share of sales vs share of stock', 'K+A+F departments, at cost for stock', salesPairBars(depts.map(R => ({ label: R.name, a: R.cur.net / K.cur.net * 100, b: R.sC / K.sC * 100, aText: (R.cur.net / K.cur.net * 100).toFixed(1) + '%', bText: (R.sC / K.sC * 100).toFixed(1) + '%' })), ['Share of Net Sales', '--chart-a'], ['Share of SOH Cost', '--chart-b'])) +
+      salesChartCard('Share of sales vs share of stock', scopeName + ' departments, at cost for stock', salesPairBars(depts.map(R => ({ label: R.name, a: share(R.cur.net, K.cur.net), b: share(R.sC, K.sC), aText: share(R.cur.net, K.cur.net).toFixed(1) + '%', bText: share(R.sC, K.sC).toFixed(1) + '%' })), ['Share of Net Sales', '--chart-a'], ['Share of SOH Cost', '--chart-b'])) +
       salesChartCard('Months of cover', 'stock and open POs against the ' + salesAvgMonths + '-month average COGS', salesStackBars(depts.filter(R => R.avgC > 0).map(R => ({ label: R.name, a: R.sC / R.avgC, b: R.pC / R.avgC })).sort((a, b) => (b.a + b.b) - (a.a + a.b)), ['SIM @ COGS', '--chart-b'], ['PIM @ COGS', '--chart-a'])) +
     '</div>' +
-    '<section class="dash-card wide tone-pos dash-bands"><h3>All categories and departments <span>Margin ' + dashEsc(salesPct(kn - (K.cur.cost - K.cur.cCost), kn, 1)) + ' on K+A+F</span></h3>' +
+    '<section class="dash-card wide tone-pos dash-bands"><h3>' + dashEsc(picked || 'All categories and departments') + ' <span>Margin ' + dashEsc(salesPct(kn - (K.cur.cost - K.cur.cCost), kn, 1)) + ' on ' + scopeName + '</span></h3>' +
       '<div class="sales-ctl sales-blocks"><span>Columns</span><div class="dash-seg" id="salesBlocks">' + SALES_STOCK_BLOCKS.map(([n]) => '<button type="button" data-b="' + dashEsc(n) + '" class="' + (salesHiddenBlocks.has(n) ? '' : 'on') + '">' + dashEsc(n) + '</button>').join('') + '</div></div>' + salesStockTable(S) +
-      '<p class="band-period-note sales-foot">Margin leaves consignment sales out, all values keep them in · Cont %, Rank: within the category; categories against K+A+F; other categories against the Grand Total.</p></section>' +
-    '<section class="dash-card wide tone-pos dash-bands"><h3>Filtered view <span>' + dashEsc(picked) + '</span></h3><div class="band-period sales-filters">' +
-      pick('cat', it => it['Category'], 'Category') + pick('dept', it => it['Department Desc'], 'Department') + text('group', 'Group Desc', 'Group') + text('puda', 'PUDA Desc', 'PUDA') + pick('plan', dashPlan, 'CPC') + text('range', 'Range Name', 'Range') + pick('life', it => it['Lifestyle'], 'Lifestyle', lifestyleLabel) + pick('event', it => it['Event'], 'Event') + (anySet ? '<button type="button" class="dash-btn ghost" id="salesClear">Show everything</button>' : '') + '</div>' + salesStockTable(F) + '</section>';
+      '<p class="band-period-note sales-foot">Margin leaves consignment sales out, all values keep them in · Cont %, Rank: within the category; categories against K+A+F; other categories against the Grand Total.</p></section>';
 }
 
 /* ---------- Stores month on month: every category, all stores then each one ---------- */
