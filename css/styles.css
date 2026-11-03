@@ -2163,9 +2163,38 @@ table.year-matrix tr.year-row td{animation:popIn .22s cubic-bezier(.16,1,.3,1) b
 .sales-table td.sales-g{font-weight:600;color:var(--pos,#15803d);}
 .sales-table td.sales-g.neg{color:#dc2626;}
 .sales-foot{display:block;margin:var(--sp-2) 0 0;}
-/* full screen width for the wide summary; Department stays put when it still has to scroll */
+/* full screen width for the wide reports */
 #salesRoot.dash{max-width:none;}
+.sales-tabs{margin-bottom:var(--sp-4);}
+.sales-controls{align-items:flex-end;}
+.sales-controls select{min-width:96px;}
+.sales-ctl{display:flex;flex-direction:column;gap:4px;font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink-faint);}
+.sales-ctl .dash-seg button{text-transform:none;letter-spacing:0;}
+.sales-report-head{margin:var(--sp-2) 0 var(--sp-4);}
+.sales-report-head h2{margin:0;font-size:19px;font-weight:700;letter-spacing:-.01em;color:var(--ink);}
+.sales-report-head p{margin:3px 0 0;font-size:var(--fs-sm);color:var(--ink-soft);}
+#salesRoot .dash-card + .dash-card{margin-top:var(--sp-5);}
 .sales-filters input{padding:6px 10px;font:inherit;font-size:var(--fs-sm);text-transform:none;letter-spacing:0;color:var(--ink);border:1px solid var(--line-strong);border-radius:var(--r-sm);width:190px;}
 .sales-filters input:focus{outline:none;border-color:var(--primary);box-shadow:var(--ring);}
-.sales-table th:first-child,.sales-table td:first-child{position:sticky;left:0;z-index:1;background:var(--panel);}
-.sales-table tr.band-total td:first-child{background:var(--sunken);}
+/* All Products / PO Data table look: slate gradient header, hairlines, header and first column stay put */
+#salesRoot .band-wrap{max-height:calc(100vh - 84px);overflow:auto;border:1px solid var(--s-300);border-radius:var(--r-md);}
+#salesRoot .sales-table{border-collapse:separate;border-spacing:0;}
+#salesRoot .sales-table td,#salesRoot .sales-table th{border:0;border-right:1px solid var(--s-300);border-bottom:1px solid var(--s-300);}
+#salesRoot .sales-table td{padding:7px 10px;}
+#salesRoot .sales-table td.band-split,#salesRoot .sales-table th.band-split{border-left:2px solid var(--s-400);}
+#salesRoot .sales-table thead th{
+  position:sticky;top:0;z-index:2;
+  background:linear-gradient(180deg,var(--subhead-top),var(--subhead));
+  color:var(--subhead-ink);font-weight:700;font-size:var(--fs-2xs);letter-spacing:.04em;
+  padding:8px 10px;line-height:1.25;vertical-align:bottom;border-bottom:2px solid var(--subhead-line);
+}
+#salesRoot .sales-table thead tr.band-grp th{height:30px;box-sizing:border-box;background:var(--s-200);color:var(--s-700);text-align:center;letter-spacing:.08em;padding:6px 10px;border-bottom:1px solid var(--s-300);}
+#salesRoot .sales-table thead tr.band-grp + tr th{top:30px;}
+#salesRoot .sales-table th:first-child,#salesRoot .sales-table td:first-child{position:sticky;left:0;z-index:1;background:var(--panel);border-right:2px solid var(--s-400);min-width:150px;}
+#salesRoot .sales-table thead th:first-child{z-index:3;background:linear-gradient(180deg,var(--subhead-top),var(--subhead));}
+#salesRoot .sales-table thead tr.band-grp th:first-child{background:var(--s-200);}
+#salesRoot .sales-table tbody tr:not([class]):hover > td{background:var(--row-hover);}
+#salesRoot .sales-table tr.sales-section td{background:var(--s-100);font-weight:700;color:var(--ink);padding-top:8px;padding-bottom:8px;border-right:0;}
+#salesRoot .sales-table tr.sales-section td:first-child{box-shadow:inset 3px 0 0 var(--primary);}
+#salesRoot .sales-table tr.band-total td,#salesRoot .sales-table tr.band-total td:first-child{background:var(--sunken);font-weight:700;border-bottom-color:var(--s-400);}
+#salesRoot .sales-table tr.sales-grand td,#salesRoot .sales-table tr.sales-grand td:first-child{background:var(--subhead);border-top:2px solid var(--subhead-line);border-bottom:2px solid var(--subhead-line);}
