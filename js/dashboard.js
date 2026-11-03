@@ -1242,6 +1242,52 @@ const salesReportHead = (title, sub) => '<div class="sales-report-head"><h2>' + 
 const salesKpi = (k, v, n, tone, title) => '<div class="dash-kpi' + (tone ? ' ' + tone : '') + '"' + (title ? ' title="' + dashEsc(title) + '"' : '') + '><span class="dash-kpi-k">' + dashEsc(k) + '</span><span class="dash-kpi-v">' + dashEsc(v) + '</span><span class="dash-kpi-n">' + dashEsc(n) + '</span></div>';
 const salesGrowthKpi = (k, cur, prev, n) => { const g = prev > 0 ? (cur / prev - 1) * 100 : null;
   return salesKpi(k, g == null ? '—' : (g > 0 ? '+' : '') + g.toFixed(1) + '%', n, g == null ? '' : g < 0 ? 'down' : 'up'); };
+/* Charts sit above each report's table, which stays the place for every number.
+   Colours (--chart-a/-b, --chart-up/-down) pass the colour-blind palette check.
+   data-tip carries the hover text, shown by salesWireTips(). */
+const salesLegend = items => '<div class="sales-legend">' + items.map(([n, c]) => '<span><i style="background:var(' + c + ')"></i>' + dashEsc(n) + '</span>').join('') + '</div>';
+const salesChartCard = (title, sub, body) => '<section class="dash-card sales-chart"><h3>' + dashEsc(title) + ' <span>' + dashEsc(sub) + '</span></h3>' + body + '</section>';
+function salesLineChart(labels, series){
+  const W = 760, H = 330, L = 52, Rt = 14, Tp = 14, B = 26, top = Math.max(1, ...series.flatMap(s => s.vals));
+  const step = Math.pow(10, Math.floor(Math.log10(top))), tick = [1, 2, 2.5, 5, 10].map(k => k * step).find(t => top / t <= 5);
+  const max = Math.ceil(top / tick) * tick, x = i => L + (W - L - Rt) * (i + .5) / labels.length, y = v => Tp + (H - Tp - B) * (1 - v / max);
+  let grid = '';
+  for(let v = 0; v <= max + tick / 2; v += tick) grid += '<line x1="' + L + '" x2="' + (W - Rt) + '" y1="' + y(v) + '" y2="' + y(v) + '" class="' + (v ? 'grid' : 'base') + '"/><text x="' + (L - 8) + '" y="' + (y(v) + 4) + '" class="ax end">' + (v ? dashCompact(v) : '0') + '</text>';
+  const months = labels.map((m, i) => '<text x="' + x(i) + '" y="' + (H - 7) + '" class="ax mid">' + dashEsc(m) + '</text>').join('');
+  const lines = series.map(s => { const pts = s.vals.map((v, i) => v ? [x(i), y(v)] : null).filter(Boolean);
+    return '<polyline points="' + pts.map(p => p.join(',')).join(' ') + '" class="ln" style="stroke:var(' + s.color + ')"/>' + pts.map(p => '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="4" class="pt" style="fill:var(' + s.color + ')"/>').join(''); }).join('');
+  const hits = labels.map((m, i) => '<rect x="' + (x(i) - (W - L - Rt) / labels.length / 2) + '" y="' + Tp + '" width="' + ((W - L - Rt) / labels.length) + '" height="' + (H - Tp - B) + '" class="hit" data-tip="' + dashEsc(m + '\n' + series.map(s => s.name + ': ' + (s.vals[i] ? dashInt(s.vals[i]) : '–')).join('\n')) + '"/>').join('');
+  return salesLegend(series.map(s => [s.name, s.color])) + '<svg class="sales-line" viewBox="0 0 ' + W + ' ' + H + '" role="img">' + grid + months + lines + hits + '</svg>';
+}
+function salesPairBars(rows, a, b){   // rows: { label, a, b, aText, bText }
+  const max = Math.max(1, ...rows.flatMap(r => [r.a, r.b]));
+  const bar = (v, c, text, name, label) => '<div class="sb-line" data-tip="' + dashEsc(label + '\n' + name + ': ' + text) + '"><span class="sb-fill" style="width:' + (Math.max(0, v) / max * 100).toFixed(1) + '%;background:var(' + c + ')"></span><em>' + dashEsc(text) + '</em></div>';
+  return salesLegend([a, b]) + '<div class="sales-bars">' + rows.map(r => '<div class="sb-row"><span class="sb-k" title="' + dashEsc(r.label) + '">' + dashEsc(r.label) + '</span><div>' + bar(r.a, a[1], r.aText, a[0], r.label) + bar(r.b, b[1], r.bText, b[0], r.label) + '</div></div>').join('') + '</div>';
+}
+function salesStackBars(rows, a, b){   // rows: { label, a, b } in months
+  const max = Math.max(1, ...rows.map(r => r.a + r.b));
+  return salesLegend([a, b]) + '<div class="sales-bars">' + rows.map(r => '<div class="sb-row single" data-tip="' + dashEsc(r.label + '\n' + a[0] + ': ' + r.a.toFixed(1) + '\n' + b[0] + ': ' + r.b.toFixed(1)) + '"><span class="sb-k" title="' + dashEsc(r.label) + '">' + dashEsc(r.label) + '</span><div class="sb-line"><span class="sb-stack" style="width:' + ((r.a + r.b) / max * 100).toFixed(1) + '%"><i style="flex:' + r.a.toFixed(2) + ';background:var(' + a[1] + ')"></i><i style="flex:' + r.b.toFixed(2) + ';background:var(' + b[1] + ')"></i></span><em>' + (r.a + r.b).toFixed(1) + '</em></div></div>').join('') + '</div>';
+}
+function salesGrowthBars(rows){   // rows: { label, g } in %, ranked; left of the axis is down, right is up
+  const max = Math.max(1, ...rows.map(r => Math.abs(r.g)));
+  return '<div class="sales-bars growth">' + rows.map(r => { const w = (Math.abs(r.g) / max * 50).toFixed(1), t = (r.g > 0 ? '+' : '') + r.g.toFixed(1) + '%';
+    return '<div class="sb-row single" data-tip="' + dashEsc(r.label + '\nL-4-L Growth: ' + t) + '"><span class="sb-k" title="' + dashEsc(r.label) + '">' + dashEsc(r.label) + '</span><div class="sb-axis"><span style="' + (r.g < 0 ? 'right:50%' : 'left:50%') + ';width:' + w + '%;background:var(' + (r.g < 0 ? '--chart-down' : '--chart-up') + ')"></span></div><em>' + t + '</em></div>'; }).join('') + '</div>';
+}
+const salesGrowthRows = list => list.filter(R => R.prev.net > 0).map(R => ({ label: R.name, g: (R.cur.net / R.prev.net - 1) * 100 })).sort((a, b) => b.g - a.g);
+function salesWireTips(root){
+  let tip = document.getElementById('salesTip');
+  if(!tip){ tip = document.createElement('div'); tip.id = 'salesTip'; tip.className = 'sales-tip'; document.body.appendChild(tip); }
+  root.addEventListener('mousemove', e => {
+    const el = e.target.closest && e.target.closest('[data-tip]');
+    tip.style.display = el ? 'block' : 'none';
+    if(!el) return;
+    tip.textContent = el.dataset.tip;
+    tip.style.left = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8) + 'px';
+    tip.style.top = (e.clientY + 14) + 'px';
+  });
+  root.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+}
+const salesMarginCell = (m, n) => { const v = n ? m / n * 100 : null; return '<td' + (v < 0 ? ' class="sales-neg"' : '') + '>' + (v == null ? '—' : v.toFixed(1) + '%') + '</td>'; };
 const salesPerLabel = P => MONTHS[0] + (P.to ? '–' + MONTHS[P.to] : '') + ' ' + P.cy;
 const salesBlank = () => ({ cost: 0, rsp: 0, net: 0, cCost: 0, cNet: 0 });
 const salesTriple = () => ({ cur: salesBlank(), prev: salesBlank(), fy: salesBlank() });
@@ -1254,7 +1300,7 @@ function salesBucket(T, m, P, cost, rsp, net, cCost, cNet){   // adds one month'
 }
 function salesWideCells(R, base, rk){
   const block = k => { const b = R[k], n = b.net - b.cNet;
-    return '<td class="band-split">' + salesMoney(b.cost) + '</td><td>' + salesMoney(b.rsp) + '</td><td><b>' + salesMoney(b.net) + '</b></td><td>' + salesPct(n - (b.cost - b.cCost), n, 1) + '</td><td>' + salesPct(b.net, base[k].net, 0) + '</td><td>' + ((rk && rk[k](R)) || '') + '</td>'; };
+    return '<td class="band-split">' + salesMoney(b.cost) + '</td><td>' + salesMoney(b.rsp) + '</td><td><b>' + salesMoney(b.net) + '</b></td>' + salesMarginCell(n - (b.cost - b.cCost), n) + '<td>' + salesPct(b.net, base[k].net, 0) + '</td><td>' + ((rk && rk[k](R)) || '') + '</td>'; };
   return block('cur') + salesGrowth(R.cur.net, R.prev.net) + block('prev') + block('fy') + salesGrowth(R.cur.net, R.fy.net);
 }
 function salesWideHead(was, now){
@@ -1273,6 +1319,17 @@ function salesWideHead(was, now){
 const SALES_OPT_CUT = { soh: [5, 15], po: [4, 4], wh: [2, 5], sr: [0, 3] };
 const SALES_STOCK_FIELDS = ['avgQ', 'avgC', 'sC', 'pC', 'wC', 'rC', 'sQ', 'pQ', 'wQ', 'rQ', 'oS', 'oP', 'oW', 'oR'];
 let salesTab = 'summary', salesAvgMonths = 3, salesStoreShow = '';
+const SALES_STOCK_BLOCKS = [['SIM / PIM', 1, 7], ['Sales this year', 8, 7], ['Sales last year', 15, 6], ['YTD', 21, 7], ['Stock Cost', 28, 6], ['Stock Qty', 34, 4], ['Options', 38, 4]];
+const salesHiddenBlocks = new Set();
+function salesApplyBlocks(root){
+  const off = new Set(), offGrp = new Set();
+  SALES_STOCK_BLOCKS.forEach(([n, from, len], g) => { if(salesHiddenBlocks.has(n)){ offGrp.add(g + 1); for(let i = 0; i < len; i++) off.add(from + i); } });
+  root.querySelectorAll('table.sales-stock tr').forEach(tr => {
+    if(tr.classList.contains('sales-section')) return;
+    const hide = tr.classList.contains('band-grp') ? offGrp : off;
+    [...tr.cells].forEach((c, i) => { c.style.display = hide.has(i) ? 'none' : ''; });
+  });
+}
 let salesStockScope = { cat: '', dept: '', group: '', puda: '', plan: '', range: '', life: '', event: '' };
 function salesStockCompute(scope){
   const P = salesPeriod(), avgFrom = P.done - salesAvgMonths + 1, po = simPO();
@@ -1319,7 +1376,7 @@ function salesStockTable(S){
   const section = g => { const r = salesRankBy(g.list), s = stockRanks(g.list);
     return salesSection(g.name + ' departments', 42) + g.list.map(R => row((R.code ? Number(R.code) + ' ' : '') + R.name, R, g.T, r, s)).join('') + total(g.name + ' Total', g.T, g.T); };
   const H = salesWideHead('Sales Was', 'Sales Now');
-  return '<div class="band-wrap"><table class="dash-table band-table sales-table"><thead><tr class="band-grp"><th></th><th colspan="7" class="band-split">SIM / PIM · ' + salesAvgMonths + '-month average</th>' + H.grp + '<th colspan="6" class="band-split">Stock Cost</th><th colspan="4" class="band-split">Stock Qty</th><th colspan="4" class="band-split">Stock Options</th></tr>' +
+  return '<div class="band-wrap"><table class="dash-table band-table sales-table sales-stock"><thead><tr class="band-grp"><th></th><th colspan="7" class="band-split">SIM / PIM · ' + salesAvgMonths + '-month average</th>' + H.grp + '<th colspan="6" class="band-split">Stock Cost</th><th colspan="4" class="band-split">Stock Qty</th><th colspan="4" class="band-split">Stock Options</th></tr>' +
     '<tr><th class="l">Department</th><th class="band-split">Avg Sold Qty</th><th>SIM Qty</th><th>PIM Qty</th><th>SIM COGS</th><th>PIM COGS</th><th>Avg Cont %</th><th>Avg COGS</th>' + H.cols +
     '<th class="band-split">Stock Rank</th><th>Stock Cont %</th><th>SOH Cost</th><th>PO Cost</th><th>W-H Cost</th><th>S-R Cost</th><th class="band-split">SOH</th><th>PO</th><th>W-H</th><th>S-R</th><th class="band-split">SOH</th><th>PO</th><th>W-H</th><th>S-R</th></tr></thead><tbody>' +
     salesSection('Categories', 42) + S.kaf.map((g, i) => row(g.name, kafT[i], S.K, rk, sr)).join('') + total('K+A+F Total', S.K, S.K) +
@@ -1336,11 +1393,16 @@ function salesStockHtml(){
   const pick = (k, get, label, show) => '<label>' + label + '<select data-k="' + k + '"><option value="">All</option>' + uniq(k, get).map(v => '<option value="' + dashEsc(v) + '"' + (v === sc[k] ? ' selected' : '') + '>' + dashEsc(show ? show(v) : v) + '</option>').join('') + '</select></label>';
   const P = salesPeriod(), S = salesStockCompute({}), F = salesStockCompute(sc), K = S.K;
   const picked = [sc.cat, sc.dept, sc.group, sc.puda, sc.plan && 'CPC ' + sc.plan, sc.range, sc.life && lifestyleLabel(sc.life), sc.event].filter(Boolean).join(' · ') || 'nothing picked yet, so this matches the table above';
-  const anySet = Object.values(sc).some(Boolean), kn = K.cur.net - K.cur.cNet;
+  const anySet = Object.values(sc).some(Boolean), kn = K.cur.net - K.cur.cNet, depts = S.kaf.flatMap(g => g.list).sort((a, b) => b.cur.net - a.cur.net);
   return salesReportHead('Sales & Stock Report', 'K+A+F by category and department, with Mattress, Wall Paper, Office and Services below · ' + salesPerLabel(P) + ' against last year') +
     '<div class="dash-kpis">' + salesKpi('K+A+F Net Sales', dashCompact(K.cur.net), salesPerLabel(P), '', 'AED ' + dashInt(K.cur.net)) + salesGrowthKpi('L-4-L Growth', K.cur.net, K.prev.net, 'on the same months last year') +
       salesKpi('Stock at cost', dashCompact(K.sC), 'SIM ' + (K.avgC > 0 ? (K.sC / K.avgC).toFixed(1) : 'x') + ' months of COGS', '', 'AED ' + dashInt(K.sC)) + salesKpi('Open POs at cost', dashCompact(K.pC), 'PIM ' + (K.avgC > 0 ? (K.pC / K.avgC).toFixed(1) : 'x') + ' months of COGS', '', 'AED ' + dashInt(K.pC)) + '</div>' +
-    '<section class="dash-card wide tone-pos dash-bands"><h3>All categories and departments <span>Margin ' + dashEsc(salesPct(kn - (K.cur.cost - K.cur.cCost), kn, 1)) + ' on K+A+F</span></h3>' + salesStockTable(S) +
+    '<div class="dash-grid sales-charts">' +
+      salesChartCard('Share of sales vs share of stock', 'K+A+F departments, at cost for stock', salesPairBars(depts.map(R => ({ label: R.name, a: R.cur.net / K.cur.net * 100, b: R.sC / K.sC * 100, aText: (R.cur.net / K.cur.net * 100).toFixed(1) + '%', bText: (R.sC / K.sC * 100).toFixed(1) + '%' })), ['Share of Net Sales', '--chart-a'], ['Share of SOH Cost', '--chart-b'])) +
+      salesChartCard('Months of cover', 'stock and open POs against the ' + salesAvgMonths + '-month average COGS', salesStackBars(depts.filter(R => R.avgC > 0).map(R => ({ label: R.name, a: R.sC / R.avgC, b: R.pC / R.avgC })).sort((a, b) => (b.a + b.b) - (a.a + a.b)), ['SIM @ COGS', '--chart-b'], ['PIM @ COGS', '--chart-a'])) +
+    '</div>' +
+    '<section class="dash-card wide tone-pos dash-bands"><h3>All categories and departments <span>Margin ' + dashEsc(salesPct(kn - (K.cur.cost - K.cur.cCost), kn, 1)) + ' on K+A+F</span></h3>' +
+      '<div class="sales-ctl sales-blocks"><span>Columns</span><div class="dash-seg" id="salesBlocks">' + SALES_STOCK_BLOCKS.map(([n]) => '<button type="button" data-b="' + dashEsc(n) + '" class="' + (salesHiddenBlocks.has(n) ? '' : 'on') + '">' + dashEsc(n) + '</button>').join('') + '</div></div>' + salesStockTable(S) +
       '<p class="band-period-note sales-foot">Margin leaves consignment sales out, all values keep them in · Cont %, Rank: within the category; categories against K+A+F; other categories against the Grand Total.</p></section>' +
     '<section class="dash-card wide tone-pos dash-bands"><h3>Filtered view <span>' + dashEsc(picked) + '</span></h3><div class="band-period sales-filters">' +
       pick('cat', it => it['Category'], 'Category') + pick('dept', it => it['Department Desc'], 'Department') + text('group', 'Group Desc', 'Group') + text('puda', 'PUDA Desc', 'PUDA') + pick('plan', dashPlan, 'CPC') + text('range', 'Range Name', 'Range') + pick('life', it => it['Lifestyle'], 'Lifestyle', lifestyleLabel) + pick('event', it => it['Event'], 'Event') + (anySet ? '<button type="button" class="dash-btn ghost" id="salesClear">Show everything</button>' : '') + '</div>' + salesStockTable(F) + '</section>';
@@ -1366,10 +1428,15 @@ function salesStoresHtml(){
   const top = [...stores].sort((a, b) => b.T.cur.net - a.T.cur.net)[0];
   const traded = stores.filter(s => s.T.prev.net > 0), up = traded.filter(s => s.T.cur.net > s.T.prev.net);
   const shown = stores.map((s, i) => s.code === salesStoreShow ? section(s, all.T, i + 1) : '').join('');
+  const lineOf = byCode[salesStoreShow] || all;
+  const charts = '<div class="dash-grid sales-charts">' +
+    salesChartCard('Net Sales by month', lineOf.name + ', this year vs last', salesLineChart(MONTHS, [{ name: String(P.cy), color: '--chart-a', vals: lineOf.months.map(M => M.cur.net) }, { name: String(P.cy - 1), color: '--chart-b', vals: lineOf.months.map(M => M.fy.net) }])) +
+    salesChartCard('Net Sales by store', salesPerLabel(P) + ' against the same months last year', salesPairBars([...stores].sort((a, b) => b.T.cur.net - a.T.cur.net).map(s => ({ label: s.name, a: s.T.cur.net, b: s.T.prev.net, aText: dashCompact(s.T.cur.net), bText: dashCompact(s.T.prev.net) })), [String(P.cy), '--chart-a'], [String(P.cy - 1), '--chart-b'])) +
+  '</div>';
   const H = salesWideHead('RSP Sales', 'Net Sales');
   return salesReportHead('Month on Month Sales Report', 'K+A+F+W+O+S, all stores and each store · ' + salesPerLabel(P) + ' against last year') +
     '<div class="dash-kpis">' + salesKpi('All Stores Net Sales', dashCompact(T.cur.net), salesPerLabel(P), '', 'AED ' + dashInt(T.cur.net)) + salesGrowthKpi('L-4-L Growth', T.cur.net, T.prev.net, 'on the same months last year') +
-      salesKpi('Margin', salesPct(an - (T.cur.cost - T.cur.cCost), an, 1), 'without consignment sales') + salesKpi('Top store', top.name, dashCompact(top.T.cur.net) + ' Net · ' + up.length + ' of ' + traded.length + ' stores growing') + '</div>' +
+      salesKpi('Margin', salesPct(an - (T.cur.cost - T.cur.cCost), an, 1), 'without consignment sales') + salesKpi('Top store', top.name, dashCompact(top.T.cur.net) + ' Net · ' + up.length + ' of ' + traded.length + ' stores growing') + '</div>' + charts +
     '<section class="dash-card wide tone-pos dash-bands"><h3>' + (salesStoreShow ? dashEsc((byCode[salesStoreShow] || {}).name || '') + ' by month' : 'All stores, then each store') + ' <span>Jan to Dec, every category</span></h3><div class="band-wrap"><table class="dash-table band-table sales-table"><thead><tr class="band-grp"><th></th>' + H.grp + '</tr><tr><th class="l">Month</th>' + H.cols + '</tr></thead><tbody>' +
     (salesStoreShow ? shown : section(all, all.T) + stores.map((s, i) => section(s, all.T, i + 1)).join('')) + '</tbody></table></div>' +
     '<p class="band-period-note sales-foot">Margin leaves consignment sales out, all values keep them in · Months: Cont % and Rank within the store · Store totals: Cont % of all stores · YTD Growth: this year so far against all of last year, so months not reached show -100%.</p></section>';
@@ -1377,7 +1444,7 @@ function salesStoresHtml(){
 function salesSummaryHtml(){
   const C = salesCompute(), per = MONTHS[0] + (C.to ? '–' + MONTHS[C.to] : '');
   const pct = salesPct, growth = salesGrowth, money = salesMoney, ranks = salesRanks;
-  const block = (b, base, rank) => '<td class="band-split">' + money(b.cost) + '</td><td>' + money(b.rsp) + '</td><td><b>' + money(b.net) + '</b></td><td>' + pct(b.net - b.cost, b.net, 1) + '</td><td>' + pct(b.net, base, 0) + '</td><td>' + (rank || '') + '</td>';
+  const block = (b, base, rank) => '<td class="band-split">' + money(b.cost) + '</td><td>' + money(b.rsp) + '</td><td><b>' + money(b.net) + '</b></td>' + salesMarginCell(b.net - b.cost, b.net) + '<td>' + pct(b.net, base, 0) + '</td><td>' + (rank || '') + '</td>';
   const rowCells = (R, base, rk) => growth(R.cur.net, R.prev.net) + block(R.cur, base.cur.net, rk && rk.cur(R)) + block(R.prev, base.prev.net, rk && rk.prev(R)) + block(R.fy, base.fy.net, rk && rk.fy(R)) + growth(R.cur.net, R.fy.net);
   const summary = C.cats.map(c => {
     const rk = { cur: ranks(c.list, 'cur'), prev: ranks(c.list, 'prev'), fy: ranks(c.list, 'fy') };
@@ -1420,6 +1487,10 @@ function salesSummaryHtml(){
   return salesReportHead('K+A+F Sales Summary', 'Furniture, Accessories and Kids, without Mattress · ' + salesPerLabel(C) + ' against last year') +
     '<div class="dash-kpis">' + salesKpi('K+A+F Net Sales', dashCompact(T.cur.net), salesPerLabel(C), '', 'AED ' + dashInt(T.cur.net)) + salesGrowthKpi('L-4-L Growth', T.cur.net, T.prev.net, 'on the same months last year') +
       salesKpi('Margin', pct(T.cur.net - T.cur.cost, T.cur.net, 1), 'was ' + pct(T.prev.net - T.prev.cost, T.prev.net, 1) + ' last year') + salesGrowthKpi('YTD Growth', T.cur.net, T.fy.net, 'against all of ' + (C.cy - 1) + ', ' + dashCompact(T.fy.net) + ' Net') + '</div>' +
+    '<div class="dash-grid sales-charts">' +
+      salesChartCard('Net Sales by month', 'K+A+F, this year vs last', salesLineChart(MONTHS, [{ name: String(C.cy), color: '--chart-a', vals: MONTHS.map((_, m) => C.cats.reduce((a, c) => a + c.months[m].cur.net, 0)) }, { name: String(C.cy - 1), color: '--chart-b', vals: MONTHS.map((_, m) => C.cats.reduce((a, c) => a + c.months[m].fy.net, 0)) }])) +
+      salesChartCard('L-4-L Growth by department', per + ' ' + C.cy + ' vs ' + (C.cy - 1) + ', best first', salesGrowthBars(salesGrowthRows(C.cats.flatMap(c => c.list)))) +
+    '</div>' +
     '<section class="dash-card wide tone-pos dash-bands"><h3>Sales by department <span>' + dashEsc(per) + ' ' + C.cy + ' and ' + (C.cy - 1) + ', then full year ' + (C.cy - 1) + '</span></h3>' + summaryTable('Department', summary) + '</section>' +
     '<section class="dash-card wide tone-pos dash-bands"><h3>Sales by month <span>' + dashEsc(per) + ' ' + C.cy + ' and ' + (C.cy - 1) + ', then full year ' + (C.cy - 1) + '</span></h3>' + summaryTable('Month', byMonth) + '</section>' +
     aging +
@@ -1443,6 +1514,9 @@ function renderSales(){
     '<div class="band-period sales-controls"><label>January to<select id="salesTo">' + MONTHS.slice(0, P.lastTo + 1).map((m, i) => '<option value="' + i + '"' + (i === P.to ? ' selected' : '') + '>' + m + '</option>').join('') + '</select></label>' +
     extra + '<span class="band-period-note">L-4-L: the same months in both years, every store</span></div>' +
     (salesTab === 'stock' ? salesStockHtml() : salesTab === 'stores' ? salesStoresHtml() : salesSummaryHtml());
+  salesApplyBlocks(root);
+  if(!root.dataset.tips){ root.dataset.tips = '1'; salesWireTips(root); }
+  root.querySelectorAll('#salesBlocks button').forEach(b => b.addEventListener('click', () => { const n = b.dataset.b; if(salesHiddenBlocks.has(n)) salesHiddenBlocks.delete(n); else salesHiddenBlocks.add(n); renderSales(); }));
   root.querySelector('#salesTo').addEventListener('change', e => { salesToMonth = Number(e.target.value); renderSales(); });
   root.querySelectorAll('#salesTabs button').forEach(b => b.addEventListener('click', () => { salesTab = b.dataset.t; renderSales(); }));
   root.querySelectorAll('#salesAvgSeg button').forEach(b => b.addEventListener('click', () => { salesAvgMonths = Number(b.dataset.m); renderSales(); }));
