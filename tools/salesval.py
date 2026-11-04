@@ -3,6 +3,7 @@ parsed workbook. Band = Tot Discount Amount / Tot RSP on each sales line, using
 the same thresholds as the Dashboard's DASH_DISC_BANDS (dashDiscBand)."""
 import collections
 from derive import sheet, s, num, MON
+from stocklogic import xl_round
 
 BANDS = ['No Price', '0-10%', '11-20%', '21-30%', '31-40%', '41-50%', '51-60%', '61-70%', '71-80%', 'Above 80%']
 def band(disc, rsp):
@@ -28,7 +29,7 @@ def sales_values(D, item_codes):
             last_month = max(last_month, ym)
     out = collections.defaultdict(list)
     for (c, ym, b, cons), a in agg.items():
-        out[c].append([ym, b, cons] + [round(v, 2) for v in a])
+        out[c].append([ym, b, cons, xl_round(a[0])] + [xl_round(v, 2) for v in a[1:]])
     return out, last_month
 
 def dept_store_months(D):
@@ -43,4 +44,4 @@ def dept_store_months(D):
             a = agg[(d, st, ym)]
             a[0] += num(r[ix['Tot Sales Cost']]); a[1] += num(r[ix['Tot RSP']]); a[2] += num(r[ix['Tot NET']])
             if s(r[ix['Cons. Status']]).lower() == 'yes': a[3] += num(r[ix['Tot Sales Cost']]); a[4] += num(r[ix['Tot NET']])
-    return list(depts), list(stores), [[*k, *(round(v, 2) for v in (a if a[3] or a[4] else a[:3]))] for k, a in agg.items()]
+    return list(depts), list(stores), [[*k, *(xl_round(v, 2) for v in (a if a[3] or a[4] else a[:3]))] for k, a in agg.items()]

@@ -15,7 +15,7 @@ usage: stock_import.py <stock.pkl> <stock sheet> <sales.pkl> <js dir> <out dir>
   current js/po-data.js. See README.md."""
 import sys, os, json, pickle, re, datetime, collections
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stocklogic import evaluate, t, n
+from stocklogic import evaluate, t, n, xl_round
 from derive import derive, MON, sheet, qty_col
 from pologic import status_map, status_sort, logistics, po_line, iso
 from salesval import sales_values, dept_store_months
@@ -58,8 +58,8 @@ if po_built:
         if not po: continue
         o = po_line(r, log, smap, cpc_of, ssort)
         q = n(r.get('PO Qty'))
-        po_lines.append([po, t(r['Item Code']), ' '.join(t(r.get('Description')).split()), int(q) if q == int(q) else q, iso(o['fnl_eta']),
-                         t(r.get('Vendor Code')), t(r.get('Department Desc')), t(r.get('Category Desc')), o['cpc'], round(o['cost_aed'], 2)])
+        po_lines.append([po, t(r['Item Code']), ' '.join(t(r.get('Description')).split()), xl_round(q), iso(o['fnl_eta']),
+                         t(r.get('Vendor Code')), t(r.get('Department Desc')), t(r.get('Category Desc')), o['cpc'], xl_round(o['cost_aed'], 2)])
         if iso(r.get('PO Creation Date')): po_created[po].add(iso(r.get('PO Creation Date')))
         if po not in po_ship:
             po_ship[po] = [iso(o['fnl_etd']), None, o['status'], t(r.get('Territorry')), t(r.get('Container Size')), t(r.get('Port Origin')), t(r.get('Port Of Discharge')).upper()]
@@ -94,7 +94,7 @@ def last_receipt(code, r, cpc):
     if days:
         ds = sorted(days, reverse=True)
         d = next((x for x in ds if days[x] >= 5), ds[0])
-        return d.strftime('%d-%m-%Y'), as_num(round(days[d], 4)), 'GRN'
+        return d.strftime('%d-%m-%Y'), xl_round(days[d]), 'GRN'
     for c in LRCV_FALLBACK:
         if isinstance(r.get(c), (datetime.datetime, datetime.date)): return ddmmyyyy(r.get(c)), None, c
     return '01-01-2015', None, 'Default 2015'
@@ -115,20 +115,20 @@ for r in raw:
     it = {k: t(r.get(c)) for k, c in TEXT.items()}
     it.update({
         'Current Plan Code': E['cpc'],                       # the 2XL CPC correction (shown as "CPC")
-        'L-Cost (Aed)': round(lc, 2), 'Was (Aed)': as_num(r.get('U-WAS Unit Price (Aed)')), 'Now (Aed)': as_num(r.get('U-Now Unit Price (Aed)')),
+        'L-Cost (Aed)': xl_round(lc, 2), 'Was (Aed)': xl_round(was, 2), 'Now (Aed)': xl_round(now, 2),
         'Disct%': round((was - now) / was, 4) if was else 0, 'MRG Factor': round(now / lc, 4) if lc else 0,
         'PO-Qty': as_num(po_qty.get(code, 0)),
         'Item Code': code, 'Description': t(r.get('Description')), 'Item Color Name': t(r.get('Item Color Name')),
         'Lifestyle': t(r.get('Lifestyle')), 'Event': t(r.get('Event')).upper(),   # IT mixes 'Common'/'COMMON'
         'Vendor Name': t(r.get('Vendor Name')), 'Country Of Origin': t(r.get('Country Of Origin')),
-        'Currency Code': t(r.get('Currency Code')), 'First FOB': as_num(r.get('First FOB')), 'Previous FOB Cost': as_num(r.get('Previous FOB Cost')),
-        'Latest FOB Cost': as_num(r.get('Latest FOB Cost')),
+        'Currency Code': t(r.get('Currency Code')), 'First FOB': xl_round(r.get('First FOB'), 2), 'Previous FOB Cost': xl_round(r.get('Previous FOB Cost'), 2),
+        'Latest FOB Cost': xl_round(r.get('Latest FOB Cost'), 2),
         'Lrcv Date': ld, 'Lrcv Qty': lq, 'Lrcv Src': lsrc,
     })
     items.append(it)
-    branch[code] = {b: int(n(r.get(b))) for b in BR}
-    nav[code] = {'u': int(n(r.get('U-SOH'))), 'm': int(n(r.get('M-SOH')))}
-    sroman[code] = {'pend': int(n(r.get('M-Tot Pending Order Qty'))), 'moman': int(n(r.get('M-MOMAN'))), 'whomn': int(n(r.get('M-WHOMN')))}
+    branch[code] = {b: xl_round(r.get(b)) for b in BR}
+    nav[code] = {'u': xl_round(r.get('U-SOH')), 'm': xl_round(r.get('M-SOH'))}
+    sroman[code] = {'pend': xl_round(r.get('M-Tot Pending Order Qty')), 'moman': xl_round(r.get('M-MOMAN')), 'whomn': xl_round(r.get('M-WHOMN'))}
     a = [t(r.get('Size Master')), t(r.get('Fabric')), t(r.get('Price Point'))]
     if any(a): attrs[code] = a
 
