@@ -4,7 +4,7 @@ Action keep/drop and the 2XL CPC correction. Each function names the Stock
 SetUp column it reproduces. Excel quirks are kept on purpose so the results
 match the workbook exactly -- see check_stock_setup() in stock_import.py.
 `r` is a dict: raw column header -> value."""
-import datetime
+import datetime, decimal
 
 def n(v):
     """Excel's (x*1): number, numeric text -> number; blank/other -> 0."""
@@ -13,6 +13,10 @@ def n(v):
     if isinstance(v, (datetime.datetime, datetime.date)): return 1.0   # a date is a positive serial
     try: return float(str(v).strip()) if str(v).strip() else 0.0
     except ValueError: return 0.0
+def xl_round(v, d=0):
+    """Excel's ROUND: .5 goes away from zero. Whole results stay ints."""
+    x = decimal.Decimal(repr(n(v))).quantize(decimal.Decimal(1).scaleb(-d), rounding=decimal.ROUND_HALF_UP)
+    return int(x) if x == x.to_integral_value() else float(x)
 def t(v): return '' if v is None else str(v).strip()
 pos = lambda v: max(n(v), 0.0)              # IF(x<0,0,x)
 
