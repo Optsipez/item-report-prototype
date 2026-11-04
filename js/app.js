@@ -3603,6 +3603,46 @@ let gridCatGroup = '';   // All Products' own All / KAF / WOS switch
     renderGrid();
   });
 })();
+// All Products' Excel export: every column, collapsed or not, for every row the
+// filters leave (all pages, in the grid's order). The 13-mo Trend chart is left
+// out, its numbers are the monthly columns. activeColumnLayout keeps role limits.
+function gridExportRows(items){
+  const INT = new Set(['Nav Stock', '__whsoh', 'SR Qty', 'PO-Qty', 'YTD Sold', '__totalRcvd', 'Store Count', 'Lrcv Qty']);
+  const WIDTHS = { '__sno': 7, 'Description': 42, 'Range Name': 18, 'Category': 16, 'Department Desc': 18, 'Group Desc': 20, 'Sub Group Desc': 20, 'PUDA Desc': 34, 'Item Color Name': 16, 'Lifestyle': 16, 'Vendor Name': 30 };
+  const cols = activeColumnLayout().flatMap(e => e.type === 'core' ? [e] : e.cols.map(c => {
+    const prefix = e.key.startsWith('soldby') ? 'Sold ' : e.key.startsWith('stockin') ? 'Stock In ' : '';
+    return prefix ? Object.assign({}, c, { label: prefix + c.label, monthly: true }) : c;
+  })).filter(c => c.field !== '__spark');
+  const type = c => c.field === '__sno' || c.field === 'Item Code' || c.field === 'Current Plan Code' ? 'center' : c.field === 'SOH' ? 'soh'
+    : c.fmt === 'pct' ? 'pct1' : c.fmt === 'x2' ? 'x' : c.monthly || c.fmt === 'money0' || INT.has(c.field) ? 'int'
+    : c.fmt === 'money2' || c.field === 'AVG' || c.field === 'SM' || c.field === 'PM' ? 'num' : 'text';
+  const num = v => v == null || v === '' ? null : isNaN(Number(v)) ? v : Number(v);
+  const value = (it, c, i) => {
+    if(c.field === '__sno') return i + 1;
+    if(c.field === '__whsoh') return whSohValue(it);
+    if(c.field === '__totalRcvd') return totalReceivedQty(it);
+    if(c.field === 'SR Qty') return srQtyValue(it);
+    if(c.field === 'Nav Stock') return navStockValue(it);
+    const v = cellValueForItem(it, c.field);
+    if(c.fmt === 'pct') return v == null || v === '' ? null : Math.round(Number(v) * 1000) / 10;
+    if(v == null || v === '' || type(c) === 'text' || type(c) === 'center') return c.fmt === 'lifestyle' || c.fmt === 'lrcvDate' || c.fmt === 'lastSoldDate' ? (v ? fmtCell(v, c.fmt) : null) : v;
+    return num(v);
+  };
+  return { header: cols.map(c => c.field === 'YTD Sold' ? ytdSoldLabel() : c.label), types: cols.map(type), widths: cols.map(c => WIDTHS[c.field] || 12),
+    rows: items.map((it, i) => cols.map(c => value(it, c, i))) };
+}
+function gridExport(){
+  const items = sortGridItems(getFilteredItems()), T = gridExportRows(items);
+  return downloadXlsx('All Products.xlsx', 'All Products', { title: 'All Products',
+    subtitle: 'ALL PRODUCTS   ·   ' + fmtInt(items.length) + (items.length !== ITEMS.length ? ' of ' + fmtInt(ITEMS.length) : '') + ' items   ·   SR Qty ' + (srQtyInclOman ? 'with' : 'without') + ' Oman   ·   ' + dashAsOfText(),
+    header: T.header, rows: T.rows, widths: T.widths, types: T.types });
+}
+document.getElementById('gridExportBtn').addEventListener('click', e => {
+  const btn = e.currentTarget;
+  btn.disabled = true; btn.textContent = 'Exporting…';
+  // let the label paint first: a full export takes a moment
+  setTimeout(() => { try { gridExport(); } finally { btn.disabled = false; btn.textContent = 'Export to Excel'; } }, 30);
+});
 function getFilteredItems(){
   return ITEMS.filter(item => {
     if(gridFocus && !gridFocus.codes.has(item['Item Code'])) return false;
