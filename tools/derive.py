@@ -2,7 +2,6 @@
 from dump.py). Used to (a) check the logic reproduces the current 16-Sep data,
 (b) build the 25-Sep data. Stock Data is never read here."""
 import pickle, json, collections, datetime, statistics
-from stocklogic import xl_round
 
 MON = ['January','February','March','April','May','June','July','August','September','October','November','December']
 def s(v): return '' if v is None else str(v).strip()
@@ -58,14 +57,14 @@ def derive(D, item_codes, vendor_of, retail_stores):
     for c in item_codes:
         ys = {}
         for y in sorted(set(pm.get(c, {})) | set(g.get(c, {}))):
-            sales = [xl_round(a) for a in pm[c][y]] if c in pm and y in pm[c] else [0]*12
-            stock = [xl_round(a) for a in g[c][y]] if c in g and y in g[c] else [0]*12
+            sales = [int(a) for a in pm[c][y]] if c in pm and y in pm[c] else [0]*12
+            stock = [int(a) for a in g[c][y]] if c in g and y in g[c] else [0]*12
             if any(sales) or any(stock): ys[y] = {'stock': stock, 'sales': sales}
         years[c] = ys
     R['years'] = years
     R['lastg'] = lastg
-    R['branch_monthly'] = {c: {st: {y: [xl_round(a) for a in arr] for y, arr in ys.items()} for st, ys in b.items()} for c, b in br.items()}
-    R['branch_sold'] = {c: {st: xl_round(sum(sum(arr) for arr in ys.values())) for st, ys in b.items() if st in retail_stores} for c, b in br.items()}
+    R['branch_monthly'] = {c: {st: {y: [int(a) if a == int(a) else a for a in arr] for y, arr in ys.items()} for st, ys in b.items()} for c, b in br.items()}
+    R['branch_sold'] = {c: {st: int(sum(sum(arr) for arr in ys.values())) for st, ys in b.items() if st in retail_stores} for c, b in br.items()}
     R['branch_sold'] = {c: b for c, b in R['branch_sold'].items() if b}
     half_up = lambda m: int(m + 0.5)
     R['lead_times'] = {'overall': half_up(statistics.median([x for v in leads.values() for x in v])),
@@ -77,7 +76,7 @@ def derive(D, item_codes, vendor_of, retail_stores):
         po = s(r[ix['PO No']])
         if not po: continue
         q = num(r[ix['PO Qty']])
-        lines.append([po, s(r[ix['Item Code']]), ' '.join(s(r[ix['Description']]).split()), xl_round(q), iso(r[ix['Arrival Date']]),
+        lines.append([po, s(r[ix['Item Code']]), ' '.join(s(r[ix['Description']]).split()), int(q) if q == int(q) else q, iso(r[ix['Arrival Date']]),
                       s(r[ix['Vendor Code']]), s(r[ix['Department Desc']]), s(r[ix['Category Desc']])])
         d = iso(r[ix['PO Creation Date']])
         if d: created[po].add(d)
