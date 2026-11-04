@@ -584,7 +584,25 @@ function stkAgeFor(it){
   if(ageMonths < 24) return { label: '18-24', sno: 6 };
   return { label: '24 Above', sno: 7 };
 }
+/* All Products' PO Cost (other pages use the PO file's Tot Order Cost AED). Unit
+   cost: landed cost, else the latest, previous, then first non-zero FOB converted
+   to AED x 1.25, else 0. FX_TO_AED is temporary, the rates PO Data implies (FOB
+   Cost LCY / FOB Cost), until the company's own rates are supplied. A FOB in a
+   currency not listed gives no cost (blank) rather than a wrong one. */
+const FX_TO_AED = { AED: 1, USD: 3.674, EUR: 4 };
+const FOB_LANDED_FACTOR = 1.25;
+const round2 = v => Math.round(v * 100 + 1e-6) / 100;   // 1e-6: 1001.165 can sit just under its .5 in binary
+function poUnitCost(it){
+  const landed = Number(it['L-Cost (Aed)']) || 0;
+  if(landed) return landed;
+  const fob = Number(it['Latest FOB Cost']) || Number(it['Previous FOB Cost']) || Number(it['First FOB']) || 0;
+  if(!fob) return 0;
+  const rate = FX_TO_AED[it['Currency Code']];
+  return rate ? round2(fob * rate * FOB_LANDED_FACTOR) : null;
+}
 ITEMS.forEach(it => {
+  it['PO Unit Cost'] = poUnitCost(it);
+  it['PO Cost'] = it['PO Unit Cost'] === null ? null : round2(it['PO Unit Cost'] * (Number(it['PO-Qty']) || 0));
   it['SOH'] = sohValue(it);
   it['AVG'] = itemAvg(it);
   it['SM'] = monthsOfCover(Number(it['SOH']) || 0, it['AVG']);
@@ -1654,6 +1672,10 @@ const COLUMN_LAYOUT = [
   { type:'core', field:'__whsoh', label:'WH SOH', sortable:true },
   { type:'core', field:'SR Qty', label:'SR QTY', sortable:true, stack:true },
   { type:'core', field:'PO-Qty', label:'PO Qty', sortable:true },
+  { type:'core', field:'PO Unit Cost', label:'PO Unit Cost', fmt:'money2', sortable:true,
+    tip:'Landed cost. If that is 0: latest, previous, then first FOB, converted to AED x 1.25. All 0 = 0.\nRates are temporary: USD 3.674, EUR 4.' },
+  { type:'core', field:'PO Cost', label:'PO Cost', fmt:'money2', sortable:true,
+    tip:'PO Qty x PO Unit Cost.' },
   { type:'core', field:'AVG', label:'AVG', sortable:true },
   { type:'core', field:'SM', label:'SM', sortable:true },
   { type:'core', field:'PM', label:'PM', sortable:true },
@@ -2343,7 +2365,7 @@ function buildGridHeader(){
       if(entry.field === 'AVG') gth.classList.add('avg-head');
       if(entry.field === 'SOH') gth.classList.add('soh-head');
       if(entry.field === 'Nav Stock') gth.classList.add('navstock-head');
-      if(entry.field === 'PO-Qty') gth.classList.add('poqty-head');
+      if(entry.field === 'PO-Qty' || entry.fmt === 'money2') gth.classList.add('poqty-head');
       if(entry.field === 'Current Plan Code') gth.classList.add('plan-head');
       if(entry.field === 'YTD Sold') gth.title = ytdSoldTip();
       else if(entry.field === 'AVG') gth.title = avgTip();
@@ -2512,13 +2534,13 @@ function buildGridBody(items, cols, pageStart){
           td.textContent = fmtInt(navStockValue(item));
         } else {
           const v = cellValueForItem(item, col.field);
-          td.textContent = (v === undefined || v === null || v === '') ? '—' : v;
+          td.textContent = (v === undefined || v === null || v === '') ? '—' : col.fmt ? fmtCell(v, col.fmt) : v;
           if(col.cls) td.className = col.cls;
           if(col.fz) td.classList.add(col.fz);
           if(col.left) td.classList.add('left');
           if(col.field === 'AVG') td.classList.add('avg-cell');
           if(col.field === 'SOH') td.classList.add('soh-cell');
-          if(col.field === 'PO-Qty') td.classList.add('poqty-cell');
+          if(col.field === 'PO-Qty' || col.fmt === 'money2') td.classList.add('poqty-cell');
           if(col.field === 'Current Plan Code') td.classList.add('plan-cell');
           if((col.field === 'Lrcv Date' || col.field === 'Lrcv Qty') && lrcvEstimated(item)){ td.classList.add('lrcv-est'); td.title = lrcvTip(item); }
           if(col.field === 'Item Code'){
