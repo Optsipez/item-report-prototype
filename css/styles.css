@@ -771,6 +771,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
   background:var(--canvas);
 }
 .login-overlay:not([hidden]){display:flex;}
+.export-pw-overlay{background:rgba(15,23,42,.45);}
 .login-card{
   width:min(340px,100%);background:var(--panel);border:1px solid var(--line-strong);
   border-radius:var(--r-lg);box-shadow:var(--sh-lg);padding:var(--sp-7);
@@ -791,6 +792,7 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
   box-shadow:var(--sh-xs);transition:background var(--t-fast),box-shadow var(--t-fast);
 }
 .login-card button:hover{background:var(--primary-hover);border-color:var(--primary-hover);box-shadow:var(--sh-sm);}
+.login-card button+button{margin-top:var(--sp-2);background:var(--panel);color:var(--ink);border-color:var(--line-strong);}
 .lookup-box button:active{transform:translateY(1px);box-shadow:none;}
 
 /* Primary launcher — full-screen (z-index just below .login-overlay: the

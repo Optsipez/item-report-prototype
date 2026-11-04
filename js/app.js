@@ -3277,6 +3277,20 @@ function renderTripTable(rows){
   }).join('');
   return '<div class="dr-wrap trip-wrap"><table class="matrix dr-table"><thead><tr>' + cols + '</tr></thead><tbody>' + body + '</tbody></table></div>';
 }
+// Every Excel/PDF export goes through here: run() only after the right password.
+function withExportPassword(run){
+  const overlay = document.getElementById('exportPwOverlay'), form = document.getElementById('exportPwForm');
+  const input = document.getElementById('exportPwInput'), err = document.getElementById('exportPwError');
+  input.value = ''; err.textContent = ''; overlay.hidden = false; input.focus();
+  form.onreset = () => { overlay.hidden = true; };
+  form.onkeydown = e => { if(e.key === 'Escape') form.reset(); };
+  form.onsubmit = e => {
+    e.preventDefault();
+    if(input.value !== EXPORT_PASSWORD){ err.textContent = 'Wrong password'; input.select(); return; }
+    form.reset(); run();
+  };
+}
+
 /* Minimal .xlsx writer -- no library, so it also works offline / where a CDN
    is blocked. One sheet: a navy title band (title + subtitle), then a styled
    table -- slate header row (frozen, with filter arrows, repeated on every
@@ -3562,14 +3576,14 @@ function renderTrip(){
   const hiddenToggle = $('tripHiddenToggle');
   if(hiddenToggle) hiddenToggle.addEventListener('click', () => { tripShowHidden = !tripShowHidden; renderTrip(); });
   const exportBtn = $('tripExport');
-  if(exportBtn) exportBtn.addEventListener('click', () => tripExport(rows.filter(r => !tripHidden.has(r.it['Item Code']))));
+  if(exportBtn) exportBtn.addEventListener('click', () => withExportPassword(() => tripExport(rows.filter(r => !tripHidden.has(r.it['Item Code'])))));
   const pdfBtn = $('tripPdf');
-  if(pdfBtn) pdfBtn.addEventListener('click', () => {
+  if(pdfBtn) pdfBtn.addEventListener('click', () => withExportPassword(() => {
     pdfBtn.disabled = true; pdfBtn.textContent = 'Preparing PDF…';
     tripPdf(rows.filter(r => !tripHidden.has(r.it['Item Code'])))
       .catch(e => alert('Could not make the PDF: ' + e.message))
       .finally(() => { pdfBtn.disabled = false; pdfBtn.textContent = 'Export to PDF'; });
-  });
+  }));
   const restoreAll = $('tripRestoreAll');
   if(restoreAll) restoreAll.addEventListener('click', () => { tripHidden = new Set(); tripShowHidden = false; renderTrip(); });
 }
@@ -3637,12 +3651,12 @@ function gridExport(){
     subtitle: 'ALL PRODUCTS   ·   ' + fmtInt(items.length) + (items.length !== ITEMS.length ? ' of ' + fmtInt(ITEMS.length) : '') + ' items   ·   SR Qty ' + (srQtyInclOman ? 'with' : 'without') + ' Oman   ·   ' + dashAsOfText(),
     header: T.header, rows: T.rows, widths: T.widths, types: T.types });
 }
-document.getElementById('gridExportBtn').addEventListener('click', e => {
-  const btn = e.currentTarget;
+document.getElementById('gridExportBtn').addEventListener('click', e => withExportPassword(() => {
+  const btn = e.target;
   btn.disabled = true; btn.textContent = 'Exporting…';
   // let the label paint first: a full export takes a moment
   setTimeout(() => { try { gridExport(); } finally { btn.disabled = false; btn.textContent = 'Export to Excel'; } }, 30);
-});
+}));
 function getFilteredItems(){
   return ITEMS.filter(item => {
     if(gridFocus && !gridFocus.codes.has(item['Item Code'])) return false;

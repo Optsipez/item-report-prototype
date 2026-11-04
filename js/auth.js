@@ -36,6 +36,10 @@ const EMPLOYEES = [
   { id: 'admin', name: 'Admin', password: 'Admin0306', role: 'admin' },
 ];
 
+// Asked before every Excel/PDF export (withExportPassword in app.js), same for
+// every role. Like the logins above, this is a gate and not real security.
+const EXPORT_PASSWORD = 'Export@2XL';
+
 let CURRENT_ROLE = null;
 let CURRENT_EMPLOYEE_ID = null;
 let CURRENT_EMPLOYEE_NAME = '';

@@ -344,6 +344,18 @@
   </form>
 </div>
 
+<div id="exportPwOverlay" class="login-overlay export-pw-overlay" hidden>
+  <form id="exportPwForm" class="login-card">
+    <h2>Export</h2>
+    <p class="login-sub">Enter the export password to download this file</p>
+    <label class="login-label" for="exportPwInput">Password</label>
+    <input id="exportPwInput" type="password" autocomplete="new-password">
+    <p id="exportPwError" class="login-error"></p>
+    <button type="submit">Export</button>
+    <button type="reset">Cancel</button>
+  </form>
+</div>
+
 <!-- Primary dashboard / launcher — role-gated front door shown right after
      sign-in and reopenable via the "Menu" topbar button. Overlays the whole
      app (nothing underneath is visible) so a role only ever sees the
