@@ -1,7 +1,7 @@
 """The PO Data sheet's formula columns, done in code, from the raw PO columns
 plus the "Logistics Status" sheet (logistics team's per-PO status and new
 ETD/ETA) and the SetUp sheet's status mapping. Each step names the workbook
-column it reproduces; check_po_formulas() compares against the workbook."""
+column it reproduces."""
 import re, datetime
 
 def t(v): return '' if v is None else str(v).strip()

@@ -2,7 +2,7 @@
 parsed workbook. Band = Tot Discount Amount / Tot RSP on each sales line, using
 the same thresholds as the Dashboard's DASH_DISC_BANDS (dashDiscBand)."""
 import collections
-from derive import sheet, s, num, MON
+from derive import sheet, s, num, MON, sales_years
 from stocklogic import xl_round
 
 BANDS = ['No Price', '0-10%', '11-20%', '21-30%', '31-40%', '41-50%', '51-60%', '61-70%', '71-80%', 'Above 80%']
@@ -16,7 +16,7 @@ def band(disc, rsp):
 def sales_values(D, item_codes):
     agg = collections.defaultdict(lambda: [0.0, 0.0, 0.0, 0.0, 0.0])   # (item, ym, band, cons) -> qty, cost, rsp, net, disc
     last_month = 0
-    for y in ('2024', '2025', '2026'):
+    for y in sales_years(D):
         ix, rows = sheet(D, 'Sales ' + y)
         for r in rows:
             c = s(r[ix['Item No']])
@@ -35,7 +35,7 @@ def sales_values(D, item_codes):
 def dept_store_months(D):
     """Sales per department x store x month, every line on the Sales sheets: the Sales Dashboard's data."""
     depts, stores, agg = {}, {}, collections.defaultdict(lambda: [0.0, 0.0, 0.0, 0.0, 0.0])   # cost, rsp, net, consignment cost, consignment net
-    for y in ('2024', '2025', '2026'):
+    for y in sales_years(D):
         ix, rows = sheet(D, 'Sales ' + y)
         for r in rows:
             dk = (s(r[ix['Category Code']]), s(r[ix['Category Desc']]), s(r[ix['Department Code']]), s(r[ix['Department Desc']]))

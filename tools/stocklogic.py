@@ -2,7 +2,7 @@
 (the "Raw - Stock Data" layout) work out the stock rollups, U-Lrcv, the
 Action keep/drop and the 2XL CPC correction. Each function names the Stock
 SetUp column it reproduces. Excel quirks are kept on purpose so the results
-match the workbook exactly -- see check_stock_setup() in stock_import.py.
+match the workbook exactly.
 `r` is a dict: raw column header -> value."""
 import datetime, decimal
 
@@ -27,6 +27,23 @@ STORES = {   # Stock SetUp DU..EF: store = own stock + its clearance corner + di
 }
 DISPLAY = ('REGUS-DM', 'MARIN-DM', 'JUMRA-DM', 'DALMA-DM', 'ALNML-DM', 'GALER-DM', 'RAKMA-DM', 'ZAHIA-DM', 'PARKC-DM', 'BRSHA-DM')
 WH_OTHER = ('WRKSH', 'WRKSH-DIP', 'WRKSH-DC', 'EXSTK', 'HO-RESRV', 'PROJ-WH', 'RESRV', 'BTS-SAJ', 'TRANSIT', 'SPA-DC')
+# The raw sheet's whole layout (22-Oct-26). The import stops on any difference: a
+# renamed column would read as 0 and a new store is a new column nothing adds up.
+RAW_COLUMNS = (
+    'Item Code', 'Description', 'Supp Item Code', 'Sup. Desc', 'Category Code', 'Category Desc', 'Department Code', 'Department Desc', 'Group Code', 'Group Desc',
+    'Subgroup Code', 'Subgroup Desc', 'Range Name', 'Item Color Code', 'Item Color Name', 'Secondary Colour', 'Option Rem', 'PUDA Code', 'PUDA Desc', 'Price Point',
+    'Product Info', 'Lifestyle', 'Event', 'Vendor Code', 'Vendor Name', 'Current Plan Code', 'Country Of Origin', 'Currency Code', 'First FOB', 'Previous FOB Cost',
+    'Latest FOB Cost', 'Inner UOM', 'Outer UOM', 'CBM', 'Cons. Status', 'Material Details', 'Available Colors', 'Available Sizes', 'Feature 1', 'Feature 2',
+    'Feature 3', 'Feature 4', 'QR CODE', 'Item Creation Date', 'U-Landede Unit Cost (Aed)', 'U-WAS Unit Price (Aed)', 'U-Now Unit Price (Aed)', 'U-SOH',
+    'U-Last Purchase Date', 'U-Last Purchase Date Old', 'U-First Transfer Date', 'U-Last Transfer Date', 'U-UOM', 'U-Tot Pending Order Qty', 'U-Purchase Quantity',
+    'U-Last Sold Date', 'U-Tot Sold Qty', 'U-Item Family', 'U-Offer No.', 'M-Landede Unit Cost (OM)', 'M-WAS Unit Price (OM)', 'M-Now Unit Price (OM)', 'M-SOH',
+    'M-Last Purchase Date', 'M-Last Purchase Date Old', 'M-First Transfer Date', 'M-Last Transfer Date', 'M-Tot Pending Order Qty', 'M-Purchase Quantity',
+    'M-Last Sold Date', 'M-Tot Sold Qty', 'M-MOMAN', 'M-MOMAN-DG', 'M-WHOMN', 'M-WHOMN-DG', 'SAJWH', 'DCSHJ', 'REGUS', 'MARIN', 'JUMRA', 'DALMA', 'ALNML', 'GALER',
+    'RAKMA', 'ZAHIA', 'PARKC', 'BRSHA', 'CLRNC', 'CL-DCSHJ', 'WEBSTR', 'SAJWH-DG', 'DG-DCSHJ', 'REGUS-DG', 'MARIN-DG', 'JUMRA-DG', 'DALMA-DG', 'ALNML-DG', 'GALER-DG',
+    'RAKMA-DG', 'ZAHIA-DG', 'PARKC-DG', 'BRSHA-DG', 'AJMWH-DG', 'DIPWH-DG', 'WRKSH', 'WRKSH-DIP', 'WRKSH-DC', 'CL-JUMRA', 'CL-MARIN', 'CL-REGUS', 'EXSTK', 'HO-RESRV',
+    'PROJ-WH', 'RESRV', 'BTS-SAJ', 'TRANSIT', 'NRDMG-DIP', 'NRDMG-AJM', 'SPA-DC', 'U-B1G1 No.', 'REGUS-DM', 'MARIN-DM', 'JUMRA-DM', 'DALMA-DM', 'ALNML-DM', 'GALER-DM',
+    'RAKMA-DM', 'ZAHIA-DM', 'PARKC-DM', 'BRSHA-DM', 'Size Master', 'Fabric', 'Scond Mtrl',
+)
 
 def rollups(r):
     u_wh = 0.0 if n(r.get('DCSHJ')) < 0 else n(r.get('DCSHJ')) + pos(r.get('SAJWH'))         # DO: IF(DCSHJ<0,0,DCSHJ+IF(SAJWH<0,0,SAJWH))

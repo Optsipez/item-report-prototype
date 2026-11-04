@@ -16,7 +16,7 @@ usage: stock_import.py <stock.pkl> <stock sheet> <sales.pkl> <js dir> <out dir>
 import sys, os, json, pickle, re, datetime, collections
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stocklogic import evaluate, t, n, xl_round
-from derive import derive, MON, sheet, qty_col
+from derive import derive, MON, sheet, qty_col, sales_years, check_sources
 from pologic import status_map, status_sort, logistics, po_line, iso
 from salesval import sales_values, dept_store_months
 
@@ -35,8 +35,9 @@ rows = SD[SHEET]; hdr = [t(h) for h in rows[0]]
 raw = [dict(zip(hdr, r)) for r in rows[1:]]
 raw = [r for r in raw if t(r.get('Item Code'))]
 
-evals = {t(r['Item Code']): evaluate(r) for r in raw}
 SA = pickle.load(open(SALES_PKL, 'rb'))
+check_sources(hdr, SA)
+evals = {t(r['Item Code']): evaluate(r) for r in raw}
 
 # ---- POs ----
 # With a PO Data sheet: PO lines rebuilt from the raw PO columns via
@@ -136,11 +137,9 @@ kept = {it['Item Code'] for it in items}
 # ---- sales: kept items get full history; every other item that ever sold becomes sales-only ----
 sales_codes = set()
 sales_attr = {}
-for y in ('2024', '2025', '2026'):
-    rs = SA.get('Sales ' + y) or []
-    if not rs: continue
-    six = {t(h): i for i, h in enumerate(rs[0])}
-    for r in rs[1:]:
+for y in sales_years(SA):
+    six, rs = sheet(SA, 'Sales ' + y)
+    for r in rs:
         c = t(r[six['Item No']])
         if not c: continue
         sales_codes.add(c)

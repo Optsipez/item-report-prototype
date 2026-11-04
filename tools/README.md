@@ -2,6 +2,16 @@
 
 Rebuilds the app's data files in `js/` from a "2XL Data" workbook. Not loaded by the app.
 
+## Import checks
+
+`stock_import.py` stops before building anything (`check_sources` in `derive.py`) when:
+- a raw stock column is missing or new (`RAW_COLUMNS` in `stocklogic.py`). A new store or location is a new column: add it to the stock logic and the app first, then to the list.
+- a column the Sales, GRN or PO sheets need is missing, or Logistics Status's columns have moved.
+- the Sales sheets have an unknown store (`SALES_STORES_KNOWN` in `derive.py`).
+- a Sales year is missing or empty. Every `Sales YYYY` sheet from 2024 on is read, so `Sales 2027` needs no code change; add it to the `merge_pkl.py` line.
+
+`python tools/test_import_checks.py` tests them.
+
 ## Stock (raw IT stock → app), `stock_import.py` + `stocklogic.py`
 
 `stocklogic.py` is the workbook's **Stock SetUp** sheet done in code. From one raw IT stock row (the "Raw - Stock Data" layout) it works out:
@@ -84,7 +94,7 @@ It prints the counts: kept, dropped, sales-only, and the Action-3 breakdown. Com
 **Stock Data is never re-read.** Every stock field already in `js/data.js` (item list, prices, SOH, branch stock, Lrcv, PO-Qty, …) is kept as it is. A workbook with a new Stock sheet needs its own stock import, which doesn't exist yet. `item-attrs.js` is also stock-derived and is not touched.
 
 `derive.py` was checked to reproduce the 16-Sep data exactly. The rules it encodes:
-- Monthly sales: whole units per month (fractions dropped).
+- Quantities round to 0 decimals and prices to 2, Excel-style (`xl_round`).
 - Lead times: only receipts 7–400 days after the order; medians rounded half up.
 - PO descriptions: double spaces collapsed.
 - Ports: uppercase.
