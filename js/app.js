@@ -586,11 +586,11 @@ function stkAgeFor(it){
 }
 /* All Products' PO Cost (other pages use the PO file's Tot Order Cost AED). Unit
    cost: landed cost, else the latest, previous, then first non-zero FOB converted
-   to AED x 1.25, else 0. FX_TO_AED is temporary, the rates PO Data implies (FOB
-   Cost LCY / FOB Cost), until the company's own rates are supplied. A FOB with no
+   to AED x 1.25, else 0. FX_TO_AED: the company's USD rate, and the fixed EUR rate
+   logistics gave (the bank's actual EUR rate varies). A FOB with no
    currency takes its vendor's (Vendor Currency, tools/stock_import.py); with none
    there either, or one not listed, it gives no cost (blank) rather than a wrong one. */
-const FX_TO_AED = { AED: 1, USD: 3.674, EUR: 4 };
+const FX_TO_AED = { AED: 1, USD: 3.674, EUR: 4.2 };
 const FOB_LANDED_FACTOR = 1.25;
 const round2 = v => Math.round(v * 100 + 1e-6) / 100;   // 1e-6: 1001.165 can sit just under its .5 in binary
 function poUnitCost(it){
@@ -1674,7 +1674,7 @@ const COLUMN_LAYOUT = [
   { type:'core', field:'SR Qty', label:'SR QTY', sortable:true, stack:true },
   { type:'core', field:'PO-Qty', label:'PO Qty', sortable:true },
   { type:'core', field:'PO Unit Cost', label:'PO Unit Cost', fmt:'money2', sortable:true,
-    tip:'Landed cost. If that is 0: latest, previous, then first FOB, converted to AED x 1.25. All 0 = 0.\nRates are temporary: USD 3.674, EUR 4.' },
+    tip:'Landed cost. If that is 0: latest, previous, then first FOB, converted to AED x 1.25. All 0 = 0.\nRates: USD 3.674, EUR 4.2.' },
   { type:'core', field:'PO Cost', label:'PO Cost', fmt:'money2', sortable:true,
     tip:'PO Qty x PO Unit Cost.' },
   { type:'core', field:'AVG', label:'AVG', sortable:true },
