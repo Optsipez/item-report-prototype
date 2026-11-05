@@ -46,12 +46,12 @@ RAW_COLUMNS = (
 )
 
 def vendor_currencies(rows):
-    """Vendor Code -> its most used Currency Code across every raw item, kept or
-    not. Fills in for an item with a FOB but no currency of its own."""
-    seen = collections.defaultdict(collections.Counter)
+    """Vendor Code -> its Currency Code across every raw item, kept or not, for a
+    FOB with no currency of its own. A vendor with several is left out, not guessed."""
+    seen = collections.defaultdict(set)
     for r in rows:
-        if t(r.get('Currency Code')): seen[t(r.get('Vendor Code'))][t(r.get('Currency Code'))] += 1
-    return {v: c.most_common(1)[0][0] for v, c in seen.items()}
+        if t(r.get('Currency Code')): seen[t(r.get('Vendor Code'))].add(t(r.get('Currency Code')))
+    return {v: next(iter(c)) for v, c in seen.items() if len(c) == 1}
 
 def rollups(r):
     u_wh = 0.0 if n(r.get('DCSHJ')) < 0 else n(r.get('DCSHJ')) + pos(r.get('SAJWH'))         # DO: IF(DCSHJ<0,0,DCSHJ+IF(SAJWH<0,0,SAJWH))

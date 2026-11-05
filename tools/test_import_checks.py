@@ -38,5 +38,5 @@ assert sales_years(good()) == ['2024', '2025', '2026', '2027']
 out, last = sales_values(good(), {'1'})
 assert last == 36 and [r[0] for r in out['1']] == [0, 12, 24, 36], (last, out)   # Jan 2027 is month 36
 V = lambda v, c: {'Vendor Code': v, 'Currency Code': c}
-assert vendor_currencies([V('A', ''), V('A', 'USD'), V('A', 'USD'), V('A', 'EUR'), V('B', '')]) == {'A': 'USD'}   # most used; B has none
+assert vendor_currencies([V('A', ''), V('A', 'USD'), V('A', 'USD'), V('B', ''), V('C', 'USD'), V('C', 'EUR')]) == {'A': 'USD'}   # B has none, C has several
 print('ok')
