@@ -587,8 +587,9 @@ function stkAgeFor(it){
 /* All Products' PO Cost (other pages use the PO file's Tot Order Cost AED). Unit
    cost: landed cost, else the latest, previous, then first non-zero FOB converted
    to AED x 1.25, else 0. FX_TO_AED is temporary, the rates PO Data implies (FOB
-   Cost LCY / FOB Cost), until the company's own rates are supplied. A FOB in a
-   currency not listed gives no cost (blank) rather than a wrong one. */
+   Cost LCY / FOB Cost), until the company's own rates are supplied. A FOB with no
+   currency takes its vendor's (Vendor Currency, tools/stock_import.py); with none
+   there either, or one not listed, it gives no cost (blank) rather than a wrong one. */
 const FX_TO_AED = { AED: 1, USD: 3.674, EUR: 4 };
 const FOB_LANDED_FACTOR = 1.25;
 const round2 = v => Math.round(v * 100 + 1e-6) / 100;   // 1e-6: 1001.165 can sit just under its .5 in binary
@@ -597,7 +598,7 @@ function poUnitCost(it){
   if(landed) return landed;
   const fob = Number(it['Latest FOB Cost']) || Number(it['Previous FOB Cost']) || Number(it['First FOB']) || 0;
   if(!fob) return 0;
-  const rate = FX_TO_AED[it['Currency Code']];
+  const rate = FX_TO_AED[it['Currency Code'] || it['Vendor Currency']];
   return rate ? round2(fob * rate * FOB_LANDED_FACTOR) : null;
 }
 ITEMS.forEach(it => {

@@ -3,7 +3,7 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from derive import check_sources, sales_years, SALES_COLUMNS, GRN_COLUMNS, PO_COLUMNS, LOGISTICS_COLUMNS
 from salesval import sales_values
-from stocklogic import RAW_COLUMNS
+from stocklogic import RAW_COLUMNS, vendor_currencies
 
 def sales_sheet(year, store='REGUS'):
     row = {'Item No': '1', 'Year Name': year, 'Month Name': 'January', 'Store No': store, 'Tot Sold Quantity': 2, 'Tot Sales Cost': 10, 'Tot RSP': 20, 'Tot NET': 20, 'Tot Discount Amount': 0, 'Cons. Status': 'No'}
@@ -37,4 +37,6 @@ stops(HDR, D, 'no gaps or empty years')
 assert sales_years(good()) == ['2024', '2025', '2026', '2027']
 out, last = sales_values(good(), {'1'})
 assert last == 36 and [r[0] for r in out['1']] == [0, 12, 24, 36], (last, out)   # Jan 2027 is month 36
+V = lambda v, c: {'Vendor Code': v, 'Currency Code': c}
+assert vendor_currencies([V('A', ''), V('A', 'USD'), V('A', 'USD'), V('A', 'EUR'), V('B', '')]) == {'A': 'USD'}   # most used; B has none
 print('ok')

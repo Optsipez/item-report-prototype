@@ -4,7 +4,7 @@ Action keep/drop and the 2XL CPC correction. Each function names the Stock
 SetUp column it reproduces. Excel quirks are kept on purpose so the results
 match the workbook exactly.
 `r` is a dict: raw column header -> value."""
-import datetime, decimal
+import datetime, decimal, collections
 
 def n(v):
     """Excel's (x*1): number, numeric text -> number; blank/other -> 0."""
@@ -44,6 +44,14 @@ RAW_COLUMNS = (
     'PROJ-WH', 'RESRV', 'BTS-SAJ', 'TRANSIT', 'NRDMG-DIP', 'NRDMG-AJM', 'SPA-DC', 'U-B1G1 No.', 'REGUS-DM', 'MARIN-DM', 'JUMRA-DM', 'DALMA-DM', 'ALNML-DM', 'GALER-DM',
     'RAKMA-DM', 'ZAHIA-DM', 'PARKC-DM', 'BRSHA-DM', 'Size Master', 'Fabric', 'Scond Mtrl',
 )
+
+def vendor_currencies(rows):
+    """Vendor Code -> its most used Currency Code across every raw item, kept or
+    not. Fills in for an item with a FOB but no currency of its own."""
+    seen = collections.defaultdict(collections.Counter)
+    for r in rows:
+        if t(r.get('Currency Code')): seen[t(r.get('Vendor Code'))][t(r.get('Currency Code'))] += 1
+    return {v: c.most_common(1)[0][0] for v, c in seen.items()}
 
 def rollups(r):
     u_wh = 0.0 if n(r.get('DCSHJ')) < 0 else n(r.get('DCSHJ')) + pos(r.get('SAJWH'))         # DO: IF(DCSHJ<0,0,DCSHJ+IF(SAJWH<0,0,SAJWH))

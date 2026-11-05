@@ -15,7 +15,7 @@ usage: stock_import.py <stock.pkl> <stock sheet> <sales.pkl> <js dir> <out dir>
   current js/po-data.js. See README.md."""
 import sys, os, json, pickle, re, datetime, collections
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stocklogic import evaluate, t, n, xl_round
+from stocklogic import evaluate, t, n, xl_round, vendor_currencies
 from derive import derive, MON, sheet, qty_col, sales_years, check_sources
 from pologic import status_map, status_sort, logistics, po_line, iso
 from salesval import sales_values, dept_store_months
@@ -107,6 +107,7 @@ TEXT = {'Vendor Code': 'Vendor Code', 'Range Name': 'Range Name', 'Catg Code': '
         'Sub Group Code': 'Subgroup Code', 'Sub Group Desc': 'Subgroup Desc', 'PUDA Code': 'PUDA Code', 'PUDA Desc': 'PUDA Desc'}
 
 items, branch, nav, sroman, attrs, dropped, outcomes = [], {}, {}, {}, {}, {}, collections.Counter()
+vendor_cur = vendor_currencies(raw)
 for r in raw:
     code = t(r['Item Code']); E = evals[code]; outcomes[E['action3']] += 1
     if E['final'] != 'Keep-Fnl':
@@ -126,6 +127,7 @@ for r in raw:
         'Latest FOB Cost': xl_round(r.get('Latest FOB Cost'), 2),
         'Lrcv Date': ld, 'Lrcv Qty': lq, 'Lrcv Src': lsrc,
     })
+    if not it['Currency Code'] and it['Vendor Code'] in vendor_cur: it['Vendor Currency'] = vendor_cur[it['Vendor Code']]
     items.append(it)
     branch[code] = {b: xl_round(r.get(b)) for b in BR}
     nav[code] = {'u': xl_round(r.get('U-SOH')), 'm': xl_round(r.get('M-SOH'))}
