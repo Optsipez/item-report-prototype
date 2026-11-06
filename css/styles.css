@@ -2152,7 +2152,18 @@ table.year-matrix tr.year-row td{animation:popIn .22s cubic-bezier(.16,1,.3,1) b
 .sim-table td.sim-m{font-variant-numeric:tabular-nums;font-weight:600;}
 .sim-table td.sim-m.bad{color:#dc2626;}
 .sim-table td.sim-m.warn{color:var(--warn);}
-.sim-table tr.dash-pick{cursor:pointer;}
+/* SIM PIM: table on the left, its two charts on the right (stacked below on
+   narrower screens); --chart-c (purple) passes the colour-blind check with a and b */
+#simRoot{--chart-a:#a3781d;--chart-b:#0284c7;--chart-c:#7c3aed;}
+#simRoot.dash{max-width:none;}   /* the full width, as on Sales, so the table fits beside its charts */
+.sim-split{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:var(--sp-5);align-items:start;}
+.sim-charts{display:flex;flex-direction:column;gap:var(--sp-4);}
+.sim-charts .dash-card{margin:0;}
+.sim-charts .sb-row{grid-template-columns:110px minmax(0,1fr);}
+@media (max-width:1440px){.sim-split{grid-template-columns:minmax(0,1fr);}}
+.sim-vendor{margin-top:var(--sp-6);}
+.sim-vendor .dash-scope{margin:0 0 var(--sp-4);}
+.sim-vendor h3.sim-vendor-by{margin:var(--sp-2) 0 var(--sp-3);font-size:var(--fs-md);}
 /* Trip Requirement Mrg Rem: UCS red, PSM amber, ASM blue, GSM green, CNA grey */
 .mrg-rem{font-weight:700;}
 .mrg-ucs{color:#dc2626;}
