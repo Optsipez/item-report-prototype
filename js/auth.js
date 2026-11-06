@@ -40,6 +40,20 @@ const EMPLOYEES = [
 // every role. Like the logins above, this is a gate and not real security.
 const EXPORT_PASSWORD = 'export@2xl';
 
+// Who may sign in is switched yes/no by the admin (User Access on the menu)
+// and kept on the server by access.php, so it applies without a code change.
+// Checked at sign-in and on every page load, so a "no" signs someone out the
+// next time they open or refresh the app. If the server can't be reached (a
+// local copy, PHP down) everyone with a valid password gets in. Like the
+// passwords, a gate, not real security.
+const ACCESS_URL = 'access.php';
+function checkAccess(id){
+  return fetch(ACCESS_URL + '?id=' + encodeURIComponent(id), { cache: 'no-store' })
+    .then(r => r.json()).then(j => j.allowed !== false)
+    .catch(() => true);
+}
+const ACCESS_OFF_MSG = 'Your access is switched off. Please ask the admin.';
+
 let CURRENT_ROLE = null;
 let CURRENT_EMPLOYEE_ID = null;
 let CURRENT_EMPLOYEE_NAME = '';
@@ -86,6 +100,7 @@ const PRIMARY_VIEWS = [
   { label: 'Trip Requirement', desc: 'Plan the next order with a vendor',            hash: 'trip',      roles: ['buyer', 'manager', 'ceo', 'admin'] },
   { label: 'Item Lookup',      desc: 'Everything about a single item',               hash: 'lookup',    roles: ['buyer', 'manager', 'ceo', 'admin'] },
   { label: 'PO Data',          desc: 'Every open purchase order, by vendor',         hash: 'podata',    roles: ['buyer', 'manager', 'ceo', 'admin'] },
+  { label: 'User Access',      desc: 'Choose who can sign in',                       hash: 'access',    roles: ['admin'] },
 ];
 // Home-screen greeting: a random line from a pool that changes with the time
 // of day and the day of the week (UAE weekend = Sat/Sun), never the same
@@ -122,6 +137,7 @@ function renderPrimaryOverlay(){
   ).join('');
   fillPrimaryStats();
   grid.querySelectorAll('.primary-row').forEach(btn => btn.addEventListener('click', () => {
+    if(btn.dataset.hash === 'access') return openAccessScreen();
     hidePrimaryOverlay();
     // This overlay shows before the 38MB data.js and app.js have finished
     // downloading. Clicked that early, navigate() doesn't exist yet -- set
@@ -175,6 +191,37 @@ function showPrimaryOverlay(){
 function hidePrimaryOverlay(){
   const overlay = document.getElementById('primaryOverlay');
   if(overlay) overlay.hidden = true;
+}
+
+// User Access (admin only): one Yes/No switch per person in EMPLOYEES,
+// saved straight to the server. The admin account itself can't be switched off.
+function openAccessScreen(){
+  const overlay = document.getElementById('accessOverlay'), list = document.getElementById('accessList');
+  const err = document.getElementById('accessError');
+  const admin = findEmployee(CURRENT_EMPLOYEE_ID);
+  const people = EMPLOYEES.filter(e => e.role !== 'admin');
+  const roleLabel = r => r === 'ceo' ? 'CEO' : r === 'manager' ? 'Manager' : 'Buyer';
+  const draw = blocked => {
+    list.innerHTML = people.map(e => {
+      const on = !blocked.includes(e.id.toUpperCase());
+      return '<div class="access-row"><span><b>' + (e.name || e.id) + '</b><small>' + e.id + ' · ' + roleLabel(e.role) + '</small></span>' +
+        '<button type="button" class="access-switch' + (on ? ' on' : '') + '" data-id="' + e.id + '" aria-pressed="' + on + '">' + (on ? 'Yes' : 'No') + '</button></div>';
+    }).join('');
+  };
+  const fail = msg => { err.textContent = msg; };
+  err.textContent = ''; list.innerHTML = '<p class="login-sub">Loading…</p>'; overlay.hidden = false;
+  fetch(ACCESS_URL, { cache: 'no-store' }).then(r => r.json()).then(j => draw(j.blocked || []))
+    .catch(() => { list.innerHTML = ''; fail('Can’t reach the server. User Access only works on the live site.'); });
+  list.onclick = e => {
+    const btn = e.target.closest('.access-switch');
+    if(!btn) return;
+    btn.disabled = true; err.textContent = '';
+    fetch(ACCESS_URL, { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: admin ? admin.password : '', id: btn.dataset.id, allowed: !btn.classList.contains('on') }) })
+      .then(r => r.json()).then(j => { if(j.error) throw new Error(j.error); draw(j.blocked); })
+      .catch(x => { btn.disabled = false; fail('Not saved: ' + (x.message || 'server error')); });
+  };
+  document.getElementById('accessClose').onclick = () => { overlay.hidden = true; };
 }
 
 function showLoginOverlay(msg){
@@ -244,6 +291,13 @@ function enterApp(emp){
     updateTopbarUser();
     applyRoleClass();
     showPrimaryOverlay();
+    checkAccess(CURRENT_EMPLOYEE_ID).then(ok => {
+      if(ok) return;
+      clearSession();
+      CURRENT_ROLE = null; CURRENT_EMPLOYEE_ID = null; CURRENT_EMPLOYEE_NAME = '';
+      hidePrimaryOverlay();
+      showLoginOverlay(ACCESS_OFF_MSG);
+    });
   } else {
     showLoginOverlay();
   }
@@ -262,8 +316,11 @@ function enterApp(emp){
         showLoginOverlay('Incorrect employee ID or password.');
         return;
       }
-      saveSession(emp);
-      enterApp(emp);
+      checkAccess(emp.id).then(ok => {
+        if(!ok) return showLoginOverlay(ACCESS_OFF_MSG);
+        saveSession(emp);
+        enterApp(emp);
+      });
     });
   }
 

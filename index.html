@@ -356,6 +356,17 @@
   </form>
 </div>
 
+<!-- User Access (admin only) — see openAccessScreen() in js/auth.js -->
+<div id="accessOverlay" class="login-overlay export-pw-overlay" hidden>
+  <div class="login-card access-card">
+    <h2>User Access</h2>
+    <p class="login-sub">Yes lets a person sign in. No signs them out the next time they open or refresh the app.</p>
+    <div id="accessList" class="access-list"></div>
+    <p id="accessError" class="login-error"></p>
+    <button type="button" id="accessClose">Close</button>
+  </div>
+</div>
+
 <!-- Primary dashboard / launcher — role-gated front door shown right after
      sign-in and reopenable via the "Menu" topbar button. Overlays the whole
      app (nothing underneath is visible) so a role only ever sees the
