@@ -2248,4 +2248,11 @@ table.year-matrix tr.year-row td{animation:popIn .22s cubic-bezier(.16,1,.3,1) b
 #salesRoot .sales-table tr.sales-section td{background:var(--s-100);font-weight:700;color:var(--ink);padding-top:8px;padding-bottom:8px;border-right:0;}
 #salesRoot .sales-table tr.sales-section td:first-child{box-shadow:inset 3px 0 0 var(--primary);}
 #salesRoot .sales-table tr.band-total td,#salesRoot .sales-table tr.band-total td:first-child{background:var(--sunken);font-weight:700;border-bottom-color:var(--s-400);}
+/* Net Sales, COGS and margin by month: four lines per department, ruled off after Margin % */
+#salesRoot .mg-controls{margin:0 0 var(--sp-4);}
+#salesRoot .mg-table td.l small{display:block;font-size:var(--fs-2xs);font-weight:500;color:var(--ink-faint);}
+#salesRoot .mg-table tr.mg-sub td.l{padding-left:22px;font-size:var(--fs-xs);color:var(--ink-soft);}
+#salesRoot .mg-table tr.mg-sub td{color:var(--ink-soft);}
+#salesRoot .mg-table tr.mg-end td{border-bottom:2px solid var(--s-400);}
+#salesRoot .mg-table tr.mg-line:hover > td{background:var(--row-hover);}
 #salesRoot .sales-table tr.sales-grand td,#salesRoot .sales-table tr.sales-grand td:first-child{background:var(--subhead);border-top:2px solid var(--subhead-line);border-bottom:2px solid var(--subhead-line);}

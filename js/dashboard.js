@@ -1188,7 +1188,8 @@ function salesPeriod(){
 function salesCompute(){
   const { cy, y0, lastTo, to } = salesPeriod();
   const blank = () => ({ cost: 0, rsp: 0, net: 0 });
-  const rows = SALES_DEPTS.map((d, i) => ({ i, cat: d[0], catName: d[1], code: d[2], name: d[3], cur: blank(), prev: blank(), fy: blank(), mCur: Array(12).fill(0), mPrev: Array(12).fill(0) }));
+  // mCur / mPrev: COGS by month, this year and last; mCurN / mPrevN: Net Sales by month
+  const rows = SALES_DEPTS.map((d, i) => ({ i, cat: d[0], catName: d[1], code: d[2], name: d[3], cur: blank(), prev: blank(), fy: blank(), mCur: Array(12).fill(0), mPrev: Array(12).fill(0), mCurN: Array(12).fill(0), mPrevN: Array(12).fill(0) }));
   const byMonth = {};
   SALES_SCOPES[salesScope].cats.forEach(c => { byMonth[c] = MONTHS.map(name => ({ name, cur: blank(), prev: blank(), fy: blank() })); });
   const add = (b, r) => { b.cost += r[3]; b.rsp += r[4]; b.net += r[5]; };
@@ -1196,14 +1197,14 @@ function salesCompute(){
     const R = rows[r[0]], m = r[2], M = byMonth[salesCatOf(R.cat, R.name)];
     if(m >= y0 && m <= y0 + to) { add(R.cur, r); if(M) add(M[m - y0].cur, r); }
     if(m >= y0 - 12 && m <= y0 - 12 + to) { add(R.prev, r); if(M) add(M[m - y0 + 12].prev, r); }
-    if(m >= y0 - 12 && m < y0) { add(R.fy, r); R.mPrev[m - y0 + 12] += r[3]; if(M) add(M[m - y0 + 12].fy, r); }
-    if(m >= y0 && m < y0 + 12) R.mCur[m - y0] += r[3];
+    if(m >= y0 - 12 && m < y0) { add(R.fy, r); R.mPrev[m - y0 + 12] += r[3]; R.mPrevN[m - y0 + 12] += r[5]; if(M) add(M[m - y0 + 12].fy, r); }
+    if(m >= y0 && m < y0 + 12) { R.mCur[m - y0] += r[3]; R.mCurN[m - y0] += r[5]; }
   });
   const sumBlocks = list => {
-    const T = { cur: blank(), prev: blank(), fy: blank(), mCur: Array(12).fill(0), mPrev: Array(12).fill(0) };
+    const T = { cur: blank(), prev: blank(), fy: blank(), mCur: Array(12).fill(0), mPrev: Array(12).fill(0), mCurN: Array(12).fill(0), mPrevN: Array(12).fill(0) };
     list.forEach(R => {
       ['cur', 'prev', 'fy'].forEach(k => { for(const f in T[k]) T[k][f] += R[k][f]; });
-      R.mCur.forEach((v, m) => { T.mCur[m] += v; T.mPrev[m] += R.mPrev[m]; });
+      ['mCur', 'mPrev', 'mCurN', 'mPrevN'].forEach(k => R[k].forEach((v, m) => { T[k][m] += v; }));
     });
     return T;
   };
@@ -1437,6 +1438,42 @@ function salesStoresHtml(){
     (salesStoreShow ? shown : section(all, all.T) + stores.map((s, i) => section(s, all.T, i + 1)).join('')) + '</tbody></table></div>' +
     '<p class="band-period-note sales-foot">Margin leaves consignment sales out, all values keep them in · Months: Cont % and Rank within the store · Store totals: Cont % of all stores · YTD Growth: this year so far against all of last year, so months not reached show -100%.</p></section>';
 }
+/* Net Sales, COGS, Cont % and Margin % by month, four lines per department.
+     Cont Yr   the line's year against its category, as in Sales COGS by month
+     Cont %    each month's share of the line's year, on Net Sales or COGS (the toggle)
+     Margin %  (Net Sales - COGS) / Net Sales, month by month
+   Category / Department narrow it, as the full list runs long. */
+let salesMg = { cat: '', dept: '', on: 'net', last: false };
+function salesMonthlyMarginHtml(C, partial){
+  const year = salesMg.last ? C.cy - 1 : C.cy, kN = salesMg.last ? 'mPrevN' : 'mCurN', kG = salesMg.last ? 'mPrev' : 'mCur';
+  const mark = salesMg.last ? -1 : partial, sum = a => a.reduce((s, v) => s + v, 0);
+  const cat = C.cats.find(c => c.code === salesMg.cat), cats = cat ? [cat] : C.cats;
+  const dept = cats.flatMap(c => c.list).find(R => R.name === salesMg.dept);
+  const onLabel = salesMg.on === 'net' ? 'Net Sales' : 'COGS';
+  const lines = (name, o, base, cls) => {
+    const n = o[kN], g = o[kG], on = salesMg.on === 'net' ? n : g, onYear = sum(on);
+    const td = v => '<td>' + v + '</td>';
+    const tr = (sub, label, yr, cells, end) => '<tr class="mg-line' + (sub ? ' mg-sub' : '') + (end ? ' mg-end' : '') + (cls ? ' ' + cls : '') + '"><td class="l">' + (sub ? dashEsc(label) : '<b>' + dashEsc(name) + '</b><small>' + dashEsc(label) + '</small>') + '</td>' + td(yr) + cells + '</tr>';
+    return tr(false, 'Net Sales', salesPct(sum(n), sum(base[kN]), 0), n.map(v => td(salesMoney(v))).join('') + td('<b>' + salesMoney(sum(n)) + '</b>')) +
+      tr(true, 'COGS', salesPct(sum(g), sum(base[kG]), 0), g.map(v => td(salesMoney(v))).join('') + td('<b>' + salesMoney(sum(g)) + '</b>')) +
+      tr(true, 'Cont % on ' + onLabel, '', on.map(v => td(v ? salesPct(v, onYear, 1) : '–')).join('') + td(salesPct(onYear, onYear, 0))) +
+      tr(true, 'Margin %', '', n.map((v, m) => v ? salesMarginCell(v - g[m], v) : td('–')).join('') + salesMarginCell(sum(n) - sum(g), sum(n)), true);
+  };
+  const body = dept ? lines(dept.name, dept, (cats.find(c => c.list.includes(dept)) || {}).T)
+    : cats.map(c => salesSection(c.name, 16) + c.list.map(R => lines(R.name, R, c.T)).join('') + lines(c.name + ' Total', c.T, c.T, 'band-total')).join('') +
+      (cat ? '' : lines(SALES_SCOPES[salesScope].label + ' Total', C.T, C.T, 'band-total sales-grand'));
+  const pick = (id, cur, opts, all) => '<select id="' + id + '"><option value="">' + all + '</option>' + opts.map(([v, l]) => '<option value="' + dashEsc(v) + '"' + (v === cur ? ' selected' : '') + '>' + dashEsc(l) + '</option>').join('') + '</select>';
+  const seg = (id, opts, cur) => '<div class="dash-seg" id="' + id + '">' + opts.map(([v, l]) => '<button type="button" data-v="' + v + '" class="' + (v === cur ? 'on' : '') + '">' + dashEsc(l) + '</button>').join('') + '</div>';
+  return '<section class="dash-card wide tone-pos dash-bands"><h3>Net Sales, COGS and margin by month, ' + year + ' <span>all stores' + dashEsc(SALES_SCOPES[salesScope].note) + '</span></h3>' +
+    '<div class="band-period sales-filters mg-controls"><label>Category' + pick('salesMgCat', salesMg.cat, C.cats.map(c => [c.code, c.name]), 'All') + '</label>' +
+      '<label>Department' + pick('salesMgDept', dept ? dept.name : '', cats.flatMap(c => c.list).map(R => [R.name, R.name]), 'All') + '</label>' +
+      '<div class="sales-ctl"><span>Cont % on</span>' + seg('salesMgOn', [['net', 'Net Sales'], ['cogs', 'COGS']], salesMg.on) + '</div>' +
+      '<div class="sales-ctl"><span>Year</span>' + seg('salesMgYear', [['0', String(C.cy)], ['1', String(C.cy - 1)]], salesMg.last ? '1' : '0') + '</div></div>' +
+    '<div class="band-wrap"><table class="dash-table band-table sales-table mg-table"><thead><tr><th class="l">Department</th><th>Cont Yr</th>' +
+      MONTHS.map((m, i) => '<th>' + m + (i === mark ? '*' : '') + '</th>').join('') + '<th>Year</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
+    '<p class="band-period-note sales-foot">Cont Yr: the line’s year against its category · Cont %: each month’s share of the year, on ' + onLabel + ' · Margin %: (Net Sales − COGS) ÷ Net Sales' +
+      (mark >= 0 ? ' · * ' + MONTHS[mark] + ' runs to ' + dashEsc(dashDate(SALES_AS_OF)) : '') + '.</p></section>';
+}
 function salesSummaryHtml(){
   const C = salesCompute(), per = MONTHS[0] + (C.to ? '–' + MONTHS[C.to] : ''), SC = SALES_SCOPES[salesScope], scopeEsc = dashEsc(SC.label);
   const pct = salesPct, growth = salesGrowth, money = salesMoney, ranks = salesRanks;
@@ -1477,7 +1514,7 @@ function salesSummaryHtml(){
     '<div class="dash-grid sales-charts">' +
       salesChartCard('Net Sales by month', SC.label + ', this year vs last', salesLineChart(MONTHS, [{ name: String(C.cy), color: '--chart-a', vals: MONTHS.map((_, m) => C.cats.reduce((a, c) => a + c.months[m].cur.net, 0)) }, { name: String(C.cy - 1), color: '--chart-b', vals: MONTHS.map((_, m) => C.cats.reduce((a, c) => a + c.months[m].fy.net, 0)) }])) +
       salesChartCard('L-4-L Growth by department', per + ' ' + C.cy + ' vs ' + (C.cy - 1) + ', best first', salesGrowthBars(salesGrowthRows(C.cats.flatMap(c => c.list)))) +
-    '</div>' +
+    '</div>' + salesMonthlyMarginHtml(C, partial) +
     '<section class="dash-card wide tone-pos dash-bands"><h3>Sales by department <span>' + dashEsc(per) + ' ' + C.cy + ' and ' + (C.cy - 1) + ', then full year ' + (C.cy - 1) + '</span></h3>' + summaryTable('Department', summary) + '</section>' +
     '<section class="dash-card wide tone-pos dash-bands"><h3>Sales by month <span>' + dashEsc(per) + ' ' + C.cy + ' and ' + (C.cy - 1) + ', then full year ' + (C.cy - 1) + '</span></h3>' + summaryTable('Month', byMonth) + '</section>' +
     monthly(C.cy, 'mCur', partial) + monthly(C.cy - 1, 'mPrev', -1);
@@ -1507,6 +1544,11 @@ function renderSales(){
   root.querySelectorAll('#salesTabs button').forEach(b => b.addEventListener('click', () => { salesTab = b.dataset.t; renderSales(); }));
   root.querySelectorAll('#salesScopeSeg button').forEach(b => b.addEventListener('click', () => { salesScope = b.dataset.s; renderSales(); }));
   root.querySelectorAll('#salesAvgSeg button').forEach(b => b.addEventListener('click', () => { salesAvgMonths = Number(b.dataset.m); renderSales(); }));
+  const mgCat = root.querySelector('#salesMgCat'), mgDept = root.querySelector('#salesMgDept');
+  if(mgCat) mgCat.addEventListener('change', () => { salesMg.cat = mgCat.value; salesMg.dept = ''; renderSales(); });
+  if(mgDept) mgDept.addEventListener('change', () => { salesMg.dept = mgDept.value; renderSales(); });
+  root.querySelectorAll('#salesMgOn button').forEach(b => b.addEventListener('click', () => { salesMg.on = b.dataset.v; renderSales(); }));
+  root.querySelectorAll('#salesMgYear button').forEach(b => b.addEventListener('click', () => { salesMg.last = b.dataset.v === '1'; renderSales(); }));
   const store = root.querySelector('#salesStore');
   if(store) store.addEventListener('change', () => { salesStoreShow = store.value; renderSales(); });
   const clear = root.querySelector('#salesClear');
