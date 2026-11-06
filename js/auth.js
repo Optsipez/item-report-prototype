@@ -53,6 +53,17 @@ function checkAccess(id){
     .catch(() => true);
 }
 const ACCESS_OFF_MSG = 'Your access is switched off. Please ask the admin.';
+function signOutIfSwitchedOff(){
+  const id = CURRENT_EMPLOYEE_ID;
+  if(!id) return;
+  checkAccess(id).then(ok => {
+    if(ok || CURRENT_EMPLOYEE_ID !== id) return;
+    clearSession();
+    CURRENT_ROLE = null; CURRENT_EMPLOYEE_ID = null; CURRENT_EMPLOYEE_NAME = '';
+    hidePrimaryOverlay();
+    showLoginOverlay(ACCESS_OFF_MSG);
+  });
+}
 
 let CURRENT_ROLE = null;
 let CURRENT_EMPLOYEE_ID = null;
@@ -291,19 +302,16 @@ function enterApp(emp){
     updateTopbarUser();
     applyRoleClass();
     showPrimaryOverlay();
-    checkAccess(CURRENT_EMPLOYEE_ID).then(ok => {
-      if(ok) return;
-      clearSession();
-      CURRENT_ROLE = null; CURRENT_EMPLOYEE_ID = null; CURRENT_EMPLOYEE_NAME = '';
-      hidePrimaryOverlay();
-      showLoginOverlay(ACCESS_OFF_MSG);
-    });
+    signOutIfSwitchedOff();
   } else {
     showLoginOverlay();
   }
+  // Also on every page change and Menu open, so a "no" takes effect in an
+  // already-open tab as soon as the person moves anywhere.
+  window.addEventListener('hashchange', signOutIfSwitchedOff);
 
   const openPrimaryBtn = document.getElementById('openPrimaryBtn');
-  if(openPrimaryBtn) openPrimaryBtn.addEventListener('click', showPrimaryOverlay);
+  if(openPrimaryBtn) openPrimaryBtn.addEventListener('click', () => { showPrimaryOverlay(); signOutIfSwitchedOff(); });
 
   const form = document.getElementById('loginForm');
   if(form){
