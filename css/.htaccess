@@ -1,0 +1,5 @@
+# Browsers check for a newer copy on every load (a quick "not modified" when
+# nothing changed), so a deploy shows up on a normal refresh without Ctrl+Shift+R.
+<IfModule mod_headers.c>
+  Header set Cache-Control "no-cache"
+</IfModule>
