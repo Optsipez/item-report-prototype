@@ -1256,10 +1256,14 @@ function salesStackBars(rows, a, b){   // rows: { label, a, b } in months
   const max = Math.max(1, ...rows.map(r => r.a + r.b));
   return salesLegend([a, b]) + '<div class="sales-bars">' + rows.map(r => '<div class="sb-row single" data-tip="' + dashEsc(r.label + '\n' + a[0] + ': ' + r.a.toFixed(1) + '\n' + b[0] + ': ' + r.b.toFixed(1)) + '"><span class="sb-k" title="' + dashEsc(r.label) + '">' + dashEsc(r.label) + '</span><div class="sb-line"><span class="sb-stack" style="width:' + ((r.a + r.b) / max * 100).toFixed(1) + '%"><i style="flex:' + r.a.toFixed(2) + ';background:var(' + a[1] + ')"></i><i style="flex:' + r.b.toFixed(2) + ';background:var(' + b[1] + ')"></i></span><em>' + (r.a + r.b).toFixed(1) + '</em></div></div>').join('') + '</div>';
 }
+// A department with next to nothing last year can show +17,000%, which would
+// squash every other bar to a sliver. Growth past GROWTH_CLIP draws full width
+// with a break mark (the label keeps the real figure); the rest scale to each other.
+const GROWTH_CLIP = 300;
 function salesGrowthBars(rows){   // rows: { label, g } in %, ranked; left of the axis is down, right is up
-  const max = Math.max(1, ...rows.map(r => Math.abs(r.g)));
-  return '<div class="sales-bars growth">' + rows.map(r => { const w = (Math.abs(r.g) / max * 50).toFixed(1), t = (r.g > 0 ? '+' : '') + r.g.toFixed(1) + '%';
-    return '<div class="sb-row single" data-tip="' + dashEsc(r.label + '\nL-4-L Growth: ' + t) + '"><span class="sb-k" title="' + dashEsc(r.label) + '">' + dashEsc(r.label) + '</span><div class="sb-axis"><span style="' + (r.g < 0 ? 'right:50%' : 'left:50%') + ';width:' + w + '%;background:var(' + (r.g < 0 ? '--chart-down' : '--chart-up') + ')"></span></div><em>' + t + '</em></div>'; }).join('') + '</div>';
+  const max = Math.max(1, ...rows.map(r => Math.abs(r.g)).filter(g => g <= GROWTH_CLIP));
+  return '<div class="sales-bars growth">' + rows.map(r => { const clip = Math.abs(r.g) > GROWTH_CLIP, w = clip ? '50' : (Math.abs(r.g) / max * 50).toFixed(1), t = (r.g > 0 ? '+' : '') + r.g.toFixed(1) + '%';
+    return '<div class="sb-row single" data-tip="' + dashEsc(r.label + '\nL-4-L Growth: ' + t + (clip ? '\nBar cut short: last year’s sales were very small' : '')) + '"><span class="sb-k" title="' + dashEsc(r.label) + '">' + dashEsc(r.label) + '</span><div class="sb-axis"><span' + (clip ? ' class="clip"' : '') + ' style="' + (r.g < 0 ? 'right:50%' : 'left:50%') + ';width:' + w + '%;background:var(' + (r.g < 0 ? '--chart-down' : '--chart-up') + ')"></span></div><em>' + t + '</em></div>'; }).join('') + '</div>';
 }
 const salesGrowthRows = list => list.filter(R => R.prev.net > 0).map(R => ({ label: R.name, g: (R.cur.net / R.prev.net - 1) * 100 })).sort((a, b) => b.g - a.g);
 function salesWireTips(root){
