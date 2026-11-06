@@ -800,6 +800,13 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .login-card .access-switch{width:64px;padding:6px 0;background:var(--panel);color:var(--neg);border-color:var(--line-strong);}
 .login-card .access-switch.on{background:var(--primary);color:var(--on-primary);border-color:var(--primary);}
 .login-card .access-switch:disabled{opacity:.5;cursor:wait;}
+.access-btns{display:flex;gap:6px;flex:none;}
+.login-card .access-pw-btn{width:auto;padding:6px 10px;background:var(--panel);color:var(--ink);border-color:var(--line-strong);font-weight:500;}
+.access-pw-form{display:flex;gap:6px;padding:8px 2px 10px;border-bottom:1px solid var(--line);}
+.login-card .access-pw-form input{margin:0;padding:6px 10px;flex:1;min-width:0;}
+.login-card .access-pw-form button,.login-card .access-btns button{margin:0;}
+.login-card .access-pw-form button{width:auto;padding:6px 12px;}
+.login-error.ok{color:var(--pos,#15803d);}
 .lookup-box button:active{transform:translateY(1px);box-shadow:none;}
 
 /* Primary launcher — full-screen (z-index just below .login-overlay: the

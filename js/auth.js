@@ -52,6 +52,13 @@ function checkAccess(id){
     .then(r => r.json()).then(j => j.allowed !== false)
     .catch(() => true);
 }
+// Sign-in: the server says whether this person is switched off and, if the
+// admin has changed their password, whether it matches. Not changed -> the
+// password in EMPLOYEES. Server unreachable -> EMPLOYEES only, as before.
+function checkLogin(id, password){
+  return fetch(ACCESS_URL, { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login', id, password }) })
+    .then(r => r.json()).catch(() => ({ allowed: true, changed: false }));
+}
 const ACCESS_OFF_MSG = 'Your access is switched off. Please ask the admin.';
 function signOutIfSwitchedOff(){
   const id = CURRENT_EMPLOYEE_ID;
@@ -212,25 +219,45 @@ function openAccessScreen(){
   const admin = findEmployee(CURRENT_EMPLOYEE_ID);
   const people = EMPLOYEES.filter(e => e.role !== 'admin');
   const roleLabel = r => r === 'ceo' ? 'CEO' : r === 'manager' ? 'Manager' : 'Buyer';
-  const draw = blocked => {
+  // Password opens a box under that person: Save sets a new password, "Use
+  // original" puts them back on the one in EMPLOYEES.
+  let state = { blocked: [], changed: [] }, pwOpen = null, note = '';
+  const draw = () => {
+    const changed = state.changed.map(String);
     list.innerHTML = people.map(e => {
-      const on = !blocked.includes(e.id.toUpperCase());
-      return '<div class="access-row"><span><b>' + (e.name || e.id) + '</b><small>' + e.id + ' · ' + roleLabel(e.role) + '</small></span>' +
-        '<button type="button" class="access-switch' + (on ? ' on' : '') + '" data-id="' + e.id + '" aria-pressed="' + on + '">' + (on ? 'Yes' : 'No') + '</button></div>';
+      const id = e.id.toUpperCase(), on = !state.blocked.includes(id), ch = changed.includes(id);
+      return '<div class="access-row"><span><b>' + (e.name || e.id) + '</b><small>' + e.id + ' · ' + roleLabel(e.role) + (ch ? ' · password changed' : '') + '</small></span>' +
+        '<span class="access-btns"><button type="button" class="access-pw-btn" data-id="' + e.id + '">Password</button>' +
+        '<button type="button" class="access-switch' + (on ? ' on' : '') + '" data-id="' + e.id + '" aria-pressed="' + on + '">' + (on ? 'Yes' : 'No') + '</button></span></div>' +
+        (pwOpen === e.id ? '<form class="access-pw-form" data-id="' + e.id + '"><input type="text" class="access-pw-input" placeholder="New password for ' + (e.name || e.id) + '" autocomplete="off">' +
+          '<button type="submit">Save</button>' + (ch ? '<button type="button" class="access-pw-reset">Use original</button>' : '') + '</form>' : '');
     }).join('');
+    const input = list.querySelector('.access-pw-input');
+    if(input) input.focus();
+    err.textContent = note; err.classList.toggle('ok', !!note); note = '';
   };
-  const fail = msg => { err.textContent = msg; };
-  err.textContent = ''; list.innerHTML = '<p class="login-sub">Loading…</p>'; overlay.hidden = false;
-  fetch(ACCESS_URL, { cache: 'no-store' }).then(r => r.json()).then(j => draw(j.blocked || []))
+  const fail = msg => { err.textContent = msg; err.classList.remove('ok'); };
+  const save = (body, done) => fetch(ACCESS_URL, { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ password: admin ? admin.password : '' }, body)) })
+    .then(r => r.json()).then(j => { if(j.error) throw new Error(j.error); state = j; if(done) done(); draw(); })
+    .catch(x => { list.querySelectorAll('button').forEach(b => { b.disabled = false; }); fail('Not saved: ' + (x.message || 'server error')); });
+  fail(''); list.innerHTML = '<p class="login-sub">Loading…</p>'; overlay.hidden = false;
+  fetch(ACCESS_URL, { cache: 'no-store' }).then(r => r.json()).then(j => { state = j; draw(); })
     .catch(() => { list.innerHTML = ''; fail('Can’t reach the server. User Access only works on the live site.'); });
   list.onclick = e => {
-    const btn = e.target.closest('.access-switch');
-    if(!btn) return;
-    btn.disabled = true; err.textContent = '';
-    fetch(ACCESS_URL, { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: admin ? admin.password : '', id: btn.dataset.id, allowed: !btn.classList.contains('on') }) })
-      .then(r => r.json()).then(j => { if(j.error) throw new Error(j.error); draw(j.blocked); })
-      .catch(x => { btn.disabled = false; fail('Not saved: ' + (x.message || 'server error')); });
+    const sw = e.target.closest('.access-switch'), pw = e.target.closest('.access-pw-btn'), reset = e.target.closest('.access-pw-reset');
+    if(pw){ pwOpen = pwOpen === pw.dataset.id ? null : pw.dataset.id; draw(); return; }
+    if(!sw && !reset) return;
+    (sw || reset).disabled = true; fail('');
+    if(sw) save({ id: sw.dataset.id, allowed: !sw.classList.contains('on') });
+    else { const id = reset.closest('form').dataset.id; save({ id, newPassword: '' }, () => { pwOpen = null; note = (findEmployee(id) || {}).name + ' is back on the original password.'; }); }
+  };
+  list.onsubmit = e => {
+    e.preventDefault();
+    const form = e.target, id = form.dataset.id, pwVal = form.querySelector('input').value;
+    if(pwVal.length < 4) return fail('Use at least 4 characters.');
+    form.querySelector('button[type=submit]').disabled = true;
+    save({ id, newPassword: pwVal }, () => { pwOpen = null; note = 'Password changed for ' + ((findEmployee(id) || {}).name || id) + '.'; });
   };
   document.getElementById('accessClose').onclick = () => { overlay.hidden = true; };
 }
@@ -320,12 +347,11 @@ function enterApp(emp){
       const idVal = document.getElementById('loginId').value;
       const pwVal = document.getElementById('loginPassword').value;
       const emp = findEmployee(idVal);
-      if(!emp || emp.password !== pwVal){
-        showLoginOverlay('Incorrect employee ID or password.');
-        return;
-      }
-      checkAccess(emp.id).then(ok => {
-        if(!ok) return showLoginOverlay(ACCESS_OFF_MSG);
+      const wrong = () => showLoginOverlay('Incorrect employee ID or password.');
+      if(!emp) return wrong();
+      checkLogin(emp.id, pwVal).then(j => {
+        if(!(j.changed ? j.ok === true : emp.password === pwVal)) return wrong();
+        if(j.allowed === false) return showLoginOverlay(ACCESS_OFF_MSG);
         saveSession(emp);
         enterApp(emp);
       });
