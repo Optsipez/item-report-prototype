@@ -60,6 +60,46 @@ function checkLogin(id, password){
     .then(r => r.json()).catch(() => ({ allowed: true, changed: false }));
 }
 const ACCESS_OFF_MSG = 'Your access is switched off. Please ask the admin.';
+// After a sign-in the server notes where it came from (country, emirate/state,
+// from the IP address); User Access shows it per person.
+function recordSignIn(id){
+  fetch(ACCESS_URL, { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'signedin', id }) }).catch(() => {});
+}
+const placeText = p => {
+  if(!p || !p.country) return 'place unknown';
+  let c = p.country;
+  try { c = new Intl.DisplayNames(['en'], { type: 'region' }).of(p.country) || c; } catch(e){}
+  return (p.region ? p.region + ', ' : '') + c;
+};
+const whenText = t => new Date(t).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+// Sign-ins from outside the UAE pop up for Javaid and the admin account while
+// they have the app open: checked every minute and on every page change. Each
+// shows once per person (the last one seen is remembered in this browser).
+const SIGNIN_ALERT_IDS = ['3111'];
+let signInAlertTimer = null;
+function checkSignInAlerts(){
+  if(!CURRENT_EMPLOYEE_ID || !(CURRENT_ROLE === 'admin' || SIGNIN_ALERT_IDS.includes(CURRENT_EMPLOYEE_ID))) return;
+  if(!signInAlertTimer) signInAlertTimer = setInterval(checkSignInAlerts, 60000);
+  const key = 'signInAlertSeen:' + CURRENT_EMPLOYEE_ID;
+  let seen = 0;
+  try { seen = Number(localStorage.getItem(key)) || 0; } catch(e){}
+  fetch(ACCESS_URL + '?alerts=' + seen, { cache: 'no-store' }).then(r => r.json()).then(j => {
+    const list = (j.alerts || []).slice(-5);
+    if(!list.length) return;
+    try { localStorage.setItem(key, String(list[list.length - 1].n)); } catch(e){}
+    let box = document.getElementById('signInAlerts');
+    if(!box){ box = document.createElement('div'); box.id = 'signInAlerts'; box.className = 'signin-alerts'; document.body.appendChild(box); }
+    list.forEach(a => {
+      const emp = findEmployee(a.id), who = (emp && emp.name ? emp.name + ' (' + a.id + ')' : a.id);
+      const el = document.createElement('div');
+      el.className = 'signin-alert'; el.setAttribute('role', 'alert');
+      el.innerHTML = '<b>Sign-in from outside the UAE</b><span></span><button type="button" aria-label="Close">&times;</button>';
+      el.querySelector('span').textContent = who + ' · ' + placeText(a) + ' · ' + whenText(a.t);
+      el.querySelector('button').onclick = () => el.remove();
+      box.appendChild(el);
+    });
+  }).catch(() => {});
+}
 function signOutIfSwitchedOff(){
   const id = CURRENT_EMPLOYEE_ID;
   if(!id) return;
@@ -221,12 +261,13 @@ function openAccessScreen(){
   const roleLabel = r => r === 'ceo' ? 'CEO' : r === 'manager' ? 'Manager' : 'Buyer';
   // Password opens a box under that person: Save sets a new password, "Use
   // original" puts them back on the one in EMPLOYEES.
-  let state = { blocked: [], changed: [] }, pwOpen = null, note = '';
+  let state = { blocked: [], changed: [], last: {} }, pwOpen = null, note = '';
   const draw = () => {
-    const changed = state.changed.map(String);
+    const changed = state.changed.map(String), last = state.last || {};
     list.innerHTML = people.map(e => {
-      const id = e.id.toUpperCase(), on = !state.blocked.includes(id), ch = changed.includes(id);
-      return '<div class="access-row"><span><b>' + (e.name || e.id) + '</b><small>' + e.id + ' · ' + roleLabel(e.role) + (ch ? ' · password changed' : '') + '</small></span>' +
+      const id = e.id.toUpperCase(), on = !state.blocked.includes(id), ch = changed.includes(id), L = last[id];
+      const seen = L ? '<small class="access-last' + (L.country && L.country !== 'AE' ? ' away' : '') + '">Last sign-in ' + whenText(L.t) + ' · ' + placeText(L) + '</small>' : '<small class="access-last">No sign-in recorded yet</small>';
+      return '<div class="access-row"><span><b>' + (e.name || e.id) + '</b><small>' + e.id + ' · ' + roleLabel(e.role) + (ch ? ' · password changed' : '') + '</small>' + seen + '</span>' +
         '<span class="access-btns"><button type="button" class="access-pw-btn" data-id="' + e.id + '">Password</button>' +
         '<button type="button" class="access-switch' + (on ? ' on' : '') + '" data-id="' + e.id + '" aria-pressed="' + on + '">' + (on ? 'Yes' : 'No') + '</button></span></div>' +
         (pwOpen === e.id ? '<form class="access-pw-form" data-id="' + e.id + '"><input type="text" class="access-pw-input" placeholder="New password for ' + (e.name || e.id) + '" autocomplete="off">' +
@@ -330,12 +371,13 @@ function enterApp(emp){
     applyRoleClass();
     showPrimaryOverlay();
     signOutIfSwitchedOff();
+    checkSignInAlerts();
   } else {
     showLoginOverlay();
   }
   // Also on every page change and Menu open, so a "no" takes effect in an
   // already-open tab as soon as the person moves anywhere.
-  window.addEventListener('hashchange', signOutIfSwitchedOff);
+  window.addEventListener('hashchange', () => { signOutIfSwitchedOff(); checkSignInAlerts(); });
 
   const openPrimaryBtn = document.getElementById('openPrimaryBtn');
   if(openPrimaryBtn) openPrimaryBtn.addEventListener('click', () => { showPrimaryOverlay(); signOutIfSwitchedOff(); });
@@ -353,7 +395,9 @@ function enterApp(emp){
         if(!(j.changed ? j.ok === true : emp.password === pwVal)) return wrong();
         if(j.allowed === false) return showLoginOverlay(ACCESS_OFF_MSG);
         saveSession(emp);
+        recordSignIn(emp.id);
         enterApp(emp);
+        checkSignInAlerts();
       });
     });
   }

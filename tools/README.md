@@ -123,3 +123,13 @@ Column names it relies on:
 - **Sales:** `Item No`, `Year Name`, `Month Name`, `Store No`, `Territorry`, `Tot Sold Quantity`, `Tot Sales Cost`, `Tot RSP`, `Tot NET`, `Tot Discount Amount`, `Cons. Status`
 - **GRN:** `SKU`, `GRN DATE`, `Order Date`, `Quantity`
 - **PO:** see `derive.py`
+
+## Sign-in locations (User Access)
+
+`access.php` turns each sign-in's internet address into a country and emirate/state using DB-IP's free **IP to City Lite** database (CC BY 4.0, free for business use, credited on the User Access screen). It lives on the server outside the web folder, in `/home/a2xlmec/2xlpurchase-geo/`. DB-IP publishes a new file on the 1st of each month; refreshing it now and then keeps places accurate:
+
+```bash
+curl -O https://download.db-ip.com/free/dbip-city-lite-YYYY-MM.csv.gz
+python tools/geo_build.py dbip-city-lite-YYYY-MM.csv.gz /tmp/geo   # prints ranges, places and two test lookups
+scp /tmp/geo/ipv4.bin /tmp/geo/locs.json cpanel-2xl:2xlpurchase-geo/
+```

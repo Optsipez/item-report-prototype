@@ -807,6 +807,16 @@ body.view-dashboard .main{margin-left:0;padding-left:var(--sp-7);}
 .login-card .access-pw-form button,.login-card .access-btns button{margin:0;}
 .login-card .access-pw-form button{width:auto;padding:6px 12px;}
 .login-error.ok{color:var(--pos,#15803d);}
+.access-row small.access-last{color:var(--ink-soft);}
+.access-row small.access-last.away{color:var(--neg);font-weight:600;}
+.access-credit{margin:0 0 var(--sp-3);font-size:var(--fs-2xs);color:var(--ink-faint);}
+/* Sign-ins from outside the UAE, popped up for Javaid / admin (checkSignInAlerts in auth.js) */
+.signin-alerts{position:fixed;right:16px;bottom:16px;z-index:600;display:flex;flex-direction:column;gap:8px;max-width:min(360px,calc(100vw - 32px));}
+.signin-alert{position:relative;padding:12px 36px 12px 14px;background:var(--panel);border:1px solid var(--line-strong);border-left:4px solid var(--neg);border-radius:var(--r-md);box-shadow:var(--sh-lg);font-size:var(--fs-sm);color:var(--ink);}
+.signin-alert b{display:block;margin-bottom:2px;}
+.signin-alert span{color:var(--ink-soft);}
+.signin-alert button{position:absolute;top:6px;right:8px;border:0;background:none;font-size:18px;line-height:1;color:var(--ink-faint);cursor:pointer;padding:4px;}
+.signin-alert button:hover{color:var(--ink);}
 .lookup-box button:active{transform:translateY(1px);box-shadow:none;}
 
 /* Primary launcher — full-screen (z-index just below .login-overlay: the
