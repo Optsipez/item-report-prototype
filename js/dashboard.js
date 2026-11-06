@@ -27,7 +27,7 @@
 function resetDashForUser(){
   dashScope = null; dashTab = null; dashHeaderCollapsed = false;      // the next person gets their own remembered scope
   poDataScope = null; poDataVendorAmbiguous = null;
-  simScope = null; simVScope = null; simVendorAmbiguous = null; simVVendorAmbiguous = null;
+  simScope = null; simVendorAmbiguous = null;
 }
 
 const DAY = 86400000;
@@ -906,21 +906,20 @@ function dashScopeBar(scope = dashScope, amb = dashVendorAmbiguous, opts = {}){
         '<button type="button" class="dr-ms-clear" id="dashPlanClear">All</button>' +
         uniq('plan', 'Current Plan Code').map(v => '<label class="dr-ms-opt' + (planSel.includes(v) ? ' dr-ms-checked' : '') + '"><input type="checkbox" value="' + dashEsc(v) + '"' + (planSel.includes(v) ? ' checked' : '') + '><span class="dr-ms-lbl">' + dashEsc(v) + '</span></label>').join('') +
       '</div>' : '') + '</label>';
-  // opts.noVendor: no Vendor field (SIM PIM's main block -- vendors get their own
-  // block); opts.vendorFirst: Vendor leads (that vendor block)
-  const vendorField = opts.noVendor ? '' : '<label class="dash-vendor-field">Vendor code<input id="dashVendor" list="' + lp + 'dashVendorList" class="' + (amb ? 'dash-vendor-ambiguous' : '') + '" value="' +
+  // opts.vendorBox: Vendor in its own box at the front, beside Display Filter (SIM PIM)
+  const vendorField = '<label class="dash-vendor-field">Vendor code<input id="dashVendor" list="' + lp + 'dashVendorList" class="' + (amb ? 'dash-vendor-ambiguous' : '') + '" value="' +
       dashEsc(amb ? amb.raw : scope.vendor) + '" title="' + dashEsc(dashVendorAmbiguousTip(amb)) + '" placeholder="All" autocomplete="off">' +
       dashVendorOptionsHtml(amb) + '</label>' +
     '<datalist id="' + lp + 'dashVendorList">' + uniq('vendor', 'Vendor Code').map(v => '<option value="' + dashEsc(v) + '">').join('') + '</datalist>';
-  return '<div class="dash-scope dash-scope-grid">' + (opts.headless ? '' : '<div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' + reset + '</div>') +
+  return '<div class="dash-scope dash-scope-grid' + (opts.vendorBox ? ' has-vendor-box' : '') + '">' + (opts.headless ? '' : '<div class="dash-scope-head"><span class="dash-scope-t">Show me</span>' + reset + '</div>') +
     // Range toggle spans both rows on the left; the 10 filters fill a 5 + 5 grid beside it:
     // Category, Department, Group, Vendor, PUDA on top; Plan, Range Name, Event, Lifestyle, Price Point below.
     '<div class="dash-grp-field"><span class="dash-grp-k">Display Filter</span>' + catGroupSeg('dashGrpSeg', scope.grp) + '</div>' +
-    (opts.vendorFirst ? vendorField : '') +
+    (opts.vendorBox ? '<div class="dash-vendor-box">' + vendorField + '</div>' : '') +
     '<label>Category<select id="dashCat">' + opt(uniq('cat', 'Category'), scope.cat) + '</select></label>' +
     '<label>Department<select id="dashDept">' + opt(uniq('dept', 'Department Desc'), scope.dept) + '</select></label>' +
     search('dashGroup', 'group', 'Group Desc') +
-    (opts.vendorFirst ? '' : vendorField) +
+    (opts.vendorBox ? '' : vendorField) +
     search('dashPuda', 'puda', 'PUDA Desc') +
     planField +
     search('dashRange', 'range', 'Range Name') +
@@ -1049,13 +1048,12 @@ function dashBandTables(){
   return { html: main + aging, B };
 }
 /* ---------- SIM PIM Summary (its own page, #simpim) ----------
-   Two blocks, each with its own Show me filters, table and charts:
-     main    Category, Department, Group, PUDA, CPC, Range, Event, Lifestyle,
-             Price Point (no Vendor)
-     vendor  the same, led by a Vendor; every list shows only what that vendor
-             supplies (the bars' lists already narrow to what the other picks leave)
-   Rows: one per value of the next filter not yet picked, in that order; all
-   picked -> items. Rows don't click through: drilling is done in the filters.
+   Vendor sits in its own box at the front of the Show me bar: pick one and
+   every other list narrows to what that vendor supplies (each list already
+   shows only what the other picks leave).
+   Rows: one per value of the next filter not yet picked (Category, Department,
+   Group, PUDA, CPC, Range, Event, Lifestyle, Price Point); all picked -> items.
+   Rows don't click through: drilling is done in the filters.
      Stock    SOH units, and at L-Cost
      On order open PO qty and PO Cost (Tot Order Cost AED from the PO file;
               cancelled POs left out)
@@ -1063,20 +1061,15 @@ function dashBandTables(){
               months (a month still in progress would drag the average down)
      SIM      stock / avg (Qty: units, Value: cost / COGS), in months
      PIM      on order / avg, the same two ways
-   Charts beside the table: stock, on order and avg COGS at cost; share of
-   stock against share of sales -- the biggest SIM_CHART_ROWS rows by stock.
+   Charts to the right of the table, in their own cards: stock, on order and
+   avg COGS at cost; share of stock against share of sales -- the biggest
+   SIM_CHART_ROWS rows by stock.
    Items dropped from the stock list (SALES_ONLY_ITEMS) still count in sales. */
 let simScope = null, simVendorAmbiguous = null, simMonths = 3, simHeaderCollapsed = false;
-let simVScope = null, simVVendorAmbiguous = null;
 const simScopeKey = () => 'simScope:' + (CURRENT_EMPLOYEE_ID || 'anon');
-const simVScopeKey = () => 'simVScope:' + (CURRENT_EMPLOYEE_ID || 'anon');
 const SIM_SLOT = {
   get: () => simScope, set: s => { simScope = s; try { localStorage.setItem(simScopeKey(), JSON.stringify(s)); } catch(e){} },
   getAmb: () => simVendorAmbiguous, setAmb: a => { simVendorAmbiguous = a; },
-};
-const SIM_V_SLOT = {
-  get: () => simVScope, set: s => { simVScope = s; try { localStorage.setItem(simVScopeKey(), JSON.stringify(s)); } catch(e){} },
-  getAmb: () => simVVendorAmbiguous, setAmb: a => { simVVendorAmbiguous = a; },
 };
 const SIM_LEVELS = [
   ['cat', 'Category', it => it['Category']], ['dept', 'Department', it => it['Department Desc']], ['group', 'Group Desc', it => it['Group Desc']],
@@ -1153,55 +1146,41 @@ function simReportHtml(C){
       return { label: name(r), vals: [s, c], texts: [s.toFixed(1) + '%', c.toFixed(1) + '%'] }; }),
       [['% of stock', '--chart-b'], ['% of sales', '--chart-c']])) +
     '</div>';
-  return C.list.length ? '<div class="sim-split"><div class="sim-split-table">' + table + '</div>' + charts + '</div>' : '<p class="dash-empty">Nothing matches these filters.</p>';
+  return { table, charts };
 }
 function renderSimPim(){
   const root = document.getElementById('simRoot');
   if(!root) return;
-  const load = (key, own) => { let s = null; try { s = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){} return { ...DASH_SCOPE_DEFAULTS, ...(s || {}), ...own }; };
-  if(!simScope) simScope = load(simScopeKey(), { vendor: '' });   // vendors live in their own block now
-  if(!simVScope) simVScope = load(simVScopeKey(), {});
-  // each block re-renders on its own, so one block's filters never redraw the other
-  if(!root.querySelector('#simMainBlock')){
-    root.innerHTML = '<div id="simMainBlock"></div><div id="simVendorBlock"></div>';
-    salesWireTips(root);
+  if(!simScope){
+    let s = null;
+    try { s = JSON.parse(localStorage.getItem(simScopeKey()) || 'null'); } catch(e){}
+    simScope = { ...DASH_SCOPE_DEFAULTS, ...(s || {}) };
   }
-  renderSimMain(); renderSimVendor();
-}
-function renderSimMain(){
-  const box = document.getElementById('simMainBlock');
-  const C = simCompute(simScope), L = C.level;
+  const C = simCompute(simScope), L = C.level, R = simReportHtml(C);
   const per = dashMonthLabel(C.from) + (C.from === C.to ? '' : ' – ' + dashMonthLabel(C.to));
   const seg = [3, 6, 9, 12].map(m => '<button type="button" data-m="' + m + '" class="' + (m === simMonths ? 'on' : '') + '">' + m + ' months</button>').join('');
-  box.innerHTML =
+  const vName = simScope.vendor && canSeeVendorName() && VENDOR_CODE_TO_NAME[simScope.vendor] ? simScope.vendor + ' — ' + VENDOR_CODE_TO_NAME[simScope.vendor] + ' · ' : simScope.vendor ? simScope.vendor + ' · ' : '';
+  const card = '<section class="dash-card wide tone-pos dash-bands"><h3>' + dashEsc(vName) + 'By ' + dashEsc(L ? L[1] : 'Item') + ' <span>SIM = stock ÷ avg monthly sales · PIM = on order ÷ avg monthly sales, in months</span></h3>' +
+    '<div class="band-period"><div class="dash-seg" id="simMonthsSeg">' + seg + '</div><span class="band-period-note">Average over ' + dashEsc(per) + ' (complete months) · Plan U lines count as 0 average</span></div>' +
+    (C.list.length ? R.table : '<p class="dash-empty">Nothing matches these filters.</p>') + '</section>';
+  root.innerHTML =
     '<div class="dash-sticky">' +
     '<div class="dash-hero">' +
       '<div class="dash-hero-line">' +
         '<span class="dash-date">SIM PIM Summary</span>' +
         '<h1 class="dash-greet">Stock &amp; orders in months of sales</h1>' +
-        '<p class="dash-sub">Pick filters to drill down: the table shows the next level inside what you picked. Vendors have their own block below. <span class="dash-asof">' + dashEsc(dashAsOfText()) + '.</span></p>' +
+        '<p class="dash-sub">Pick a vendor and filters to drill down: the table shows the next level inside what you picked. <span class="dash-asof">' + dashEsc(dashAsOfText()) + '.</span></p>' +
       '</div>' +
       '<div class="dash-links"><button type="button" class="dash-btn ghost" id="simHeaderToggle">' + (simHeaderCollapsed ? 'Expand &#9662;' : 'Collapse &#9652;') + '</button></div>' +
     '</div>' +
-    (simHeaderCollapsed ? '' : dashScopeBar(simScope, null, { headless: true, listPrefix: 'sim', noVendor: true })) +
+    (simHeaderCollapsed ? '' : dashScopeBar(simScope, simVendorAmbiguous, { headless: true, listPrefix: 'sim', vendorBox: true })) +
     '</div>' +
-    '<section class="dash-card wide tone-pos dash-bands"><h3>By ' + dashEsc(L ? L[1] : 'Item') + ' <span>SIM = stock ÷ avg monthly sales · PIM = on order ÷ avg monthly sales, in months</span></h3>' +
-    '<div class="band-period"><div class="dash-seg" id="simMonthsSeg">' + seg + '</div><span class="band-period-note">Average over ' + dashEsc(per) + ' (complete months), for both blocks · Plan U lines count as 0 average</span></div>' +
-    simReportHtml(C) + '</section>';
-  if(!simHeaderCollapsed) dashWireScopeBar(box, renderSimMain, SIM_SLOT);
-  box.querySelector('#simHeaderToggle').addEventListener('click', () => { simHeaderCollapsed = !simHeaderCollapsed; renderSimMain(); });
-  box.querySelectorAll('#simMonthsSeg button').forEach(b => b.addEventListener('click', () => { simMonths = Number(b.dataset.m); renderSimPim(); }));
-}
-function renderSimVendor(){
-  const box = document.getElementById('simVendorBlock');
-  const S = simVScope, C = S.vendor ? simCompute(S) : null;
-  const vName = S.vendor && canSeeVendorName() && VENDOR_CODE_TO_NAME[S.vendor] ? ' — ' + VENDOR_CODE_TO_NAME[S.vendor] : '';
-  box.innerHTML = '<section class="dash-card wide tone-pos dash-bands sim-vendor"><h3>Vendor evaluation <span>pick a vendor, then narrow it: every list shows only what that vendor supplies</span></h3>' +
-    dashScopeBar(S, simVVendorAmbiguous, { headless: true, listPrefix: 'simv', vendorFirst: true }) +
-    (C ? '<h3 class="sim-vendor-by">' + dashEsc(S.vendor + vName) + ' · by ' + dashEsc(C.level ? C.level[1] : 'Item') + '</h3>' + simReportHtml(C)
-      : '<p class="dash-empty">Pick a vendor to see what it supplies, how it sells and how much stock and on order it has.</p>') +
-    '</section>';
-  dashWireScopeBar(box, renderSimVendor, SIM_V_SLOT);
+    // the table's card and the charts sit side by side, each on its own
+    (C.list.length ? '<div class="sim-split">' + card + R.charts + '</div>' : card);
+  if(!root.dataset.tips){ root.dataset.tips = '1'; salesWireTips(root); }
+  if(!simHeaderCollapsed) dashWireScopeBar(root, renderSimPim, SIM_SLOT);
+  root.querySelector('#simHeaderToggle').addEventListener('click', () => { simHeaderCollapsed = !simHeaderCollapsed; renderSimPim(); });
+  root.querySelectorAll('#simMonthsSeg button').forEach(b => b.addEventListener('click', () => { simMonths = Number(b.dataset.m); renderSimPim(); }));
 }
 /* ---------- Sales Dashboard: department sales, K+A+F, W+O+S or ALL ----------
    From sales-dept.js. Summary: Jan to the chosen complete month, this year vs
@@ -1778,17 +1757,14 @@ function renderDashboard(){
 function dashWireScopeBar(root, rerender, slot){
   const $ = id => root.querySelector('#' + id);
   const change = () => {
-    let vendor = slot.get().vendor || '';   // a bar without the Vendor field keeps whatever is set
-    if($('dashVendor')){
-      const raw = $('dashVendor').value;
-      const lookup = vendorNameLookup(raw);
-      vendor = '';
-      if(lookup.type === 'code') vendor = raw.trim();
-      else if(lookup.type === 'resolved'){ vendor = lookup.code; $('dashVendor').value = vendor; }   // box shows the code, never the typed name
-      else if(lookup.type === 'unmatched') vendor = raw.trim();   // leave as typed -- filters to nothing, same as before
-      // 'ambiguous' and 'empty' both leave vendor === '' (don't guess which of several matches was meant)
-      slot.setAmb(lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null);
-    }
+    const raw = $('dashVendor').value;
+    const lookup = vendorNameLookup(raw);
+    let vendor = '';
+    if(lookup.type === 'code') vendor = raw.trim();
+    else if(lookup.type === 'resolved'){ vendor = lookup.code; $('dashVendor').value = vendor; }   // box shows the code, never the typed name
+    else if(lookup.type === 'unmatched') vendor = raw.trim();   // leave as typed -- filters to nothing, same as before
+    // 'ambiguous' and 'empty' both leave vendor === '' (don't guess which of several matches was meant)
+    slot.setAmb(lookup.type === 'ambiguous' ? { raw, codes: lookup.codes } : null);
     slot.set({
       grp: slot.get().grp || '', dept: $('dashDept').value, cat: $('dashCat').value, vendor,
       range: $('dashRange').value.trim(), group: $('dashGroup').value.trim(),
@@ -1830,7 +1806,6 @@ function dashWireScopeBar(root, rerender, slot){
   // same as the From/To date fields already do above.
   ['dashVendor', 'dashRange', 'dashGroup', 'dashPuda'].forEach(id => {
     const el = $(id);
-    if(!el) return;
     el.addEventListener('blur', change);
     // Picking a suggestion applies it straight away (typing still waits for
     // blur/Enter) -- the browser marks a datalist pick as replacement text.
@@ -1846,7 +1821,6 @@ function dashWireScopeBar(root, rerender, slot){
   // its focus/caret restored right after (see refocusCaret() in app.js).
   (() => {
     const vendorInput = $('dashVendor');
-    if(!vendorInput) return;
     vendorInput.addEventListener('input', () => {
       const raw = vendorInput.value;
       const lookup = vendorNameLookup(raw);
